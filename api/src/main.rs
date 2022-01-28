@@ -1,6 +1,7 @@
 use actix_web::{get, post, web, App, HttpServer, Responder, HttpResponse};
 use serde::Serialize;
 use actix_cors::Cors;
+use chemix_chain::{sign, listen_block};
 
 /***
 * @api {get} /user/:id Request User information
@@ -113,14 +114,16 @@ async fn echo(req_body: String) -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    env_logger::init();
+    sign();
+    listen_block().await;
     HttpServer::new(move || {
         App::new().wrap(
             Cors::new()
-            .allowed_origin("*")
+                .allowed_header("*")
+                .allowed_origin("*")
                 //.allowed_origin("127.0.0.1")
                 //.allowed_origin("192.168.1.139")
-
-
                 //.send_wildcard()
             .allowed_methods(vec!["GET", "POST", "DELETE", "OPTIONS"])
             .max_age(3600)
