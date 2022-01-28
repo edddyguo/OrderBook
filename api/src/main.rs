@@ -113,6 +113,7 @@ async fn echo(req_body: String) -> impl Responder {
 }
 
 #[actix_web::main]
+//#[tokio::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
     sign();

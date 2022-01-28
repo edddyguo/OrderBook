@@ -3,5 +3,6 @@
 members = [
     "api",
 	"chain",
-	"models"
+	"models",
+	"test1"
 ]
