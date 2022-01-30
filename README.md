@@ -1,5 +1,12 @@
 # Chemix backend
 
+##cmd
+```
+sudo -u postgres psql -d testdb -U postgres -f /pathA/xxx.sql
+psql -U postgres -d postgres -h 127.0.0.1 -p 5432
+psql -U postgres -d chemix  -h 127.0.0.1 -p 5432
+```
+
 
 ##TODO
 ```

@@ -2,6 +2,8 @@ use actix_web::{get, post, web, App, HttpServer, Responder, HttpResponse};
 use serde::Serialize;
 use actix_cors::Cors;
 use chemix_chain::{sign, listen_block};
+use chemix_models::{api::{list_markets as list_markets2,MarketInfo}};
+
 
 /***
 * @api {get} /user/:id Request User information
@@ -83,12 +85,13 @@ async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
         base_token_name: "USDC".to_string(),
         engine_address: "0x3".to_string()
     });
+    let test1 = list_markets2();
     let respond = MarketsRespond {
         success : true,
         result: markets,
         error_code: 0
     };
-    serde_json::to_string(&respond).unwrap()
+    serde_json::to_string(&test1).unwrap()
 
 }
 
@@ -113,11 +116,10 @@ async fn echo(req_body: String) -> impl Responder {
 }
 
 #[actix_web::main]
-//#[tokio::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
-    sign();
-    listen_block().await;
+    //sign();
+    //listen_block().await;
     HttpServer::new(move || {
         App::new().wrap(
             Cors::new()
