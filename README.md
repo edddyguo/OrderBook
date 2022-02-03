@@ -2,7 +2,7 @@
 
 ##cmd
 ```
-sudo -u postgres psql -d testdb -U postgres -f /pathA/xxx.sql
+sudo -u postgres psql -d chemix -U postgres -f ./models/0001-init.up.sql
 psql -U postgres -d postgres -h 127.0.0.1 -p 5432
 psql -U postgres -d chemix  -h 127.0.0.1 -p 5432
 ```
@@ -12,7 +12,7 @@ psql -U postgres -d chemix  -h 127.0.0.1 -p 5432
 ```
 - [ ] 1、api接口定位，提供假数据
 - [ ] 2、撮合逻辑实现
-- [ ] 3、swagger的替代在线文档
+- [*] 3、swagger的替代在线文档
 - [ ] 4、enther交互sdk调试
 - [ ] 5、数据库字段和索引设计
 - [ ] 6、定时进行数据加工的逻辑

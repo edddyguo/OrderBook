@@ -124,7 +124,7 @@ async fn main() -> std::io::Result<()> {
         App::new().wrap(
             Cors::new()
                 //.allowed_header("*")
-                .allowed_origin("*")
+                //.allowed_origin("*")
                 //.allowed_origin("127.0.0.1")
                 //.allowed_origin("192.168.1.139")
                 //.send_wildcard()
