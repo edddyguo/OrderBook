@@ -15,9 +15,9 @@ pub struct RegisterResponse {
 
 #[derive(Deserialize, Debug)]
 pub struct Event {
-    topic: String,
-    user_id: Option<usize>,
-    message: String,
+    pub(crate) topic: String,
+    pub(crate) user_id: Option<usize>,
+    pub(crate) message: String,
 }
 
 pub async fn publish_handler(body: Event, clients: Clients) -> Result<impl Reply> {
