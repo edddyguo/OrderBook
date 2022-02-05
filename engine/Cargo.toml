@@ -17,3 +17,5 @@ tokio = { version = "1", features = ["full"] }
 ethers-contract-abigen = "0.6.0"
 serde = { version = "1.0.124", features = ["derive"] }
 serde_json = "1.0.64"
+rayon = "1.0.0"
+
