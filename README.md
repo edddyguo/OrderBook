@@ -7,6 +7,11 @@ psql -U postgres -d postgres -h 127.0.0.1 -p 5432
 psql -U postgres -d chemix  -h 127.0.0.1 -p 5432
 ```
 
+##api doc
+```
+apidoc -f ./api/src/main.rs -i api/ -o doc/
+```
+
 
 ##TODO
 ```
@@ -24,6 +29,8 @@ psql -U postgres -d chemix  -h 127.0.0.1 -p 5432
 - [ ] 12、 ng部署https
 - [ ] 13、 搭建BSC节点，压测用
 - [ ] 14、 部署测试合约做事件监听
+- [ ] 15、 基于redis的进程间通信,撮合结果推redis，推ws服务
+- [ ] 16、 kafka做15的功能
 ```
 
 ##Fix
