@@ -7,6 +7,7 @@ use tokio::sync::{mpsc, RwLock};
 use warp::{ws::Message, Filter, Rejection};
 use tokio::time;
 use handler::Event;
+use rsmq_async::{Rsmq, RsmqConnection};
 
 mod handler;
 mod ws;
@@ -71,14 +72,40 @@ async fn main() {
 
     // 线程2
     let thread2 = tokio::spawn(async move {
-        for i in 0..1000 {
-            tokio::time::sleep(time::Duration::from_secs(5)).await;
+        let mut rsmq = Rsmq::new(Default::default())
+            .await
+            .expect("connection failed");
+        loop {
+            let message = rsmq
+                .receive_message::<String>("myqueue", None)
+                .await
+                .expect("cannot receive message");
+            if let Some(message) = message {
+                println!("receive new message {:?}",message);
+                let event = Event {
+                    topic: "human".to_string(),
+                    user_id: None,
+                    message: message.message,
+                };
+                handler::publish_handler(event,clients.clone()).await;
+                rsmq.delete_message("myqueue", &message.id).await;
+            }else {
+                //tokio::time::sleep(time::Duration::from_secs(1)).await;
+                tokio::time::sleep(time::Duration::from_millis(10)).await;
+
+                println!("have no  new message");
+                continue;
+            }
+            //tokio::time::sleep(time::Duration::from_secs(5)).await;
+            /***
             let event = Event {
                 topic: "human".to_string(),
                 user_id: None,
                 message: "test1".to_string(),
             };
             handler::publish_handler(event,clients.clone()).await;
+
+             */
         }
 
     });

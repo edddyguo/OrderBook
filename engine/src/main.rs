@@ -7,9 +7,11 @@ use std::convert::TryFrom;
 use std::str::FromStr;
 use tokio::time;
 use std::ops::Add;
-use std::sync::{Arc, mpsc};
+use std::sync::{Arc, mpsc, RwLock};
 use ethers_contract_abigen::{parse_address, Address};
 use tokio::runtime::Runtime;
+use rsmq_async::{Rsmq, RsmqConnection};
+
 
 #[derive(Debug, PartialEq, EthEvent)]
 pub struct NewOrderEvent {
@@ -50,6 +52,11 @@ async fn listen_blocks() -> anyhow::Result<()> {
     let host = "https://data-seed-prebsc-2-s3.binance.org:8545";
 
     let provider_http = Provider::<Http>::try_from(host).unwrap();
+
+    let mut rsmq = Rsmq::new(Default::default())
+        .await
+        .expect("connection failed");
+
     //todo: wss://bsc-ws-node.nariox.org:443
     /***
     let ws = Ws::connect("wss://bsc-ws-node.nariox.org:443/").await.unwrap();
@@ -95,9 +102,19 @@ async fn listen_blocks() -> anyhow::Result<()> {
             });
         });
         s.spawn(move |_| {
+            let mut arc_rsmq = Arc::new(RwLock::new(rsmq));
             loop {
+                let mut arc_rsmq = arc_rsmq.clone();
                 let orders: Vec<NewOrderFilter> = event_receiver.recv().expect("failed to recv columns");
                 println!("[listen_blocks: receive] New order Event {:?},base token {:?}", orders[0].user, orders[0].base_token);
+                let json_str = serde_json::to_string(&orders).unwrap();
+                let rt = Runtime::new().unwrap();
+                rt.block_on(async move {
+                    arc_rsmq.write().unwrap().send_message("myqueue", json_str, None)
+                        .await
+                        .expect("failed to send message");
+                });
+
             }
         });
     });
@@ -107,6 +124,13 @@ async fn listen_blocks() -> anyhow::Result<()> {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+
+    /***
+    rsmq.create_queue("myqueue", None, None, None)
+        .await
+        .expect("failed to create queue");
+    ***/
+
     listen_blocks().await;
     Ok(())
 }

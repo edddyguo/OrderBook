@@ -14,3 +14,4 @@ serde_json = "1.0"
 futures = { version = "0.3", default-features = false }
 uuid = { version = "0.4", features = ["serde", "v4"] }
 tokio-stream = "0.1.6"
+rsmq_async = "5.1.2"
