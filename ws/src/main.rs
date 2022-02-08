@@ -1,6 +1,8 @@
 extern crate tokio;
 extern crate rsmq_async;
 extern crate futures;
+extern crate serde_json;
+extern crate warp;
 
 use std::collections::HashMap;
 use std::convert::Infallible;
@@ -65,9 +67,9 @@ async fn ws_service(clients: Clients) {
     let routes = health_route
         .or(register_routes)
         .or(ws_route)
-        .with(warp::cors().allow_any_origin());
+        .with(warp::cors());
 
-    warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
+    warp::serve(routes).run(([0, 0, 0, 0], 7020)).await;
 }
 
 async fn listen_msg_queue(mut rsmq: Rsmq, clients: Clients, queue_name: &str) -> Option<String> {
@@ -134,7 +136,7 @@ async fn main() {
             if let Some(message) = message {
                 println!("receive new message {:?}", message);
                 let event = Event {
-                    topic: format!("OrderBook::{}","BTC-USDT"),
+                    topic: format!("{}@depth","BTC-USDT"),
                     //topic: format!("human"),
                     user_id: None,
                     message: message.message.clone(),
@@ -153,7 +155,7 @@ async fn main() {
             if let Some(message) = message {
                 println!("receive new message {:?}", message);
                 let event = Event {
-                    topic: format!("recentTrade::{}","BTC-USDT"),
+                    topic: format!("{}@aggTrade","BTC-USDT"),
                     //topic: format!("human"),
                     user_id: None,
                     message: message.message.clone(),

@@ -1,14 +1,36 @@
 use crate::{Client, Clients};
-use futures::{FutureExt, StreamExt};
+use futures::{FutureExt, StreamExt, SinkExt};
 use serde::Deserialize;
 use serde_json::from_str;
 use tokio::sync::mpsc;
 use warp::ws::{Message, WebSocket};
 use tokio_stream::wrappers::UnboundedReceiverStream;
+//use warp::filters::ws::Message;
+use std::collections::HashMap;
+
 #[derive(Deserialize, Debug)]
 pub struct TopicsRequest {
     topics: Vec<String>,
 }
+
+#[derive(Deserialize, Debug)]
+pub enum WSMethod {
+    #[serde(rename = "UNSUBSCRIBE")]
+    UNSUBSCRIBE,
+    #[serde(rename = "SUBSCRIBE")]
+    SUBSCRIBE,
+    #[serde(rename = "GET_PROPERTY")]
+    GET_PROPERTY,
+}
+#[derive(Deserialize, Debug)]
+pub struct TopicsRequest2 {
+    method: WSMethod,
+    params: Vec<String>,
+}
+
+//{"method": "SUBSCRIBE", "params": ["ethbusd@kline_1d","ethbusd@aggTrade","ethbusd@depth"]}
+//["miniTicker@arr@3000ms", "ethbusd@aggTrade", "ethbusd@kline_1d", "ethbusd@depth"]
+//{"method":"UNSUBSCRIBE","params":["!miniTicker@arr@3000ms","ethbusd@aggTrade","ethbusd@kline_1d","ethbusd@depth
 
 pub async fn client_connection(ws: WebSocket, id: String, clients: Clients, mut client: Client) {
     let (client_ws_sender, mut client_ws_rcv) = ws.split();
@@ -52,7 +74,8 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
         return;
     }
 
-    let topics_req: TopicsRequest = match from_str(&message) {
+    //todo: 针对message做具体的订阅、取消订阅
+    let topics_req: TopicsRequest2 = match from_str(&message) {
         Ok(v) => v,
         Err(e) => {
             eprintln!("error while parsing message to topics request: {}", e);
@@ -60,14 +83,29 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
         }
     };
 
-    let mut locked = clients.write().await;
+    let mut locked  = clients.write().await;
     if let Some(v) = locked.get_mut(id) {
-        println!("topics={:?}",topics_req.topics);
-        v.topics = topics_req.topics;
-
-        if let Some(sender) = &v.sender {
-            let _ = sender.send(Ok(Message::text("1111")));
+        println!("topics={:?}",topics_req.params);
+        println!("topics={:?}",topics_req.method);
+        //todo: match  method
+        match  topics_req.method {
+            WSMethod::SUBSCRIBE => {
+                v.topics = topics_req.params;
+                if let Some(sender) = &v.sender {
+                    let _ = sender.send(Ok(Message::text("1111")));
+                }
+            },
+            WSMethod::UNSUBSCRIBE => {
+                for param in topics_req.params {
+                    v.topics.retain(|x| x.to_string() != param );
+                }
+            },
+            WSMethod::GET_PROPERTY => {
+                todo!()
+            }
         }
+
+
     }
 
 }

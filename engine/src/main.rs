@@ -86,8 +86,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
     rsmq.create_queue("updateBook", None, None, None)
         .await
         .expect("failed to create queue");
-
-     */
+    ***/
 
     //todo: wss://bsc-ws-node.nariox.org:443
     /***

@@ -57,7 +57,7 @@ struct MarketsRespond {
 * @apiName listMarkets
 * @apiGroup Exchange
 *
-* @apiSuccess {json} result market info
+* @apiSuccess {json} data market info
 * @apiSuccessExample {json} Success-Response:
 * {
 *   "msg": "",
@@ -88,6 +88,50 @@ async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
 
 }
 
+
+/***
+* @api {post} /register   register WS connect
+* @apiBody {Number} [user_id=1]
+* @apiName ws_register
+* @apiGroup WS
+*
+* @apiSuccess {json} result ws url
+* @apiSuccessExample {json} Success-Response:
+* {
+*   "msg": "",
+*   "data": {"url":"ws://139.196.155.96:8020/ws/a0d982449ae0489a84d8167289f690ec"},
+*   "code": 200
+* }
+*
+*@apiSampleRequest http://139.196.155.96:8020/register
+ * */
+
+/***
+* @api {get} ----ws://139.196.155.96:8020/ws/373308c53a4545abaead65b04a857e2e    WS connect
+* @apiName ws_subscribe
+* @apiGroup WS
+*
+* @apiSuccess {json} depth price and volume in book
+* @apiSuccess {json} aggTrade recent matched trade
+
+* @apiSuccessExample {json} Success-Response:
+*{"method": "SUBSCRIBE", "params": ["BTC-USDT@aggTrade"]}
+*   [
+*        {"id":"BTC-USDT","price":1000.0,"amount":10.1,"taker_side":"buy","updated_at":1644287259123},
+*        {"id":"BTC-USDT","price":1001.0,"amount":20.2,"taker_side":"sell","updated_at":1644287259123}
+*   ]
+*{"method": "SUBSCRIBE", "params": ["BTC-USDT@depth"]}
+*   {"asks":[
+*               [1000.0,-10.0001],
+*               [2000.0,10.0002]
+*        ],
+*    "bids":[
+*               [1000.0,10.0001],
+*               [2000.0,-10.0002]
+*        ]
+*   }
+*{"method": "UNSUBSCRIBE", "params": ["BTC-USDT@depth"]}
+* */
 
 #[get("/dexInfo")]
 async fn dex_info(web::Path((id, name)): web::Path<(u32, String)>) -> impl Responder {
@@ -131,7 +175,7 @@ async fn main() -> std::io::Result<()> {
         .service(web::resource("/addMarket/{contract_address}").route(web::post().to(add_market)))
         .service(echo)
     })
-        .bind("0.0.0.0:8000")?
+        .bind("0.0.0.0:7010")?
         .run()
         .await
 }
