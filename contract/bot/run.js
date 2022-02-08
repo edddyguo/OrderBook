@@ -10,10 +10,10 @@ async function main() {
     console.log('name ',name);
     //function newOrder(uint _id,string memory _baseToken, string memory _quoteToken ,uint _amount, uint _price) external returns (string memory){
 
-    /***
+
     let result = await DemoUpgrade.newOrder(1,"BTC","USDT",3,4);
     console.log('result  ',result);
-    ***/
+
     let result2 = await DemoUpgrade.listOrders(1);
     console.log('orders  ',result2);
 }

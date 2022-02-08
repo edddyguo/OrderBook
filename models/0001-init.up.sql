@@ -17,6 +17,7 @@ create table chemix_markets(
  base_token_symbol text ,
  quote_token_address text ,
  quote_token_symbol text ,
+ matched_address text ,
  online  boolean ,
  up_at  timestamp ,
  down_at  timestamp ,

@@ -17,10 +17,11 @@ pub struct MarketInfo {
     base_token_symbol: String,
     quote_token_address: String,
     quote_token_symbol: String,
+    matched_address: String,
 }
 
 pub fn list_markets() -> Vec<MarketInfo> {
-    let sql = "select id,base_token_address,base_token_symbol,quote_token_address,quote_token_symbol from chemix_markets where online=true";
+    let sql = "select id,base_token_address,base_token_symbol,quote_token_address,quote_token_symbol,matched_address from chemix_markets where online=true";
     let mut markets: Vec<MarketInfo> = Vec::new();
     let mut result = crate::CLIENTDB.lock().unwrap().query(sql, &[]);
     if let Err(err) = result {
@@ -38,6 +39,8 @@ pub fn list_markets() -> Vec<MarketInfo> {
             base_token_symbol: row.get(2),
             quote_token_address: row.get(3),
             quote_token_symbol: row.get(4),
+            matched_address: row.get(5),
+
         };
         markets.push(info);
     }

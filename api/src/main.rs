@@ -47,51 +47,44 @@ struct Markets {
 
 #[derive(Serialize)]
 struct MarketsRespond {
-    success : bool,
-    result : Vec<Markets>,
-    error_code : u32,
+    code : u32,
+    msg : String,   //200 default success
+    data : Vec<MarketInfo>,
 }
 
 /***
 * @api {get} /chemix/listMarkets list supported market
 * @apiName listMarkets
-* @apiGroup Chemix
+* @apiGroup Exchange
 *
 * @apiSuccess {json} result market info
-     * @apiSuccessExample {json} Success-Response:
-     * {
-     *   "success": true,
-     *   "result": [
-     *       {
-     *          "quote_token_address": "0x1",
-     *          "base_token_address": "0x2",
-     *          "quote_token_name": "BTC",
-     *          "base_token_name": "USDT",
-     *          "engine_address": "0x3",
-     *       }
-     *   ],
-     *   "errorCode": 0
-     * }
-     *@apiSampleRequest /chemix/listMarkets
-
+* @apiSuccessExample {json} Success-Response:
+* {
+*   "msg": "",
+*   "data": [
+*       {
+*          "id":"WBTC-USDT",
+*          "quote_token_address": "0x63210793010d03b04ddb61f8f219a8e7e40bcba668",
+*          "base_token_address": "0x63bedfa1e1ea5891cb5f0819a7d16b7fe3aef5ddb0",
+*          "quote_token_name": "BTC",
+*          "base_token_name": "USDT",
+*          "engine_address": "0x63210793010d03b04ddb61f8f219a8e7e40bcba668",
+*       }
+*   ],
+*   "code": 200
+* }
+*@apiSampleRequest /chemix/listMarkets
  * */
 #[get("/chemix/listMarkets")]
 async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
     let mut markets = Vec::<Markets>::new();
-    markets.push(Markets {
-        quote_token_address: "0x1".to_string(),
-        base_token_address: "0x2".to_string(),
-        quote_token_name: "cETH".to_string(),
-        base_token_name: "USDC".to_string(),
-        engine_address: "0x3".to_string()
-    });
     let test1 = list_markets2();
     let respond = MarketsRespond {
-        success : true,
-        result: markets,
-        error_code: 0
+        code: 200,
+        msg : "".to_string(),
+        data: test1,
     };
-    serde_json::to_string(&test1).unwrap()
+    serde_json::to_string(&respond).unwrap()
 
 }
 

@@ -1,9 +1,11 @@
 {
   "name": "chemix-list",
-  "version": "0.0.1",
-  "description": "chemix list backend interface documents",
-  "title": "chemix list",
-  "url" : "http://127.0.0.1:8000",
-  "sampleUrl": "http://127.0.0.1:8000"
+  "version": "0.0.2",
+  "description": "chemix list backend interface documents ..",
+  "apidoc" : {
+    "title": "chemix list",
+    "url" : "http://139.196.155.96:8000",
+      "sampleUrl": "http://139.196.155.96:8000"
+  }
 
 }
