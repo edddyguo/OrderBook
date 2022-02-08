@@ -25,9 +25,12 @@ pub async fn publish_handler(body: Event, clients: Clients) -> Result<impl Reply
         .read()
         .await
         .iter()
-        .filter(|(_, client)| match body.user_id {
-            Some(v) => client.user_id == v,
-            None => true,
+        .filter(|(_, client)| {
+            println!("Client={:?}",client);
+            match body.user_id {
+                Some(v) => client.user_id == v,
+                None => true,
+            }
         })
         .filter(|(_, client)| client.topics.contains(&body.topic))
         .for_each(|(_, client)| {

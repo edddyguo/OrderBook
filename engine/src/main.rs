@@ -11,6 +11,9 @@ use std::sync::{Arc, mpsc, RwLock};
 use ethers_contract_abigen::{parse_address, Address};
 use tokio::runtime::Runtime;
 use rsmq_async::{Rsmq, RsmqConnection};
+use rustc_serialize::json;
+use serde::Serialize;
+
 
 
 #[derive(Debug, PartialEq, EthEvent)]
@@ -20,6 +23,26 @@ pub struct NewOrderEvent {
     quoteToken: String,
     amount: u64,
     price: u64,
+}
+
+#[derive(RustcEncodable, Clone,Serialize)]
+pub struct AddBook {
+    pub asks: Vec<(f64,f64)>,
+    pub bids: Vec<(f64,f64)>,
+}
+#[derive(RustcEncodable, Clone,Serialize)]
+struct MarketUpdateBook {
+    id: String,
+    data: AddBook,
+}
+
+#[derive(RustcEncodable, Clone,Serialize)]
+struct LastTrade {
+    id: String,
+    price: f64,
+    amount: f64,
+    taker_side: String,
+    updated_at: u64,
 }
 
 
@@ -56,6 +79,15 @@ async fn listen_blocks() -> anyhow::Result<()> {
     let mut rsmq = Rsmq::new(Default::default())
         .await
         .expect("connection failed");
+    /***
+    rsmq.create_queue("newTrade", None, None, None)
+        .await
+        .expect("failed to create queue");
+    rsmq.create_queue("updateBook", None, None, None)
+        .await
+        .expect("failed to create queue");
+
+     */
 
     //todo: wss://bsc-ws-node.nariox.org:443
     /***
@@ -107,10 +139,40 @@ async fn listen_blocks() -> anyhow::Result<()> {
                 let mut arc_rsmq = arc_rsmq.clone();
                 let orders: Vec<NewOrderFilter> = event_receiver.recv().expect("failed to recv columns");
                 println!("[listen_blocks: receive] New order Event {:?},base token {:?}", orders[0].user, orders[0].base_token);
-                let json_str = serde_json::to_string(&orders).unwrap();
+                //todo matched order
+                //update OrderBook
+                let updateBook = AddBook {
+                    asks: vec![(1000.000, -10.0001), (2000.000, 10.0002)],
+                    bids: vec![(1000.000, 10.0001), (2000.000, -10.0002)]
+                };
+
+                //update new trade
+                let mut updateTrade = Vec::<LastTrade>::new();
+                updateTrade.push(LastTrade{
+                    id: "BTC-USDT".to_string(),
+                    price: 1000.0,
+                    amount: 10.1,
+                    taker_side: "buy".to_string(),
+                    updated_at: 1644287259123
+                });
+                //理论上一次撮合taker_side是一样的
+                updateTrade.push(LastTrade{
+                    id: "BTC-USDT".to_string(),
+                    price: 1001.0,
+                    amount: 20.2,
+                    taker_side: "sell".to_string(),
+                    updated_at: 1644287259123
+                });
+
                 let rt = Runtime::new().unwrap();
                 rt.block_on(async move {
-                    arc_rsmq.write().unwrap().send_message("myqueue", json_str, None)
+                    let json_str = serde_json::to_string(&updateBook).unwrap();
+                    arc_rsmq.write().unwrap().send_message("updateBook", json_str, None)
+                        .await
+                        .expect("failed to send message");
+
+                    let json_str = serde_json::to_string(&updateTrade).unwrap();
+                    arc_rsmq.write().unwrap().send_message("newTrade", json_str, None)
                         .await
                         .expect("failed to send message");
                 });
@@ -130,6 +192,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .expect("failed to create queue");
     ***/
+
 
     listen_blocks().await;
     Ok(())

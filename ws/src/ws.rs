@@ -62,6 +62,7 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
 
     let mut locked = clients.write().await;
     if let Some(v) = locked.get_mut(id) {
+        println!("topics={:?}",topics_req.topics);
         v.topics = topics_req.topics;
 
         if let Some(sender) = &v.sender {

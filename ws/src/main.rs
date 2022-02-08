@@ -1,4 +1,6 @@
 extern crate tokio;
+extern crate rsmq_async;
+extern crate futures;
 
 use std::collections::HashMap;
 use std::convert::Infallible;
@@ -8,6 +10,12 @@ use warp::{ws::Message, Filter, Rejection};
 use tokio::time;
 use handler::Event;
 use rsmq_async::{Rsmq, RsmqConnection};
+use std::ops::Deref;
+use std::rc::Rc;
+use futures::TryFutureExt;
+use tokio::runtime::Runtime;
+use std::sync::RwLock as StdRwlock;
+
 
 mod handler;
 mod ws;
@@ -22,7 +30,7 @@ pub struct Client {
     pub sender: Option<mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
 }
 
-fn with_clients(clients: Clients) -> impl Filter<Extract = (Clients,), Error = Infallible> + Clone {
+fn with_clients(clients: Clients) -> impl Filter<Extract=(Clients, ), Error=Infallible> + Clone {
     warp::any().map(move || clients.clone())
 }
 
@@ -62,12 +70,31 @@ async fn ws_service(clients: Clients) {
     warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
 }
 
+async fn listen_msg_queue(mut rsmq: Rsmq, clients: Clients, queue_name: &str) -> Option<String> {
+    let message = rsmq
+        .receive_message::<String>(queue_name, None)
+        .await
+        .expect("cannot receive message");
+    if let Some(message) = message {
+        println!("receive new message {:?}", message);
+        let event = Event {
+            topic: queue_name.to_string(),
+            user_id: None,
+            message: message.message.clone(),
+        };
+        handler::publish_handler(event, clients).await;
+        rsmq.delete_message(queue_name, &message.id).await;
+        return Some(message.message);
+    }
+    return None;
+}
+
 #[tokio::main]
 async fn main() {
     let clients: Clients = Arc::new(RwLock::new(HashMap::new()));
     let clients_ws = clients.clone();
     let thread1 = tokio::spawn(async move {
-            ws_service(clients_ws).await;
+        ws_service(clients_ws).await;
     });
 
     // 线程2
@@ -75,44 +102,79 @@ async fn main() {
         let mut rsmq = Rsmq::new(Default::default())
             .await
             .expect("connection failed");
+        //let plus_one = |x: i32| -> i32 { x + 1 };
+        //let mut rsmq_arc = Arc::new(RwLock::new(rsmq));
         loop {
+            /***
+            let listen_msg_queue =  |queue_name: &str| -> Option<String> async move {
+                let message = rsmq
+                    .receive_message::<String>(queue_name, None)
+                    .await
+                    .expect("cannot receive message");
+                if let Some(message) = message {
+                    println!("receive new message {:?}", message);
+                    let event = Event {
+                        topic: queue_name.to_string(),
+                        user_id: None,
+                        message: message.message.clone(),
+                    };
+                    handler::publish_handler(event, clients).await;
+                    rsmq.delete_message(queue_name, &message.id).await;
+                    return Some(message.message);
+                }
+                return None;
+            };
+
+             */
+
             let message = rsmq
-                .receive_message::<String>("myqueue", None)
+                .receive_message::<String>("updateBook", None)
                 .await
                 .expect("cannot receive message");
             if let Some(message) = message {
-                println!("receive new message {:?}",message);
+                println!("receive new message {:?}", message);
                 let event = Event {
-                    topic: "human".to_string(),
+                    topic: format!("OrderBook::{}","BTC-USDT"),
+                    //topic: format!("human"),
                     user_id: None,
-                    message: message.message,
+                    message: message.message.clone(),
                 };
-                handler::publish_handler(event,clients.clone()).await;
-                rsmq.delete_message("myqueue", &message.id).await;
+                handler::publish_handler(event, clients.clone()).await;
+                rsmq.delete_message("updateBook", &message.id).await;
             }else {
-                //tokio::time::sleep(time::Duration::from_secs(1)).await;
                 tokio::time::sleep(time::Duration::from_millis(10)).await;
-
-                println!("have no  new message");
-                continue;
             }
-            //tokio::time::sleep(time::Duration::from_secs(5)).await;
-            /***
-            let event = Event {
-                topic: "human".to_string(),
-                user_id: None,
-                message: "test1".to_string(),
-            };
-            handler::publish_handler(event,clients.clone()).await;
 
-             */
+
+            let message = rsmq
+                .receive_message::<String>("newTrade", None)
+                .await
+                .expect("cannot receive message");
+            if let Some(message) = message {
+                println!("receive new message {:?}", message);
+                let event = Event {
+                    topic: format!("recentTrade::{}","BTC-USDT"),
+                    //topic: format!("human"),
+                    user_id: None,
+                    message: message.message.clone(),
+                };
+                handler::publish_handler(event, clients.clone()).await;
+                rsmq.delete_message("newTrade", &message.id).await;
+            }else {
+                tokio::time::sleep(time::Duration::from_millis(10)).await;
+            }
+
+
+
+            //let update_book = listen_msg_queue(*rsmq_arc.write().unwrap(), clients.clone(), "updateBook").await;
+            //if new_trade.is_none() && update_book.is_none() {
+             //   tokio::time::sleep(time::Duration::from_millis(10)).await;
+            //}
         }
-
     });
 
     thread1.await.unwrap();
     thread2.await.unwrap();
-
 }
 
 
