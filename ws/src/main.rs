@@ -17,6 +17,7 @@ use std::rc::Rc;
 use futures::TryFutureExt;
 use tokio::runtime::Runtime;
 use std::sync::RwLock as StdRwlock;
+use warp::http::Method;
 
 
 mod handler;
@@ -67,7 +68,11 @@ async fn ws_service(clients: Clients) {
     let routes = health_route
         .or(register_routes)
         .or(ws_route)
-        .with(warp::cors());
+        .with(warp::cors().allow_any_origin()
+                //warp::cors().allow_any_origin()
+            .allow_headers(vec!["Access-Control-Allow-Headers", "Access-Control-Request-Method", "Access-Control-Request-Headers", "Origin", "Accept", "X-Requested-With", "Content-Type"])
+                  .allow_methods(&[Method::GET, Method::POST, Method::PUT, Method::PATCH, Method::DELETE, Method::OPTIONS, Method::HEAD])
+    );
 
     warp::serve(routes).run(([0, 0, 0, 0], 7020)).await;
 }
