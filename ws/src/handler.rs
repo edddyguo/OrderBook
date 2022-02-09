@@ -69,8 +69,11 @@ async fn register_client(id: String, user_id: usize, clients: Clients) {
 
 pub async fn unregister_handler(id: String, clients: Clients) -> Result<impl Reply> {
     clients.write().await.remove(&id);
-    Ok(StatusCode::OK)
-}
+    Ok(json(&RegisterResponse {
+        code: 200,
+        url: "".to_string(),
+        msg: "".to_string()
+    }))}
 
 pub async fn ws_handler(ws: warp::ws::Ws, id: String, clients: Clients) -> Result<impl Reply> {
     let client = clients.read().await.get(&id).cloned();

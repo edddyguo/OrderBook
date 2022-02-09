@@ -30,6 +30,7 @@ apidoc -f ./api/src/main.rs -i api/ -o doc/
 - [ ] 13、 搭建BSC节点，压测用
 - [*] 14、 部署测试合约做事件监听
 - [*] 15、 基于redis的进程间通信,撮合结果推redis，推ws服务
+- [ ] 16、 addmin推bsc调matchTrade和thewOrder接口
 ```
 
 ##Fix

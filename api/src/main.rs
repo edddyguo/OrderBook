@@ -289,6 +289,23 @@ async fn klines(web::Query(info): web::Query<KlinesRequest>) -> impl Responder {
 *{"method": "UNSUBSCRIBE", "params": ["BTC-USDT@depth"]}
 * */
 
+
+/***
+* @api {delete} /register   unregister WS connect
+* @apiName ws_unregister
+* @apiGroup WS
+*
+* @apiSuccess {json} result ws url
+* @apiSuccessExample {json} Success-Response:
+* {
+*   "msg": "",
+*   "data": {"url":"ws://139.196.155.96:7020/ws/a0d982449ae0489a84d8167289f690ec"},
+*   "code": 200
+* }
+*
+*@apiSampleRequest http://139.196.155.96:7020/register/a0d982449ae0489a84d8167289f690ec
+ * */
+
 #[get("/dexInfo")]
 async fn dex_info(web::Path((id, name)): web::Path<(u32, String)>) -> impl Responder {
     format!("Hello {}! id:{}", "test", 10)
