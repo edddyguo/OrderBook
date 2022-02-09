@@ -1,3 +1,10 @@
+mod chemix_depth;
+mod kline;
+mod market;
+mod trade;
+mod order;
+
+
 use actix_web::{get, post, web, App, HttpServer, Responder, HttpResponse, error};
 use serde::{Serialize,Deserialize};
 use actix_cors::Cors;
@@ -127,10 +134,26 @@ struct DepthRequest {
 #[get("/chemix/depth")]
 async fn depth(web::Query(info): web::Query<DepthRequest>) -> String {
     format!("symbol222 {}, limit:{}", info.symbol,info.limit);
+    //mock data
+    let mut depth_data = chemix_depth::Depth{
+        asks: vec![],
+        bids: vec![]
+    };
+    let base_price= 50000.0f32;
+    for _ in 0..info.limit {
+        let rand: u32 = rand::random();
+        depth_data.bids.push((base_price - (rand % 1000) as f32, (rand % 100) as f32));
+    }
+    for _ in 0..info.limit {
+        let rand: u32 = rand::random();
+        depth_data.asks.push((base_price + (rand % 1000) as f32, (rand % 100) as f32));
+    }
+
+    depth_data.sort();
     respond_json(
         200,
         "".to_string(),
-        serde_json::to_string(&info).unwrap()
+        serde_json::to_string(&depth_data).unwrap()
     )
 }
 
@@ -153,7 +176,7 @@ async fn depth(web::Query(info): web::Query<DepthRequest>) -> String {
 *   ]
 *   "code": 200
 * }
-*@apiSampleRequest http://139.196.155.96:7010/chemix/aggTrade
+*@apiSampleRequest http://139.196.155.96:7010/chemix/aggTrades
  * */
 #[derive(Deserialize,Serialize)]
 struct AggTradesRequest {
@@ -162,10 +185,26 @@ struct AggTradesRequest {
 }
 #[get("/chemix/aggTrades")]
 async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Responder {
+    let mut time= 1644391550;
+    let price= 50000.0f32;
+    let mut trades = Vec::<trade::Trade>::new();
+    for _ in 0..info.limit {
+        time -= 10;
+        let rand: u32 = rand::random();
+        let trade = trade::Trade{
+            id: "BTC-USDT".to_string(),
+            price: price - (rand % 1000) as f32,
+            amount: (rand % 10) as f32,
+            taker_side: "".to_string(),
+            updated_at: time
+        };
+        trades.push(trade);
+    }
+
     respond_json(
         200,
         "".to_string(),
-        serde_json::to_string(&info).unwrap()
+        serde_json::to_string(&trades).unwrap()
     )
 }
 

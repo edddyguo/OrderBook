@@ -6,3 +6,4 @@ struct Trade {
     msg : String,   //200 default success
     data : String,
 }
+//*               [50000.0,10.0001],
