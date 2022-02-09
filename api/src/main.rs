@@ -255,7 +255,7 @@ async fn klines(web::Query(info): web::Query<KlinesRequest>) -> impl Responder {
 * @apiSuccessExample {json} Success-Response:
 * {
 *   "msg": "",
-*   "data": {"url":"ws://139.196.155.96:7020/ws/a0d982449ae0489a84d8167289f690ec"},
+*   "data": "ws://139.196.155.96:7020/ws/a0d982449ae0489a84d8167289f690ec",
 *   "code": 200
 * }
 *
@@ -299,7 +299,7 @@ async fn klines(web::Query(info): web::Query<KlinesRequest>) -> impl Responder {
 * @apiSuccessExample {json} Success-Response:
 * {
 *   "msg": "",
-*   "data": {"url":"ws://139.196.155.96:7020/ws/a0d982449ae0489a84d8167289f690ec"},
+*   "data": "ws://139.196.155.96:7020/ws/a0d982449ae0489a84d8167289f690ec",
 *   "code": 200
 * }
 *

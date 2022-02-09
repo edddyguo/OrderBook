@@ -11,7 +11,7 @@ pub struct RegisterRequest {
 #[derive(Serialize, Debug)]
 pub struct RegisterResponse {
     code: u8,
-    url: String,
+    data: String,
     msg: String,
 }
 
@@ -51,7 +51,7 @@ pub async fn register_handler(body: RegisterRequest, clients: Clients) -> Result
     register_client(uuid.clone(), user_id, clients).await;
     Ok(json(&RegisterResponse {
         code: 200,
-        url: format!("ws://139.196.155.96:7020/ws/{}", uuid),
+        data: format!("ws://139.196.155.96:7020/ws/{}", uuid),
         msg: "".to_string()
     }))
 }
@@ -71,7 +71,7 @@ pub async fn unregister_handler(id: String, clients: Clients) -> Result<impl Rep
     clients.write().await.remove(&id);
     Ok(json(&RegisterResponse {
         code: 200,
-        url: "".to_string(),
+        data: "".to_string(),
         msg: "".to_string()
     }))}
 
