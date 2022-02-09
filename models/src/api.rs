@@ -8,9 +8,7 @@ use std::ops::Mul;
 //#[derive(Serialize)]
 use serde::Serialize;
 
-
-
-#[derive(Serialize,Debug, Default)]
+#[derive(Serialize, Debug, Default)]
 pub struct MarketInfo {
     pub id: String,
     base_token_address: String,
@@ -40,7 +38,6 @@ pub fn list_markets() -> Vec<MarketInfo> {
             quote_token_address: row.get(3),
             quote_token_symbol: row.get(4),
             matched_address: row.get(5),
-
         };
         markets.push(info);
     }

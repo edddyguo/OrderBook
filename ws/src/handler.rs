@@ -28,7 +28,7 @@ pub async fn publish_handler(body: Event, clients: Clients) -> Result<impl Reply
         .await
         .iter()
         .filter(|(_, client)| {
-            println!("Client={:?}",client);
+            println!("Client={:?}", client);
             match body.user_id {
                 Some(v) => client.user_id == v,
                 None => true,
@@ -52,7 +52,7 @@ pub async fn register_handler(body: RegisterRequest, clients: Clients) -> Result
     Ok(json(&RegisterResponse {
         code: 200,
         data: format!("ws://139.196.155.96:7020/ws/{}", uuid),
-        msg: "".to_string()
+        msg: "".to_string(),
     }))
 }
 
@@ -72,13 +72,16 @@ pub async fn unregister_handler(id: String, clients: Clients) -> Result<impl Rep
     Ok(json(&RegisterResponse {
         code: 200,
         data: "".to_string(),
-        msg: "".to_string()
-    }))}
+        msg: "".to_string(),
+    }))
+}
 
 pub async fn ws_handler(ws: warp::ws::Ws, id: String, clients: Clients) -> Result<impl Reply> {
     let client = clients.read().await.get(&id).cloned();
     match client {
-        Some(c) => Ok(ws.on_upgrade(move |socket| ws::client_connection(socket, id, clients, c))),
+        Some(c) => {
+            Ok(ws.on_upgrade(move |socket| ws::client_connection(socket, id, clients, c)))
+        }
         None => Err(warp::reject::not_found()),
     }
 }

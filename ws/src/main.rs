@@ -1,24 +1,23 @@
-extern crate tokio;
-extern crate rsmq_async;
 extern crate futures;
+extern crate rsmq_async;
 extern crate serde_json;
+extern crate tokio;
 extern crate warp;
 
-use std::collections::HashMap;
-use std::convert::Infallible;
-use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
-use warp::{ws::Message, Filter, Rejection};
-use tokio::time;
+use futures::TryFutureExt;
 use handler::Event;
 use rsmq_async::{Rsmq, RsmqConnection};
+use std::collections::HashMap;
+use std::convert::Infallible;
 use std::ops::Deref;
 use std::rc::Rc;
-use futures::TryFutureExt;
-use tokio::runtime::Runtime;
+use std::sync::Arc;
 use std::sync::RwLock as StdRwlock;
+use tokio::runtime::Runtime;
+use tokio::sync::{mpsc, RwLock};
+use tokio::time;
 use warp::http::Method;
-
+use warp::{ws::Message, Filter, Rejection};
 
 mod handler;
 mod ws;
@@ -33,7 +32,9 @@ pub struct Client {
     pub sender: Option<mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
 }
 
-fn with_clients(clients: Clients) -> impl Filter<Extract=(Clients, ), Error=Infallible> + Clone {
+fn with_clients(
+    clients: Clients,
+) -> impl Filter<Extract = (Clients,), Error = Infallible> + Clone {
     warp::any().map(move || clients.clone())
 }
 
@@ -65,19 +66,38 @@ async fn ws_service(clients: Clients) {
         .and(with_clients(clients.clone()))
         .and_then(handler::ws_handler);
 
-    let routes = health_route
-        .or(register_routes)
-        .or(ws_route)
-        .with(warp::cors().allow_any_origin()
-                //warp::cors().allow_any_origin()
-            .allow_headers(vec!["Access-Control-Allow-Headers", "Access-Control-Request-Method", "Access-Control-Request-Headers", "Origin", "Accept", "X-Requested-With", "Content-Type"])
-                  .allow_methods(&[Method::GET, Method::POST, Method::PUT, Method::PATCH, Method::DELETE, Method::OPTIONS, Method::HEAD])
+    let routes = health_route.or(register_routes).or(ws_route).with(
+        warp::cors()
+            .allow_any_origin()
+            //warp::cors().allow_any_origin()
+            .allow_headers(vec![
+                "Access-Control-Allow-Headers",
+                "Access-Control-Request-Method",
+                "Access-Control-Request-Headers",
+                "Origin",
+                "Accept",
+                "X-Requested-With",
+                "Content-Type",
+            ])
+            .allow_methods(&[
+                Method::GET,
+                Method::POST,
+                Method::PUT,
+                Method::PATCH,
+                Method::DELETE,
+                Method::OPTIONS,
+                Method::HEAD,
+            ]),
     );
 
     warp::serve(routes).run(([0, 0, 0, 0], 7020)).await;
 }
 
-async fn listen_msg_queue(mut rsmq: Rsmq, clients: Clients, queue_name: &str) -> Option<String> {
+async fn listen_msg_queue(
+    mut rsmq: Rsmq,
+    clients: Clients,
+    queue_name: &str,
+) -> Option<String> {
     let message = rsmq
         .receive_message::<String>(queue_name, None)
         .await
@@ -141,17 +161,16 @@ async fn main() {
             if let Some(message) = message {
                 println!("receive new message {:?}", message);
                 let event = Event {
-                    topic: format!("{}@depth","BTC-USDT"),
+                    topic: format!("{}@depth", "BTC-USDT"),
                     //topic: format!("human"),
                     user_id: None,
                     message: message.message.clone(),
                 };
                 handler::publish_handler(event, clients.clone()).await;
                 rsmq.delete_message("updateBook", &message.id).await;
-            }else {
+            } else {
                 tokio::time::sleep(time::Duration::from_millis(10)).await;
             }
-
 
             let message = rsmq
                 .receive_message::<String>("newTrade", None)
@@ -160,22 +179,20 @@ async fn main() {
             if let Some(message) = message {
                 println!("receive new message {:?}", message);
                 let event = Event {
-                    topic: format!("{}@aggTrade","BTC-USDT"),
+                    topic: format!("{}@aggTrade", "BTC-USDT"),
                     //topic: format!("human"),
                     user_id: None,
                     message: message.message.clone(),
                 };
                 handler::publish_handler(event, clients.clone()).await;
                 rsmq.delete_message("newTrade", &message.id).await;
-            }else {
+            } else {
                 tokio::time::sleep(time::Duration::from_millis(10)).await;
             }
 
-
-
             //let update_book = listen_msg_queue(*rsmq_arc.write().unwrap(), clients.clone(), "updateBook").await;
             //if new_trade.is_none() && update_book.is_none() {
-             //   tokio::time::sleep(time::Duration::from_millis(10)).await;
+            //   tokio::time::sleep(time::Duration::from_millis(10)).await;
             //}
         }
     });
@@ -183,5 +200,3 @@ async fn main() {
     thread1.await.unwrap();
     thread2.await.unwrap();
 }
-
-

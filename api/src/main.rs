@@ -1,15 +1,14 @@
 mod chemix_depth;
 mod kline;
 mod market;
-mod trade;
 mod order;
+mod trade;
 
-
-use actix_web::{get, post, web, App, HttpServer, Responder, HttpResponse, error};
-use serde::{Serialize,Deserialize};
 use actix_cors::Cors;
-use chemix_chain::{sign, listen_block};
-use chemix_models::{api::{list_markets as list_markets2,MarketInfo}};
+use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder};
+use chemix_chain::{listen_block, sign};
+use chemix_models::api::{list_markets as list_markets2, MarketInfo};
+use serde::{Deserialize, Serialize};
 
 /***
 * @api {get} /user/:id Request User information
@@ -41,7 +40,6 @@ async fn index(web::Path((id, name)): web::Path<(u32, String)>) -> impl Responde
     format!("Hello {}! id:{}", name, id)
 }
 
-
 #[derive(Serialize)]
 struct Markets {
     quote_token_address: String,
@@ -53,17 +51,13 @@ struct Markets {
 
 #[derive(Serialize)]
 struct ChemixRespond {
-    code : u8,
-    msg : String,   //200 default success
-    data : String,
+    code: u8,
+    msg: String, //200 default success
+    data: String,
 }
 
-fn respond_json(code: u8,msg: String,data: String) -> String{
-    let respond = ChemixRespond {
-        code,
-        msg ,
-        data,
-    };
+fn respond_json(code: u8, msg: String, data: String) -> String {
+    let respond = ChemixRespond { code, msg, data };
     serde_json::to_string(&respond).unwrap()
 }
 
@@ -94,14 +88,8 @@ fn respond_json(code: u8,msg: String,data: String) -> String{
 async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
     let mut markets = Vec::<Markets>::new();
     let test1 = list_markets2();
-    respond_json(
-        200,
-        "".to_string(),
-        serde_json::to_string(&test1).unwrap()
-    )
-
+    respond_json(200, "".to_string(), serde_json::to_string(&test1).unwrap())
 }
-
 
 /***
 * @api {get} /chemix/depth orderbook depth
@@ -126,39 +114,40 @@ async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
 * }
 *@apiSampleRequest http://139.196.155.96:7010/chemix/depth
  * */
-#[derive(Deserialize,Serialize)]
+#[derive(Deserialize, Serialize)]
 struct DepthRequest {
     symbol: String,
     limit: u32,
 }
 #[get("/chemix/depth")]
 async fn depth(web::Query(info): web::Query<DepthRequest>) -> String {
-    format!("symbol222 {}, limit:{}", info.symbol,info.limit);
+    format!("symbol222 {}, limit:{}", info.symbol, info.limit);
     //mock data
-    let mut depth_data = chemix_depth::Depth{
+    let mut depth_data = chemix_depth::Depth {
         asks: vec![],
-        bids: vec![]
+        bids: vec![],
     };
-    let base_price= 50000.0f32;
+    let base_price = 50000.0f32;
     for _ in 0..info.limit {
         let rand: u32 = rand::random();
-        depth_data.bids.push((base_price - (rand % 1000) as f32, (rand % 100) as f32));
+        depth_data
+            .bids
+            .push((base_price - (rand % 1000) as f32, (rand % 100) as f32));
     }
     for _ in 0..info.limit {
         let rand: u32 = rand::random();
-        depth_data.asks.push((base_price + (rand % 1000) as f32, (rand % 100) as f32));
+        depth_data
+            .asks
+            .push((base_price + (rand % 1000) as f32, (rand % 100) as f32));
     }
 
     depth_data.sort();
     respond_json(
         200,
         "".to_string(),
-        serde_json::to_string(&depth_data).unwrap()
+        serde_json::to_string(&depth_data).unwrap(),
     )
 }
-
-
-
 
 /***
 * @api {get} /chemix/aggTrades recent trade
@@ -178,36 +167,31 @@ async fn depth(web::Query(info): web::Query<DepthRequest>) -> String {
 * }
 *@apiSampleRequest http://139.196.155.96:7010/chemix/aggTrades
  * */
-#[derive(Deserialize,Serialize)]
+#[derive(Deserialize, Serialize)]
 struct AggTradesRequest {
     symbol: String,
     limit: u32,
 }
 #[get("/chemix/aggTrades")]
 async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Responder {
-    let mut time= 1644391550;
-    let price= 50000.0f32;
+    let mut time = 1644391550;
+    let price = 50000.0f32;
     let mut trades = Vec::<trade::Trade>::new();
     for _ in 0..info.limit {
         time -= 10;
         let rand: u32 = rand::random();
-        let trade = trade::Trade{
+        let trade = trade::Trade {
             id: "BTC-USDT".to_string(),
             price: price - (rand % 1000) as f32,
             amount: (rand % 10) as f32,
             taker_side: "".to_string(),
-            updated_at: time
+            updated_at: time,
         };
         trades.push(trade);
     }
 
-    respond_json(
-        200,
-        "".to_string(),
-        serde_json::to_string(&trades).unwrap()
-    )
+    respond_json(200, "".to_string(), serde_json::to_string(&trades).unwrap())
 }
-
 
 /***
 * @api {get} /chemix/klines kline data
@@ -228,7 +212,7 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
 * }
 *@apiSampleRequest http://139.196.155.96:7010/chemix/klines
  * */
-#[derive(Deserialize,Serialize)]
+#[derive(Deserialize, Serialize)]
 struct KlinesRequest {
     symbol: String,
     limit: u32,
@@ -236,14 +220,8 @@ struct KlinesRequest {
 }
 #[get("/chemix/klines")]
 async fn klines(web::Query(info): web::Query<KlinesRequest>) -> impl Responder {
-    respond_json(
-        200,
-        "".to_string(),
-        serde_json::to_string(&info).unwrap()
-    )
+    respond_json(200, "".to_string(), serde_json::to_string(&info).unwrap())
 }
-
-
 
 /***
 * @api {post} /register   register WS connect
@@ -289,7 +267,6 @@ async fn klines(web::Query(info): web::Query<KlinesRequest>) -> impl Responder {
 *{"method": "UNSUBSCRIBE", "params": ["BTC-USDT@depth"]}
 * */
 
-
 /***
 * @api {delete} /register   unregister WS connect
 * @apiName ws_unregister
@@ -330,22 +307,22 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
     //sign();
     //listen_block().await;
-    let query_cfg = web::QueryConfig::default()
-        .error_handler(|err, req| {
-           error::InternalError::from_response(err, HttpResponse::Conflict().finish()).into()
-        });
+    let query_cfg = web::QueryConfig::default().error_handler(|err, req| {
+        error::InternalError::from_response(err, HttpResponse::Conflict().finish()).into()
+    });
     HttpServer::new(move || {
-        App::new()//.app_data(query_cfg)
+        App::new() //.app_data(query_cfg)
             .wrap(
-            Cors::new()
-                //.allowed_header("*")
-                //.allowed_origin("*")
-                //.allowed_origin("127.0.0.1")
-                //.allowed_origin("192.168.1.139")
-                //.send_wildcard()
-            .allowed_methods(vec!["GET", "POST", "DELETE", "OPTIONS"])
-            .max_age(3600)
-            .finish())
+                Cors::new()
+                    //.allowed_header("*")
+                    //.allowed_origin("*")
+                    //.allowed_origin("127.0.0.1")
+                    //.allowed_origin("192.168.1.139")
+                    //.send_wildcard()
+                    .allowed_methods(vec!["GET", "POST", "DELETE", "OPTIONS"])
+                    .max_age(3600)
+                    .finish(),
+            )
             .service(index)
             .service(list_markets)
             .service(dex_info)
@@ -353,11 +330,14 @@ async fn main() -> std::io::Result<()> {
             .service(klines)
             .service(agg_trades)
             .service(freeze_balance)
-            .service(web::resource("/addMarket/{contract_address}").route(web::post().to(add_market)))
+            .service(
+                web::resource("/addMarket/{contract_address}")
+                    .route(web::post().to(add_market)),
+            )
             .service(echo)
-            //.service(web::resource("/chemix/depth").route(web::get().to(depth)))
-        })
-        .bind("0.0.0.0:7010")?
-        .run()
-        .await
+        //.service(web::resource("/chemix/depth").route(web::get().to(depth)))
+    })
+    .bind("0.0.0.0:7010")?
+    .run()
+    .await
 }

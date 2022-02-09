@@ -6,25 +6,23 @@ pub mod engine;
 extern crate jsonrpc_client_core;
 extern crate jsonrpc_client_http;
 
-use postgres::{Client, NoTls, Error};
+use postgres::{Client, Error, NoTls};
 use std::env;
 use std::fs::OpenOptions;
 use std::sync::Mutex;
 
 #[macro_use]
 extern crate lazy_static;
-extern crate postgres;
 extern crate chrono;
+extern crate postgres;
 
-use std::time::Instant;
 use chrono::prelude::*;
-use std::ptr::null;
 use chrono::Local;
+use std::ptr::null;
+use std::time::Instant;
 
 lazy_static! {
-    static ref CLIENTDB: Mutex<postgres::Client> = Mutex::new({
-        connetDB().unwrap()
-    });
+    static ref CLIENTDB: Mutex<postgres::Client> = Mutex::new({ connetDB().unwrap() });
 }
 
 pub fn restartDB() -> bool {
@@ -47,15 +45,18 @@ fn connetDB() -> Option<postgres::Client> {
         eprintln!("have no MIST_MODE env");
     }
 
-    let url = format!("host=localhost user=postgres port=5432 password=postgres dbname={}", dbname);
+    let url = format!(
+        "host=localhost user=postgres port=5432 password=postgres dbname={}",
+        dbname
+    );
 
     match Client::connect(&url, NoTls) {
         Ok(tmp) => {
             client = tmp;
             eprintln!("connect postgresql successfully");
-        },
+        }
         Err(error) => {
-            eprintln!("connect postgresql failed,{:?}",error);
+            eprintln!("connect postgresql failed,{:?}", error);
             return None;
         }
     };

@@ -1,8 +1,8 @@
-use serde::{Serialize,Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
 struct Trade {
-    code : u8,
-    msg : String,   //200 default success
-    data : String,
+    code: u8,
+    msg: String, //200 default success
+    data: String,
 }

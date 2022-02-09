@@ -1,4 +1,4 @@
-use serde::{Serialize,Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Debug)]
 pub enum Side {
@@ -8,20 +8,16 @@ pub enum Side {
     SELL,
 }
 
-#[derive(Clone,Serialize)]
+#[derive(Clone, Serialize)]
 pub struct Depth {
-    pub asks: Vec<(f32,f32)>,
-    pub bids: Vec<(f32,f32)>,
+    pub asks: Vec<(f32, f32)>,
+    pub bids: Vec<(f32, f32)>,
 }
 
 impl Depth {
-    pub fn sort(&mut self){
-        self.asks.sort_by(|a,b|{
-            a.0.partial_cmp(&b.0).unwrap()
-        });
+    pub fn sort(&mut self) {
+        self.asks.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
         self.asks.reverse();
-        self.bids.sort_by(|a,b|{
-            a.0.partial_cmp(&b.0).unwrap()
-        });
+        self.bids.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
     }
 }
