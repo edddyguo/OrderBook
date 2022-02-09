@@ -92,6 +92,7 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
             WSMethod::SUBSCRIBE => {
                 v.topics = topics_req.params;
                 if let Some(sender) = &v.sender {
+                    //todo： 从psql或者redis或者合约拿到所有订单加工成depth的全量数据和aggtrade的最近50条数据
                     let _ = sender.send(Ok(Message::text("1111")));
                 }
             },

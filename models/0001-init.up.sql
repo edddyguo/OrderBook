@@ -28,9 +28,9 @@ create table chemix_markets(
 -- trades table
 create table chemix_trades(
   id text PRIMARY KEY,
-  transaction_id integer ,
+  transaction_id integer , --admin处理的trade的序列号
   transaction_hash text,
-  status text ,
+  status text , --"matched","confirm"
   market_id text ,
   maker  text ,
   taker  text ,
@@ -76,21 +76,17 @@ create index idx_chemix_trades_tmp_txhash on chemix_trades_tmp (transaction_hash
 -- orders table
 create table chemix_orders(
   id text  primary key,
-  trader_address text ,
+  account text ,
   market_id text ,
   side text ,
   price  numeric(32,8) ,
   amount  numeric(32,8) ,
-  status text ,
-  type text ,
+  status text , --"full_filled","partial_filled","pending"
   available_amount  numeric(32,8) ,
   confirmed_amount  numeric(32,8) ,
   canceled_amount  numeric(32,8) ,
-  pending_amount  numeric(32,8) ,
   updated_at  timestamp,
   created_at  timestamp,
-  signature text ,
-  expire_at  bigint
 );
 create index idx_chemix_myorders_status on chemix_orders (status);
 create index idx_chemix_myorders_address on chemix_orders (trader_address);
