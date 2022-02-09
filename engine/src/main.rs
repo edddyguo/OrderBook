@@ -10,7 +10,7 @@ use std::ops::Add;
 use std::sync::{Arc, mpsc, RwLock};
 use ethers_contract_abigen::{parse_address, Address};
 use tokio::runtime::Runtime;
-use rsmq_async::{Rsmq, RsmqConnection};
+use rsmq_async::{Rsmq, RsmqConnection, RsmqError, RsmqQueueAttributes};
 use rustc_serialize::json;
 use serde::Serialize;
 
@@ -69,6 +69,27 @@ async fn get_balance() -> Result<()> {
     Ok(())
 }
 
+async fn check_queue(name: &str) {
+    let mut rsmq = Rsmq::new(Default::default())
+        .await
+        .expect("connection failed");
+    let attributes = rsmq.get_queue_attributes(name).await;
+    match attributes {
+        Ok(_) => {
+            println!("queue already exist");
+        },
+        Err(RsmqError::QueueNotFound) => {
+            println!("test2 not found");
+            rsmq.create_queue(name, None, None, None)
+                .await
+                .expect("failed to create queue");
+        }
+        _ => {
+            unreachable!()
+        }
+    }
+}
+
 async fn listen_blocks() -> anyhow::Result<()> {
     //let host = "https://bsc-dataseed4.ninicoin.io";
     //testnet
@@ -79,6 +100,9 @@ async fn listen_blocks() -> anyhow::Result<()> {
     let mut rsmq = Rsmq::new(Default::default())
         .await
         .expect("connection failed");
+    check_queue("newTrade2").await;
+    check_queue("updateBook2").await;
+
     /***
     rsmq.create_queue("newTrade", None, None, None)
         .await
