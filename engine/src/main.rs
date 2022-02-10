@@ -1,3 +1,6 @@
+mod order;
+mod trade;
+
 use anyhow::Result;
 use ethers::{prelude::*, utils::Ganache};
 use std::time::Duration;
@@ -13,6 +16,37 @@ use std::str::FromStr;
 use std::sync::{mpsc, Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::time;
+use std::sync::Mutex;
+use crate::order::EngineOrder;
+
+
+#[macro_use]
+extern crate lazy_static;
+
+#[macro_use]
+extern crate log;
+
+
+
+#[derive(RustcEncodable, Clone, Serialize)]
+struct EngineBook {
+    pub buy: Vec<EngineOrder>,
+    pub sell: Vec<EngineOrder>,
+}
+
+lazy_static! {
+    static ref BOOK: Mutex<EngineBook> = Mutex::new({
+        info!("lazy_static--postgres");
+        //let available_sell_orders = postgresql::list_available_orders("sell", market);
+        //let available_buy_orders = postgresql::list_available_orders("buy", market);
+        let available_sell = Vec::<EngineOrder>::new();
+        let available_buy = Vec::<EngineOrder>::new();
+        EngineBook {
+            buy: available_buy,
+            sell: available_sell
+        }
+    });
+}
 
 #[derive(Debug, PartialEq, EthEvent)]
 pub struct NewOrderEvent {
@@ -185,6 +219,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                 );
                 //TODO: matched order
                 //update OrderBook
+
                 let updateBook = AddBook {
                     asks: vec![(1000.000, -10.0001), (2000.000, 10.0002)],
                     bids: vec![(1000.000, 10.0001), (2000.000, -10.0002)],
@@ -235,6 +270,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    env_logger::init();
     listen_blocks().await;
     Ok(())
 }
