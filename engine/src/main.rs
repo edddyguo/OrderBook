@@ -183,7 +183,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                     "[listen_blocks: receive] New order Event {:?},base token {:?}",
                     orders[0].user, orders[0].base_token
                 );
-                //todo matched order
+                //TODO: matched order
                 //update OrderBook
                 let updateBook = AddBook {
                     asks: vec![(1000.000, -10.0001), (2000.000, 10.0002)],

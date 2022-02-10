@@ -24,4 +24,6 @@ ethers = { version = "0.6.2"}
 ethers-providers = "0.6.2"
 ethers-contract-abigen = "0.6.0"
 rsmq_async = "5.1.2"
+num = "0.2"
+rust_decimal = { version = "1.0.3", features = ["postgres"] }
 
