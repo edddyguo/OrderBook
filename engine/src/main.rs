@@ -98,6 +98,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
     check_queue("newTrade").await;
     check_queue("updateBook").await;
 
+
     //todo: wss://bsc-ws-node.nariox.org:443
     /***
     let ws = Ws::connect("wss://bsc-ws-node.nariox.org:443/").await.unwrap();
@@ -119,6 +120,8 @@ async fn listen_blocks() -> anyhow::Result<()> {
     let client = Arc::new(client);
 
     let (event_sender, event_receiver) = mpsc::sync_channel(0);
+    let mut arc_rsmq = Arc::new(RwLock::new(rsmq));
+    let arc_rsmq2 = arc_rsmq.clone();
     rayon::scope(|s| {
         //send event in new block
         s.spawn(move |_| {
@@ -134,6 +137,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                         let addr = parse_address("0xE41d6cA6Ffe32eC8Ceb927c549dFc36dbefe2c0C")
                             .unwrap();
                         let contract = SimpleContract::new(addr, client.clone());
+                        /**
                         let logs: Vec<NewOrderFilter> = contract
                             .new_order_filter()
                             .from_block(height.as_u64())
@@ -141,15 +145,36 @@ async fn listen_blocks() -> anyhow::Result<()> {
                             .await
                             .unwrap();
                         event_sender.send(logs).expect("failed to send orders");
+                         */
+                        //tmp code
+                        check_queue("bot").await;
+                        let rsmq = arc_rsmq2.clone();
+                        'listen_new_order : loop{
+                            let message = rsmq.write().unwrap()
+                                .receive_message::<String>("bot", None)
+                                .await
+                                .expect("cannot receive message");
+                            if let Some(message) = message {
+                                println!("receive new message {:?}", message.message);
+                                let new_orders: Vec<NewOrderFilter> = serde_json::from_str(&message.message).unwrap();
+                                println!("receive new order {:?}", new_orders);
+
+                                event_sender.send(new_orders).expect("failed to send orders");
+                                rsmq.write().unwrap().delete_message("bot", &message.id).await;
+                            } else {
+                                tokio::time::sleep(time::Duration::from_millis(10)).await;
+                            }
+                        }
+                        //tmp code
+
+
                         //block content logs [NewOrderFilter { user: 0xfaa56b120b8de4597cf20eff21045a9883e82aad, base_token: "BTC", quote_token: "USDT", amount: 3, price: 4 }]
-                        //println!("New order Event {:?},base token {:?}",logs[0].user,logs[0].base_token);
-                        //height = height.add(1);
+
                     }
                 }
             });
         });
         s.spawn(move |_| {
-            let mut arc_rsmq = Arc::new(RwLock::new(rsmq));
             loop {
                 let mut arc_rsmq = arc_rsmq.clone();
                 let orders: Vec<NewOrderFilter> =

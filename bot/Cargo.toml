@@ -1,26 +1,27 @@
 [package]
-name = "api"
+name = "bot"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[[bin]]
-name = "api"
-path = "src/route.rs"
+
 
 [dependencies]
-actix-web = "3"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0.48"
 actix-cors = "0.3.0"
 actix-rt = "1.0.0"
 chemix-chain = { path = "../chain" }
 chemix-models = { path = "../models" }
-
 env_logger = "0.7.1"
 log = "0.4.8"
 tokio = { version = "1", features = ["full"] }
 rand = "0.8.3"
-
+anyhow = "1.0.53"
+rustc-serialize = "0.3.18"
+ethers = { version = "0.6.2"}
+ethers-providers = "0.6.2"
+ethers-contract-abigen = "0.6.0"
+rsmq_async = "5.1.2"
 
