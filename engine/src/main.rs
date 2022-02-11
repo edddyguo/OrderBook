@@ -17,14 +17,15 @@ use std::sync::{mpsc, Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::time;
 use std::sync::Mutex;
-use crate::order::{EngineOrder, EventOrder};
+use crate::order::{BookOrder, EventOrder};
 
 use chrono::offset::LocalResult;
 use chrono::prelude::*;
-use utils::time as chemix_time;
+use utils::{time as chemix_time,algorithm};
 use ethers::{prelude::*};
 use utils::math::MathOperation;
-use ethers_core::abi::ethereum_types::U256;
+use ethers_core::abi::ethereum_types::{U256, U64};
+use utils::algorithm::sha256;
 
 
 #[macro_use]
@@ -37,8 +38,8 @@ extern crate log;
 
 #[derive(Clone, Serialize)]
 struct EngineBook {
-    pub buy: Vec<EngineOrder>,
-    pub sell: Vec<EngineOrder>,
+    pub buy: Vec<BookOrder>,
+    pub sell: Vec<BookOrder>,
 }
 
 lazy_static! {
@@ -46,8 +47,8 @@ lazy_static! {
         info!("lazy_static--postgres");
         //let available_sell_orders = postgresql::list_available_orders("sell", market);
         //let available_buy_orders = postgresql::list_available_orders("buy", market);
-        let available_sell = Vec::<EngineOrder>::new();
-        let available_buy = Vec::<EngineOrder>::new();
+        let available_sell = Vec::<BookOrder>::new();
+        let available_buy = Vec::<BookOrder>::new();
         EngineBook {
             buy: available_buy,
             sell: available_sell
@@ -70,13 +71,13 @@ pub struct AddBook {
     pub bids: Vec<(f64, f64)>,
 }
 #[derive(RustcEncodable, Clone, Serialize)]
-struct MarketUpdateBook {
+pub struct MarketUpdateBook {
     id: String,
     data: AddBook,
 }
 
 #[derive(RustcEncodable, Clone, Serialize)]
-struct LastTrade {
+pub struct LastTrade {
     id: String,
     price: f64,
     amount: f64,
@@ -214,19 +215,18 @@ async fn listen_blocks() -> anyhow::Result<()> {
                                 println!("receive new message {:?}", message.message);
                                 let new_orders: Vec<NewOrderFilter> = serde_json::from_str(&message.message).unwrap();
                                 println!("receive new order {:?} at {}", new_orders,chemix_time::get_current_time());
-                                let new_orders2 = Vec::<u32>::new();
-                                let test1 = new_orders.iter().map(|x| {
-                                    EngineOrder {
-                                        id: format!("{}-{}",x.quote_token,x.base_token),
+                                let new_orders = new_orders.iter().map(|x| {
+                                    let now = Local::now().timestamp_millis() as u64;
+                                    let order_json = format!("{}{}",serde_json::to_string(&x).unwrap(),now);
+                                    let order_id = sha256(order_json);
+                                    BookOrder {
+                                        id: order_id,
                                         side: x.side.clone(),
                                         price: x.price.as_u64(),
                                         amount: x.amount.as_u64(),
-                                        created_at: Local::now().timestamp_millis() as u64,
+                                        created_at: now,
                                     }
-                                },).collect::<Vec<EngineOrder>>();
-                                let test2 = 1.002000425090f64;
-                                println!("receive new order222 {}", test2.to_fix(8));
-
+                                },).collect::<Vec<BookOrder>>();
                                 event_sender.send(new_orders).expect("failed to send orders");
                                 rsmq.write().unwrap().delete_message("bot", &message.id).await;
                             } else {
@@ -245,15 +245,28 @@ async fn listen_blocks() -> anyhow::Result<()> {
         s.spawn(move |_| {
             loop {
                 let mut arc_rsmq = arc_rsmq.clone();
-                let orders: Vec<NewOrderFilter> =
+                let orders: Vec<BookOrder> =
                     event_receiver.recv().expect("failed to recv columns");
                 println!(
                     "[listen_blocks: receive] New order Event {:?},base token {:?}",
-                    orders[0].user, orders[0].base_token
+                    orders[0].id, orders[0].side
                 );
                 //TODO: matched order
                 //update OrderBook
+                let mut updateTrade2 = Vec::<LastTrade>::new();
+                let mut updateBook2 = AddBook {
+                    asks: vec![],
+                    bids: vec![],
+                };
+                /**
+                for  (index,order) in orders.into_iter().enumerate() {
+                    match_order(order);
+                }
+                */
 
+
+
+                //tmp code
                 let updateBook = AddBook {
                     asks: vec![(1000.000, -10.0001), (2000.000, 10.0002)],
                     bids: vec![(1000.000, 10.0001), (2000.000, -10.0002)],

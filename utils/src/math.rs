@@ -30,6 +30,10 @@ impl MathOperation for f64 {
         let test1 = (*self * 100_000_000.00f64);
         println!("test1---{}",test1);
         test1.to_fix(8) as u64
-
     }
+}
+
+pub fn narrow(ori:u64) -> f64{
+    let str = format!("{}.{}",ori.clone() / 100_000_000,ori % 100_000_000);
+    str.parse::<f64>().unwrap()
 }
