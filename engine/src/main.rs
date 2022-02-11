@@ -17,7 +17,11 @@ use std::sync::{mpsc, Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::time;
 use std::sync::Mutex;
-use crate::order::EngineOrder;
+use crate::order::{EngineOrder, EventOrder};
+
+use chrono::offset::LocalResult;
+use chrono::prelude::*;
+use utils::time as chemix_time;
 
 
 #[macro_use]
@@ -193,7 +197,19 @@ async fn listen_blocks() -> anyhow::Result<()> {
                             if let Some(message) = message {
                                 println!("receive new message {:?}", message.message);
                                 let new_orders: Vec<NewOrderFilter> = serde_json::from_str(&message.message).unwrap();
-                                println!("receive new order {:?}", new_orders);
+                                println!("receive new order {:?} at {}", new_orders,chemix_time::get_current_time());
+                                /**
+                                let pending_engine_orders = new_orders.iter().map(|x: NewOrderFilter | {
+                                    EngineOrder {
+                                        id: format!("{}-{}",new_orders.quote_token,new_orders.base_token),
+                                        side: new_orders.side,
+                                        price: new_orders.price,
+                                        amount: new_orders.amount,
+                                        created_at: Local::now().timestamp_millis() as u64,
+                                    };
+                                },).collect::<Vec<EngineOrder>>().unwrap();
+                                */
+                                //println!("receive new order {:?}", new_orders);
 
                                 event_sender.send(new_orders).expect("failed to send orders");
                                 rsmq.write().unwrap().delete_message("bot", &message.id).await;

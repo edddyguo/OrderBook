@@ -1,6 +1,3 @@
-[rust]
-channel = "nightly"
-
 [workspace]
 
 members = [
@@ -10,5 +7,6 @@ members = [
 	"test1",
 	"engine",
 	"ws",
-	"bot"
+	"bot",
+	"utils"
 ]
