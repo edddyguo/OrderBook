@@ -22,8 +22,9 @@ use crate::order::{EngineOrder, EventOrder};
 use chrono::offset::LocalResult;
 use chrono::prelude::*;
 use utils::time as chemix_time;
-use ethers::{prelude::*,types::{U256}};
+use ethers::{prelude::*};
 use utils::math::MathOperation;
+use ethers_core::abi::ethereum_types::U256;
 
 
 #[macro_use]
@@ -218,8 +219,8 @@ async fn listen_blocks() -> anyhow::Result<()> {
                                     EngineOrder {
                                         id: format!("{}-{}",x.quote_token,x.base_token),
                                         side: x.side.clone(),
-                                        price: x.price,
-                                        amount: x.amount,
+                                        price: x.price.as_u64(),
+                                        amount: x.amount.as_u64(),
                                         created_at: Local::now().timestamp_millis() as u64,
                                     }
                                 },).collect::<Vec<EngineOrder>>();

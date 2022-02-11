@@ -1,6 +1,6 @@
 use rustc_serialize::json;
 use serde::Serialize;
-use ethers::{prelude::*,types::{U256}};
+//use ethers::{prelude::*,types::{U256}};
 
 
 
@@ -16,8 +16,8 @@ pub struct EventOrder {
 pub struct EngineOrder {
     pub id: String,
     pub side: String,
-    pub price: U256,
-    pub amount: U256,
+    pub price: u64,
+    pub amount: u64,
     pub created_at: u64,
 }
 
