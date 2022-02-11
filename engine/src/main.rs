@@ -149,7 +149,9 @@ async fn listen_blocks() -> anyhow::Result<()> {
     let address = wallet.address();
     println!("wallet address {:?}", address);
     let mut height = provider_http.get_block_number().await.unwrap();
-    let mut height: U64 = U64::from(16477780u64);
+    //166475590u64
+    //16477780u64
+    let mut height: U64 = U64::from(16647865u64);
     let client = SignerMiddleware::new(provider_http.clone(), wallet.clone());
     let client = Arc::new(client);
 
@@ -180,7 +182,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                             .unwrap();
                         event_sender.send(logs).expect("failed to send orders");
                          */
-                        //tmp code
+                        //tmp code, 压力测试也可以在这里,链上tps受限
                         check_queue("bot").await;
                         let rsmq = arc_rsmq2.clone();
                         'listen_new_order : loop{

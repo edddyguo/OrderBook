@@ -9,6 +9,7 @@ contract ChemixTrade {
         address user;
         string baseToken;
         string quoteToken;
+        string side;
         uint amount;
         uint price;
     }
@@ -16,22 +17,23 @@ contract ChemixTrade {
     mapping (uint => OrderInfo) public orders;
     string private name;
 
-    event NewOrder(address user, string baseToken, string quoteToken ,uint amount, uint price);
+    event NewOrder(address user, string baseToken, string quoteToken ,string side, uint amount, uint price);
 
      constructor(string memory _name) {
             console.log("Deploying and init chemix:", _name);
             name = _name;
      }
 
-    function newOrder(uint _id,string memory _baseToken, string memory _quoteToken ,uint _amount, uint _price) external returns (string memory){
+    function newOrder(uint _id,string memory _baseToken, string memory _quoteToken ,string memory _side,uint _amount, uint _price) external returns (string memory){
         orders[_id] = OrderInfo ({
            user: msg.sender,
            baseToken: _baseToken,
            quoteToken: _quoteToken,
+           side: _side,
            amount: _amount,
            price: _price
         });
-        emit NewOrder(msg.sender, _baseToken,  _quoteToken , _amount,  _price);
+        emit NewOrder(msg.sender, _baseToken,  _quoteToken , _side, _amount,  _price);
         return "hello world";
     }
 

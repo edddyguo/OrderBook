@@ -3,6 +3,7 @@ mod util;
 extern crate ethers_contract_abigen;
 extern crate rsmq_async;
 extern crate rand;
+extern crate num;
 
 use anyhow::Result;
 use ethers::{prelude::*, utils::Ganache,types::{U256}};
@@ -14,7 +15,7 @@ use rsmq_async::{Rsmq, RsmqConnection, RsmqError, RsmqQueueAttributes};
 use rustc_serialize::json;
 use serde::Serialize;
 use std::convert::TryFrom;
-use std::ops::Add;
+use std::ops::{Add, Range};
 use std::str::FromStr;
 use std::sync::{mpsc, Arc, RwLock};
 use tokio::runtime::Runtime;
@@ -22,7 +23,7 @@ use tokio::time;
 use rand::prelude::SliceRandom;
 use util::MathOperation;
 use rand::Rng;
-
+use rand::distributions::uniform::SampleRange;
 
 abigen!(
     SimpleContract,
@@ -41,6 +42,7 @@ async fn new_order(price: f32, amount: f32) {
         user: Address::from_str("0xbc1Bd19FD1b220e989F8bF75645b9B7028Fc255B").unwrap(),
         base_token: "USDT".to_string(),
         quote_token: "BTC".to_string(),
+        side: "buy".to_string(),
         amount: U256::from(price_nano) ,
         price: U256::from(amount_nano),
     };
