@@ -27,7 +27,6 @@ type Clients = Arc<RwLock<HashMap<String, Client>>>;
 
 #[derive(Debug, Clone)]
 pub struct Client {
-    pub user_id: usize,
     pub topics: Vec<String>,
     pub sender: Option<mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
 }
@@ -60,13 +59,13 @@ async fn ws_service(clients: Clients) {
 
      */
 
-    let ws_route = warp::path("ws")
+    let ws_route = warp::path("chemix")
         .and(warp::ws())
-        .and(warp::path::param())
         .and(with_clients(clients.clone()))
         .and_then(handler::ws_handler);
 
-    let routes = health_route.or(register_routes).or(ws_route).with(
+
+    let routes = health_route.or(ws_route).with(
         warp::cors()
             .allow_any_origin()
             //warp::cors().allow_any_origin()
