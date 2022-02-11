@@ -1,4 +1,7 @@
+extern crate rust_decimal;
+
 pub mod time;
+pub mod math;
 #[cfg(test)]
 mod tests {
     #[test]

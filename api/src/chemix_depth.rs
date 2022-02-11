@@ -10,8 +10,8 @@ pub enum Side {
 
 #[derive(Clone, Serialize)]
 pub struct Depth {
-    pub asks: Vec<(f32, f32)>,
-    pub bids: Vec<(f32, f32)>,
+    pub asks: Vec<(f64, f64)>,
+    pub bids: Vec<(f64, f64)>,
 }
 
 impl Depth {

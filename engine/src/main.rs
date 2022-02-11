@@ -22,6 +22,8 @@ use crate::order::{EngineOrder, EventOrder};
 use chrono::offset::LocalResult;
 use chrono::prelude::*;
 use utils::time as chemix_time;
+use ethers::{prelude::*,types::{U256}};
+use utils::math::MathOperation;
 
 
 #[macro_use]
@@ -32,7 +34,7 @@ extern crate log;
 
 
 
-#[derive(RustcEncodable, Clone, Serialize)]
+#[derive(Clone, Serialize)]
 struct EngineBook {
     pub buy: Vec<EngineOrder>,
     pub sell: Vec<EngineOrder>,
@@ -80,6 +82,19 @@ struct LastTrade {
     taker_side: String,
     updated_at: u64,
 }
+
+//block content logs [NewOrderFilter { user: 0xfaa56b120b8de4597cf20eff21045a9883e82aad, base_token: "BTC", quote_token: "USDT", amount: 3, price: 4 }]
+/**
+#[derive(RustcEncodable, Clone, Serialize,Debug,Deserialize)]
+struct NewOrderFilter2 {
+    user: Address,
+    base_token: String,
+    quote_token: String,
+    side: String,
+    amount: u64,
+    price: u64,
+}
+*/
 
 abigen!(
     SimpleContract,
@@ -198,18 +213,18 @@ async fn listen_blocks() -> anyhow::Result<()> {
                                 println!("receive new message {:?}", message.message);
                                 let new_orders: Vec<NewOrderFilter> = serde_json::from_str(&message.message).unwrap();
                                 println!("receive new order {:?} at {}", new_orders,chemix_time::get_current_time());
-                                /**
-                                let pending_engine_orders = new_orders.iter().map(|x: NewOrderFilter | {
+                                let new_orders2 = Vec::<u32>::new();
+                                let test1 = new_orders.iter().map(|x| {
                                     EngineOrder {
-                                        id: format!("{}-{}",new_orders.quote_token,new_orders.base_token),
-                                        side: new_orders.side,
-                                        price: new_orders.price,
-                                        amount: new_orders.amount,
+                                        id: format!("{}-{}",x.quote_token,x.base_token),
+                                        side: x.side.clone(),
+                                        price: x.price,
+                                        amount: x.amount,
                                         created_at: Local::now().timestamp_millis() as u64,
-                                    };
-                                },).collect::<Vec<EngineOrder>>().unwrap();
-                                */
-                                //println!("receive new order {:?}", new_orders);
+                                    }
+                                },).collect::<Vec<EngineOrder>>();
+                                let test2 = 1.002000425090f64;
+                                println!("receive new order222 {}", test2.to_fix(8));
 
                                 event_sender.send(new_orders).expect("failed to send orders");
                                 rsmq.write().unwrap().delete_message("bot", &message.id).await;

@@ -1,21 +1,23 @@
 use rustc_serialize::json;
 use serde::Serialize;
+use ethers::{prelude::*,types::{U256}};
+
 
 
 #[derive(RustcEncodable, Clone, Serialize)]
 pub struct EventOrder {
     pub market_id: String,
     pub side: String,
-    pub price: f32,
-    pub amount: f32,
+    pub price: f64,
+    pub amount: f64,
 }
 
-#[derive(RustcEncodable, Clone, Serialize)]
+#[derive(Clone, Serialize,Debug)]
 pub struct EngineOrder {
     pub id: String,
     pub side: String,
-    pub price: f32,
-    pub amount: f32,
+    pub price: U256,
+    pub amount: U256,
     pub created_at: u64,
 }
 

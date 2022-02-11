@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize)]
 pub struct Trade {
     pub id: String,
-    pub price: f32,
-    pub amount: f32,
+    pub price: f64,
+    pub amount: f64,
     pub taker_side: String,
     pub updated_at: u32,
 }

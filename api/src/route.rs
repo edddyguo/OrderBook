@@ -127,18 +127,18 @@ async fn depth(web::Query(info): web::Query<DepthRequest>) -> String {
         asks: vec![],
         bids: vec![],
     };
-    let base_price = 50000.0f32;
+    let base_price = 50000.0f64;
     for _ in 0..info.limit {
         let rand: u32 = rand::random();
         depth_data
             .bids
-            .push((base_price - (rand % 1000) as f32, (rand % 100) as f32));
+            .push((base_price - (rand % 1000) as f64, (rand % 100) as f64));
     }
     for _ in 0..info.limit {
         let rand: u32 = rand::random();
         depth_data
             .asks
-            .push((base_price + (rand % 1000) as f32, (rand % 100) as f32));
+            .push((base_price + (rand % 1000) as f64, (rand % 100) as f64));
     }
 
     depth_data.sort();
@@ -175,15 +175,15 @@ struct AggTradesRequest {
 #[get("/chemix/aggTrades")]
 async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Responder {
     let mut time = 1644391550;
-    let price = 50000.0f32;
+    let price = 50000.0f64;
     let mut trades = Vec::<trade::Trade>::new();
     for _ in 0..info.limit {
         time -= 10;
         let rand: u32 = rand::random();
         let trade = trade::Trade {
             id: "BTC-USDT".to_string(),
-            price: price - (rand % 1000) as f32,
-            amount: (rand % 10) as f32,
+            price: price - (rand % 1000) as f64,
+            amount: (rand % 10) as f64,
             taker_side: "".to_string(),
             updated_at: time,
         };

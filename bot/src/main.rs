@@ -31,7 +31,7 @@ abigen!(
     event_derives(serde::Deserialize, serde::Serialize)
 );
 
-async fn new_order(price: f32, amount: f32) {
+async fn new_order(price: f64, amount: f64) {
     let mut rsmq = Rsmq::new(Default::default())
         .await
         .expect("connection failed");
@@ -63,13 +63,13 @@ async fn new_order(price: f32, amount: f32) {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     println!("Hello, world!");
-    let base_price = 40000.0f32;
-    let base_amount = 1.0f32;
+    let base_price = 40000.0f64;
+    let base_amount = 1.0f64;
 
     for _ in 0..10 {
         let mut rng = rand::thread_rng();
-        let price_add: f32 = rng.gen_range(-1000.0..1000.0);
-        let amount_add: f32 = rng.gen_range(-1.0..1.0);
+        let price_add: f64 = rng.gen_range(-1000.0..1000.0);
+        let amount_add: f64 = rng.gen_range(-1.0..1.0);
         let price = (base_price + price_add).to_fix(8);
         let amount = (base_amount + amount_add).to_fix(8);
         println!("[newOrder]:price {},amount {}",price,amount);
