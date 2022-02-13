@@ -124,9 +124,10 @@ async fn depth(web::Query(info): web::Query<DepthRequest>) -> String {
     format!("symbol222 {}, limit:{}", info.symbol, info.limit);
     //mock data
     let mut depth_data = chemix_depth::Depth {
-        asks: vec![],
-        bids: vec![],
+        asks: vec![(5000.123,1000.1),(6000.123,1000.1)],
+        bids: vec![(4000.123,1000.1),(3000.123,1000.1)],
     };
+    /***
     let base_price = 50000.0f64;
     for _ in 0..info.limit {
         let rand: u32 = rand::random();
@@ -140,6 +141,7 @@ async fn depth(web::Query(info): web::Query<DepthRequest>) -> String {
             .asks
             .push((base_price + (rand % 1000) as f64, (rand % 100) as f64));
     }
+     */
 
     depth_data.sort();
     respond_json(

@@ -3,6 +3,7 @@ extern crate rsmq_async;
 extern crate serde_json;
 extern crate tokio;
 extern crate warp;
+extern crate uuid;
 
 use futures::TryFutureExt;
 use handler::Event;
@@ -40,16 +41,6 @@ fn with_clients(
 async fn ws_service(clients: Clients) {
     let health_route = warp::path!("health").and_then(handler::health_handler);
     let register = warp::path("register");
-    let register_routes = register
-        .and(warp::post())
-        .and(warp::body::json())
-        .and(with_clients(clients.clone()))
-        .and_then(handler::register_handler)
-        .or(register
-            .and(warp::delete())
-            .and(warp::path::param())
-            .and(with_clients(clients.clone()))
-            .and_then(handler::unregister_handler));
 
     /***
     let publish = warp::path!("publish")

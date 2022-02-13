@@ -9,10 +9,10 @@ pub struct RegisterRequest {
 }
 
 #[derive(Serialize, Debug)]
-pub struct RegisterResponse {
-    code: u8,
-    data: String,
-    msg: String,
+pub struct PublishRespond {
+    pub channel: String,
+    pub method: String,
+    pub data: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -22,7 +22,15 @@ pub struct Event {
     pub(crate) message: String,
 }
 
+
 pub async fn publish_handler(body: Event, clients: Clients) -> Result<impl Reply> {
+    let respond = PublishRespond {
+        channel: body.topic.clone(),
+        method: "SUBSCRIBE".to_string(),
+        data: body.message.clone(),
+    };
+    let respond_str = serde_json::to_string(&respond).unwrap();
+    println!("-==========={:?}",respond_str);
     clients
         .read()
         .await
@@ -36,23 +44,13 @@ pub async fn publish_handler(body: Event, clients: Clients) -> Result<impl Reply
         .filter(|(_, client)| client.topics.contains(&body.topic))
         .for_each(|(_, client)| {
             if let Some(sender) = &client.sender {
-                let _ = sender.send(Ok(Message::text(body.message.clone())));
+                println!("-==========={:?}",respond_str);
+                let _ = sender.send(Ok(Message::text(respond_str.clone())));
+                println!("+++++++{:?}",respond_str);
             }
         });
 
     Ok(StatusCode::OK)
-}
-
-pub async fn register_handler(body: RegisterRequest, clients: Clients) -> Result<impl Reply> {
-    let user_id = body.user_id;
-    let uuid = Uuid::new_v4().simple().to_string();
-
-    register_client(uuid.clone(), user_id, clients).await;
-    Ok(json(&RegisterResponse {
-        code: 200,
-        data: format!("ws://139.196.155.96:7020/ws/{}", uuid),
-        msg: "".to_string(),
-    }))
 }
 
 async fn register_client(id: String, user_id: usize, clients: Clients) {
@@ -63,15 +61,6 @@ async fn register_client(id: String, user_id: usize, clients: Clients) {
             sender: None,
         },
     );
-}
-
-pub async fn unregister_handler(id: String, clients: Clients) -> Result<impl Reply> {
-    clients.write().await.remove(&id);
-    Ok(json(&RegisterResponse {
-        code: 200,
-        data: "".to_string(),
-        msg: "".to_string(),
-    }))
 }
 
 pub async fn ws_handler(ws: warp::ws::Ws,clients: Clients) -> Result<impl Reply> {

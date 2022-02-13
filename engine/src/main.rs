@@ -268,8 +268,8 @@ async fn listen_blocks() -> anyhow::Result<()> {
 
                 //tmp code
                 let updateBook = AddBook {
-                    asks: vec![(1000.000, -10.0001), (2000.000, 10.0002)],
-                    bids: vec![(1000.000, 10.0001), (2000.000, -10.0002)],
+                    asks: vec![(5000.123, -1.1), (6000.123, 1.1)],
+                    bids: vec![(4000.123, -1.1), (3000.123, 1.1)],
                 };
 
                 //update new trade

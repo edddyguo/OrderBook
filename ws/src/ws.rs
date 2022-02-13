@@ -7,6 +7,10 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::ws::{Message, WebSocket};
 //use warp::filters::ws::Message;
 use std::collections::HashMap;
+use uuid::Uuid;
+use crate::handler::PublishRespond;
+use crate::ws::WSMethod::PONG;
+
 
 #[derive(Deserialize, Debug)]
 pub struct TopicsRequest {
@@ -21,14 +25,35 @@ pub enum WSMethod {
     SUBSCRIBE,
     #[serde(rename = "GET_PROPERTY")]
     GET_PROPERTY,
-    #[serde(rename = "REGISTER")]
-    REGISTER,
+    #[serde(rename = "PING")]
+    PING,
+    #[serde(rename = "PONG")]
+    PONG,
+}
+
+/***{
+"method": "SUBSCRIBE",
+"params": {
+"hash":"0x90a97d253608B2090326097a44eA289d172c30Ec",
+"channel": "BTC-USDT@aggTrade",
+
+}
+}
+***/
+
+#[derive(Deserialize, Debug,PartialEq)]
+pub struct PARAMS {
+    hash: String,
+    channel: Vec<String>,
 }
 #[derive(Deserialize, Debug)]
 pub struct TopicsRequest2 {
     method: WSMethod,
-    params: Vec<String>,
+    params: PARAMS,
 }
+
+//{"method": "PING","params":{"channel":[],"hash":""}}
+//{"method": "SUBSCRIBE","params":{"channel":["ethbusd@kline_1d","ethbusd@aggTrade","ethbusd@depth"],"hash":""}}
 
 //{"method": "SUBSCRIBE", "params": ["ethbusd@kline_1d","ethbusd@aggTrade","ethbusd@depth"]}
 //["miniTicker@arr@3000ms", "ethbusd@aggTrade", "ethbusd@kline_1d", "ethbusd@depth"]
@@ -43,6 +68,21 @@ pub async fn client_connection(
     let (client_sender, client_rcv) = mpsc::unbounded_channel();
     let client_rcv = UnboundedReceiverStream::new(client_rcv); // <-- this
 
+    //insert new client
+    let id = Uuid::new_v4().simple().to_string();
+    let client = Client{
+        topics: vec![],
+        sender: Some(client_sender.clone())
+    };
+
+
+
+    let mut test1 = clients.write().await;
+    test1.insert(id.clone(), client.clone());
+    drop(test1);
+    println!("1111---");
+
+
     tokio::task::spawn(client_rcv.forward(client_ws_sender).map(|result| {
         if let Err(e) = result {
             eprintln!("error sending websocket msg: {}", e);
@@ -51,9 +91,6 @@ pub async fn client_connection(
 
     //client.sender = Some(client_sender);
 
-    //第一次必须先注册
-    let mut tmp1 = 0;
-    let mut id = "".to_string();
     while let Some(result) = client_ws_rcv.next().await {
         let msg = match result {
             Ok(msg) => msg,
@@ -62,39 +99,9 @@ pub async fn client_connection(
                 break;
             }
         };
+        println!("333--33");
 
-        let message = match msg.to_str() {
-            Ok(v) => v,
-            Err(_) => return,
-        };
-
-        let topics_req: TopicsRequest2 = match from_str(&message) {
-            Ok(v) => v,
-            Err(e) => {
-                eprintln!("error while parsing message to topics request: {}", e);
-                return;
-            }
-        };
-
-        if tmp1 == 0 {
-            if topics_req.method == WSMethod::REGISTER {
-                let client = Client{
-                    topics: vec![],
-                    sender: Some(client_sender.clone())
-                };
-                //判断重复注册的情况
-                id = topics_req.params[0].clone();
-                clients.write().await.insert(topics_req.params[0].clone(), client);
-                println!("{} connected", topics_req.params[0]);
-                tmp1 = 1;
-            }else {
-                // must register before subscribe it
-                client_sender.send(Ok(Message::text("error: must register before subscribe it")));
-            }
-        }else {
-            client_msg(&id, msg, &clients).await;
-        }
-
+        client_msg(&id, msg, &clients).await;
     }
 
     clients.write().await.remove(&id);
@@ -108,10 +115,6 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
         Err(_) => return,
     };
 
-    if message == "ping" || message == "ping\n" {
-        return;
-    }
-
     //todo: 针对message做具体的订阅、取消订阅
     let topics_req: TopicsRequest2 = match from_str(&message) {
         Ok(v) => v,
@@ -123,28 +126,41 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
 
     let mut locked = clients.write().await;
     if let Some(v) = locked.get_mut(id) {
-        println!("topics={:?}", topics_req.params);
+        println!("topics={:?}", topics_req.params.channel);
         println!("topics={:?}", topics_req.method);
         //todo: match  method
         match topics_req.method {
             WSMethod::SUBSCRIBE => {
-                v.topics = topics_req.params;
+                v.topics = topics_req.params.channel;
+                println!("v----topics={:?}", v.topics);
                 if let Some(sender) = &v.sender {
-                    //todo： 从psql或者redis或者合约拿到所有订单加工成depth的全量数据和aggtrade的最近50条数据
-                    let _ = sender.send(Ok(Message::text("1111")));
+                    //todo: 可能要推全量数据
                 }
             }
             WSMethod::UNSUBSCRIBE => {
-                for param in topics_req.params {
+                for param in topics_req.params.channel {
                     v.topics.retain(|x| x.to_string() != param);
                 }
             }
             WSMethod::GET_PROPERTY => {
                 todo!()
             }
-            WSMethod::REGISTER => {
-                //Have exist already,do nothing
+            WSMethod::PING => {
+                let respond = PublishRespond {
+                    method: "PONG".to_string(),
+                    channel: "".to_string(),
+                    data: "".to_string(),
+                };
+                println!("0001____");
+                let respond_str = serde_json::to_string(&respond).unwrap();
+                if let Some(sender) = &v.sender {
+                    println!("0002____");
+                    let _ = sender.send(Ok(Message::text(&respond_str)));
+                    println!("0003____");
+                }
+                println!("0004____");
             }
+            WSMethod::PONG => {}
         }
     }
 }
