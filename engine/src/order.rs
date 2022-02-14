@@ -93,7 +93,7 @@ pub fn match_order(mut taker_order: BookOrder) -> (AddBook2, Vec<LastTrade2>) {
                     break 'marker_orders;
                 }else {
                     info!(" _0005");
-                    let marker_order = book.sell.first().unwrap();
+                    let mut marker_order = book.sell[0].clone();
                     let matched_amount = std::cmp::min(taker_order.amount,marker_order.amount);
                     trades.push(LastTrade2{
                         price: marker_order.price.clone(),
@@ -105,14 +105,18 @@ pub fn match_order(mut taker_order: BookOrder) -> (AddBook2, Vec<LastTrade2>) {
                     let stat = update_book.asks.entry(marker_order.price.clone()).or_insert(matched_amount);
                     *stat += matched_amount;
 
-                    //remove sell[0]
+                    marker_order.amount -= matched_amount;
                     taker_order.amount -= matched_amount;
-                    if taker_order.amount == 0 {
-                        marker_order.amount.sub(matched_amount);
-                        if  marker_order.amount == 0 {
-                            book.sell.pop();
-                        }
+                    if marker_order.amount != 0 && taker_order.amount == 0 {
+                        book.sell[0] = marker_order;
                         break 'marker_orders;
+                    }else if  marker_order.amount == 0 && taker_order.amount != 0 {
+                        book.sell.pop();
+                    }else if marker_order.amount != 0 && taker_order.amount == 0 {
+                        book.sell.pop();
+                        break 'marker_orders;
+                    }else {
+                        unreachable!()
                     }
                 }
             }
@@ -147,10 +151,8 @@ pub fn match_order(mut taker_order: BookOrder) -> (AddBook2, Vec<LastTrade2>) {
                     *stat += matched_amount;
 
 
-                    info!("before sub {:?},matched_amount={}",marker_order.amount,matched_amount);
                     marker_order.amount -= matched_amount;
                     taker_order.amount -= matched_amount;
-
                     if marker_order.amount != 0 && taker_order.amount == 0 {
                         book.buy[0] = marker_order;
                         break 'marker_orders;
@@ -174,11 +176,7 @@ pub fn match_order(mut taker_order: BookOrder) -> (AddBook2, Vec<LastTrade2>) {
     //drop(book);
     //info!("current book = {:?}",crate::BOOK.lock().unwrap());
     info!("current book = {:?}",book);
-
-    info!(" _0007");
-    //let now = Local::now().timestamp_millis() as u64;
-
-        //match_trade.id = sha256(serde_json::to_string(&match_trade).unwrap());
+    //match_trade.id = sha256(serde_json::to_string(&match_trade).unwrap());
 
     (update_book, trades)
 }

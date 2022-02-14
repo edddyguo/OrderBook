@@ -75,7 +75,7 @@ pub struct AddBook {
     pub bids: Vec<(f64, f64)>,
 }
 
-#[derive(RustcEncodable, Clone, Serialize)]
+#[derive(RustcEncodable, Clone, Serialize,Debug)]
 pub struct AddBook2 {
     pub asks: HashMap<u64,u64>,
     pub bids: HashMap<u64,u64>,
@@ -284,11 +284,11 @@ async fn listen_blocks() -> anyhow::Result<()> {
 
                 for  (index,order) in orders.into_iter().enumerate() {
                     info!("start match_order index {}",index);
-                    match_order(order);
+                    let match_result = match_order(order);
+                    info!("match_result = {:?}",match_result);
                     info!("finished match_order index {}",index);
                 }
-
-
+                
 
 
                 //tmp code

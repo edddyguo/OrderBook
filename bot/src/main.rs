@@ -65,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
     println!("Hello, world!");
     let base_price = 40000.0f64;
     let base_amount = 1.0f64;
-    /***
+
     loop {
         let mut rng = rand::thread_rng();
         let price_add: f64 = rng.gen_range(-1000.0..1000.0);
@@ -83,12 +83,11 @@ async fn main() -> anyhow::Result<()> {
         tokio::time::sleep(time::Duration::from_millis(5000)).await;
     }
 
-     */
     //[newOrder]: side buy price 40503.19859207,amount 0.36172409
     // [newOrder]: side sell price 39036.04489557,amount 1.91700874
-    new_order("buy".to_string(),40503.19859207,0.36172409).await;
-    tokio::time::sleep(time::Duration::from_millis(5000)).await;
-    new_order("sell".to_string(),39036.04489557,1.91700874).await;
+    //new_order("buy".to_string(),40503.19859207,0.36172409).await;
+    //tokio::time::sleep(time::Duration::from_millis(5000)).await;
+    //new_order("sell".to_string(),39036.04489557,1.91700874).await;
 
     Ok(())
 }
