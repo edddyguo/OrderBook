@@ -11,6 +11,7 @@ use std::ops::Mul;
 //#[derive(Serialize)]
 use serde::Serialize;
 use slog::info;
+use utils::math::narrow;
 use utils::time::get_current_time;
 use crate::struct2array;
 
@@ -78,16 +79,16 @@ pub struct MarketVolume {
 }
 
 impl OrderInfo {
-    pub fn new(id:String,market_id:String,account:String,side:String,price:f64,amount:f64) -> OrderInfo {
+    pub fn new(id:String, market_id:String, account:String, side: String, price:u64, amount:u64) -> OrderInfo {
         OrderInfo {
             id,
             market_id,
             account,
             side,
-            price,
-            amount,
+            price: narrow(price),
+            amount: narrow(amount),
             status: "pending".to_string(),
-            available_amount: amount,
+            available_amount: narrow(amount),
             matched_amount: 0.0,
             canceled_amount: 0.0,
             confirmed_amount: 0.0,

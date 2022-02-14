@@ -12,6 +12,7 @@ use rsmq_async::{Rsmq, RsmqConnection, RsmqError, RsmqQueueAttributes};
 use rustc_serialize::json;
 use serde::Serialize;
 use std::convert::TryFrom;
+use std::fmt::Debug;
 use std::ops::Add;
 use std::str::FromStr;
 use std::sync::{mpsc, Arc, RwLock};
@@ -24,10 +25,11 @@ use chrono::offset::LocalResult;
 use chrono::prelude::*;
 use utils::{time as chemix_time,algorithm};
 use ethers::{prelude::*};
-use utils::math::MathOperation;
+use utils::math::{MathOperation, narrow};
 use ethers_core::abi::ethereum_types::{U256, U64};
 use chemix_models::engine::{insert_order, OrderInfo};
 use utils::algorithm::sha256;
+use crate::order::Status::{FullFilled, PartialFilled};
 use crate::Side::{Buy, Sell};
 
 
@@ -59,6 +61,7 @@ lazy_static! {
     });
 }
 
+/***
 #[derive(Debug, PartialEq, EthEvent)]
 pub struct NewOrderEvent {
     user: Address,
@@ -67,6 +70,7 @@ pub struct NewOrderEvent {
     amount: u64,
     price: u64,
 }
+ */
 
 #[derive(RustcEncodable, Clone, Serialize)]
 pub struct AddBook {
@@ -80,11 +84,13 @@ pub struct AddBook2 {
     pub bids: HashMap<u64,u64>,
 }
 
+/***
 #[derive(RustcEncodable, Clone, Serialize)]
 pub struct MarketUpdateBook {
     id: String,
     data: AddBook,
 }
+ */
 
 #[derive(RustcEncodable, Clone, Serialize)]
 pub struct LastTrade {
@@ -202,9 +208,9 @@ async fn listen_blocks() -> anyhow::Result<()> {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
                 loop {
-                    dbg!(height);
-                    let block_content = provider_http.get_block(height).await.unwrap();
-                    if block_content.is_none() {
+                    //let block_content = provider_http.get_block(height).await.unwrap();
+                    //if block_content.is_none() {
+                    if false {
                         tokio::time::sleep(time::Duration::from_secs(2)).await;
                         println!("block not found,and wait a moment");
                     } else {
@@ -232,7 +238,8 @@ async fn listen_blocks() -> anyhow::Result<()> {
                                 println!("receive new message {:?}", message.message);
                                 let new_orders: Vec<NewOrderFilter> = serde_json::from_str(&message.message).unwrap();
                                 println!("receive new order {:?} at {}", new_orders,chemix_time::get_current_time());
-                                let new_orders = new_orders.iter().map(|x| {
+                                //    event NewOrder(address user, string baseToken, string quoteToken ,string side, uint amount, uint price);
+                                let new_orders = new_orders.iter().map(|x | {
                                     let now = Local::now().timestamp_millis() as u64;
                                     let order_json = format!("{}{}",serde_json::to_string(&x).unwrap(),now);
                                     let order_id = sha256(order_json);
@@ -243,6 +250,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                                     };
                                     BookOrder {
                                         id: order_id,
+                                        account: x.user.to_string(),
                                         side,
                                         price: x.price.as_u64(),
                                         amount: x.amount.as_u64(),
@@ -252,6 +260,9 @@ async fn listen_blocks() -> anyhow::Result<()> {
                                 event_sender.send(new_orders).expect("failed to send orders");
                                 rsmq.write().unwrap().delete_message("bot", &message.id).await;
                             } else {
+                                let test1 = Address::from_str("1").unwrap();
+                                //let test2 = test1.to_string()
+                                //let test2 = String::from_utf8(test1).unwrap()
                                 tokio::time::sleep(time::Duration::from_millis(10)).await;
                             }
                         }
@@ -281,16 +292,29 @@ async fn listen_blocks() -> anyhow::Result<()> {
                     bids: HashMap::<u64,u64>::new(),
                 };
                 //let orders = Vec::new();
-                //let db_orders = Vec::<OrderInfo>::new();
+                let mut db_orders = Vec::<OrderInfo>::new();
                 for  (index,order) in orders.into_iter().enumerate() {
-
-                    //let db_order = OrderInfo::new("BTC-USDT","BTC-USDT".to_s,account,side,price,amount);
+                    let side_str = format!("{:?}",order.side);
+                    let mut db_order = OrderInfo::new(order.id.clone(),"BTC-USDT".to_string(),order.account.clone(),side_str,order.price.clone(),order.amount.clone());
                     info!("start match_order index {}",index);
                     let matched_amount = match_order(order, &mut agg_trades, &mut add_depth);
+                    db_order.status = if narrow(matched_amount) == db_order.amount {
+                        "full_filled".to_string()
+                    }else if  matched_amount != 0 && narrow(matched_amount) < db_order.amount{
+                        "partial_filled".to_string()
+                    }else if matched_amount == 0{
+                        "pending".to_string()
+                    }else {
+                        assert!(false);
+                        "".to_string()
+                    };
+                    db_order.matched_amount = narrow(matched_amount);
+                    db_order.available_amount = db_order.amount - narrow(matched_amount);
+                    db_orders.push(db_order);
                     info!("finished match_order index {}",index);
                 }
 
-                //insert_order();
+                insert_order(db_orders);
                 //todo: sync data to psql
 
 

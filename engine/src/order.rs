@@ -44,6 +44,7 @@ pub struct EventOrder {
 #[derive(Clone, Serialize,Debug)]
 pub struct BookOrder {
     pub id: String,
+    pub account: String,
     pub side: Side,
     pub price: u64,
     pub amount: u64,
