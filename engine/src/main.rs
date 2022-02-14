@@ -327,7 +327,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                     info!("start match_order index {}",index);
                     let matched_amount = match_order(order, &mut agg_trades, &mut add_depth);
 
-                    error!("taker_amount={},matched_amount={}",db_order.amount,matched_amount);
+                    warn!("taker_amount={},matched_amount={}",db_order.amount,matched_amount);
                     db_order.status = if narrow(matched_amount) == db_order.amount {
                         "full_filled".to_string()
                     }else if  matched_amount != 0 && narrow(matched_amount) < db_order.amount{
@@ -335,6 +335,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                     }else if matched_amount == 0{
                         "pending".to_string()
                     }else {
+                        error!("assert: taker_amount={},matched_amount={},matched_amount less than order amount {}",db_order.amount,narrow(matched_amount),narrow(matched_amount) < db_order.amount);
                         assert!(false);
                         "".to_string()
                     };

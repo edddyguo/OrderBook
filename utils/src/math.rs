@@ -34,6 +34,6 @@ impl MathOperation for f64 {
 }
 
 pub fn narrow(ori:u64) -> f64{
-    let str = format!("{}.{}",ori.clone() / 100_000_000,ori % 100_000_000);
-    str.parse::<f64>().unwrap()
+    let decimal_number = Decimal::new(ori as i64, 8);
+    decimal_number.to_f64().unwrap()
 }
