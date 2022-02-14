@@ -326,6 +326,8 @@ async fn listen_blocks() -> anyhow::Result<()> {
                     let mut db_order = OrderInfo::new(order.id.clone(),"BTC-USDT".to_string(),order.account.clone(),side_str,order.price.clone(),order.amount.clone());
                     info!("start match_order index {}",index);
                     let matched_amount = match_order(order, &mut agg_trades, &mut add_depth);
+
+                    error!("taker_amount={},matched_amount={}",db_order.amount,matched_amount);
                     db_order.status = if narrow(matched_amount) == db_order.amount {
                         "full_filled".to_string()
                     }else if  matched_amount != 0 && narrow(matched_amount) < db_order.amount{
@@ -342,6 +344,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                     info!("finished match_order index {}",index);
                 }
 
+                //todo: marker orders的状态也要更新掉
                 insert_order(db_orders);
                 //todo: sync data to psql
 

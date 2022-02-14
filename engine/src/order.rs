@@ -74,17 +74,6 @@ pub struct EngineOrder {
 
 pub fn match_order(mut taker_order: BookOrder, agg_trades: &mut Vec<LastTrade2>, add_depth: &mut AddBook2) -> u64{
     let mut book  = & mut crate::BOOK.lock().unwrap();
-
-    //fixme: 先在match_order进行落盘，后期挪到其他线程
-    /***
-    let mut trades = Vec::<LastTrade2>::new();
-    let mut add_depth = AddBook2 {
-        asks: HashMap::<u64,u64>::new(),
-        bids: HashMap::<u64,u64>::new(),
-    };
-
-     */
-
     let mut total_matched_amount: u64 = 0;
     info!(" _0001");
     'marker_orders : loop {
