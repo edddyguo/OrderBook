@@ -15,6 +15,7 @@ contract ChemixTrade {
     }
     address public admin;
     mapping (uint => OrderInfo) public orders;
+    mapping (uint => OrderInfo) public orders2;
     string private name;
 
     event NewOrder(address user, string baseToken, string quoteToken ,string side, uint amount, uint price);

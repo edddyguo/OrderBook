@@ -53,7 +53,7 @@ pub struct TopicsRequest2 {
 }
 
 //{"method": "PING","params":{"channel":[],"hash":""}}
-//{"method": "SUBSCRIBE","params":{"channel":["ethbusd@kline_1d","ethbusd@aggTrade","ethbusd@depth"],"hash":""}}
+//{"method": "SUBSCRIBE","params":{"channel":["BTC-USDT@kline_1d","BTC-USDT@aggTrade","BTC-USDT@depth"],"hash":""}}
 
 //{"method": "SUBSCRIBE", "params": ["ethbusd@kline_1d","ethbusd@aggTrade","ethbusd@depth"]}
 //["miniTicker@arr@3000ms", "ethbusd@aggTrade", "ethbusd@kline_1d", "ethbusd@depth"]

@@ -1,6 +1,9 @@
+#![feature(bigint_helper_methods)]
+
 mod order;
 mod trade;
 
+use std::collections::HashMap;
 use anyhow::Result;
 use ethers::{prelude::*, utils::Ganache};
 use std::time::Duration;
@@ -17,7 +20,7 @@ use std::sync::{mpsc, Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::time;
 use std::sync::Mutex;
-use crate::order::{BookOrder, EventOrder};
+use crate::order::{BookOrder, EventOrder, match_order, Side};
 
 use chrono::offset::LocalResult;
 use chrono::prelude::*;
@@ -26,6 +29,7 @@ use ethers::{prelude::*};
 use utils::math::MathOperation;
 use ethers_core::abi::ethereum_types::{U256, U64};
 use utils::algorithm::sha256;
+use crate::Side::{Buy, Sell};
 
 
 #[macro_use]
@@ -36,7 +40,7 @@ extern crate log;
 
 
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize,Debug)]
 struct EngineBook {
     pub buy: Vec<BookOrder>,
     pub sell: Vec<BookOrder>,
@@ -70,6 +74,13 @@ pub struct AddBook {
     pub asks: Vec<(f64, f64)>,
     pub bids: Vec<(f64, f64)>,
 }
+
+#[derive(RustcEncodable, Clone, Serialize)]
+pub struct AddBook2 {
+    pub asks: HashMap<u64,u64>,
+    pub bids: HashMap<u64,u64>,
+}
+
 #[derive(RustcEncodable, Clone, Serialize)]
 pub struct MarketUpdateBook {
     id: String,
@@ -83,6 +94,13 @@ pub struct LastTrade {
     amount: f64,
     taker_side: String,
     updated_at: u64,
+}
+
+#[derive(RustcEncodable, Clone, Serialize,Debug)]
+pub struct LastTrade2 {
+    price: u64,
+    amount: u64,
+    taker_side: Side,
 }
 
 //block content logs [NewOrderFilter { user: 0xfaa56b120b8de4597cf20eff21045a9883e82aad, base_token: "BTC", quote_token: "USDT", amount: 3, price: 4 }]
@@ -219,9 +237,14 @@ async fn listen_blocks() -> anyhow::Result<()> {
                                     let now = Local::now().timestamp_millis() as u64;
                                     let order_json = format!("{}{}",serde_json::to_string(&x).unwrap(),now);
                                     let order_id = sha256(order_json);
+                                    let side = match x.side.as_str() {
+                                        "sell" => Sell,
+                                        "buy" => Buy,
+                                        _ => unreachable!()
+                                    };
                                     BookOrder {
                                         id: order_id,
-                                        side: x.side.clone(),
+                                        side,
                                         price: x.price.as_u64(),
                                         amount: x.amount.as_u64(),
                                         created_at: now,
@@ -258,11 +281,13 @@ async fn listen_blocks() -> anyhow::Result<()> {
                     asks: vec![],
                     bids: vec![],
                 };
-                /**
+
                 for  (index,order) in orders.into_iter().enumerate() {
+                    info!("start match_order index {}",index);
                     match_order(order);
+                    info!("finished match_order index {}",index);
                 }
-                */
+
 
 
 

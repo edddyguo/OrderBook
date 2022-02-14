@@ -1,7 +1,9 @@
+use std::borrow::BorrowMut;
+use std::collections::HashMap;
 use rustc_serialize::json;
 use serde::Serialize;
-use std::ops::Deref;
-use crate::{AddBook, LastTrade, EngineBook};
+use std::ops::{Deref, Index, Sub};
+use crate::{AddBook, LastTrade, EngineBook, AddBook2, LastTrade2};
 //use ethers::{prelude::*,types::{U256}};
 use serde::Deserialize;
 use utils::algorithm::sha256;
@@ -9,13 +11,20 @@ use utils::math::narrow;
 use chrono::offset::LocalResult;
 use chrono::offset::Local;
 use std::sync::MutexGuard;
+use std::time;
 
-
+#[derive(RustcEncodable,Deserialize, Debug,PartialEq,Clone,Serialize)]
+pub enum Side {
+    #[serde(rename = "buy")]
+    Buy,
+    #[serde(rename = "sell")]
+    Sell,
+}
 
 #[derive(RustcEncodable, Clone, Serialize)]
 pub struct EventOrder {
     pub market_id: String,
-    pub side: String,
+    pub side: Side,
     pub price: f64,
     pub amount: f64,
 }
@@ -23,7 +32,7 @@ pub struct EventOrder {
 #[derive(Clone, Serialize,Debug)]
 pub struct BookOrder {
     pub id: String,
-    pub side: String,
+    pub side: Side,
     pub price: u64,
     pub amount: u64,
     pub created_at: u64,
@@ -38,7 +47,7 @@ pub struct EngineOrder {
     pub updated_at: u64,
 }
 
-/**
+/***
 #[derive(Clone, Serialize,Debug)]
 pub struct EngineOrder {
     pub id: String,
@@ -48,69 +57,132 @@ pub struct EngineOrder {
     pub created_at: u64,
 }
 */
-/**
-pub fn match_order(mut order: BookOrder) -> (AddBook,Vec<LastTrade>) {
-    //fix: rc
-    let total_amount = order.amount;
-    let mut book : MutexGuard<EngineBook> = crate::BOOK.lock().unwrap();
-    let mut sum_matched: u64 = 0;
-    let mut matched_amount: u64 = 0;
-    //book.buy.push()
-    let mut opponents_book = if order.side == "buy" {
-        book.sell.clone()
-    }else {
-        book.buy.clone()
-    };
-    let can_match = || -> bool {
-        if opponents_book.is_empty() {
-           return false
-        }
-        let gap_price = order.price as i64 - opponents_book[0].price as i64;
-        if (order.side == "buy" && gap_price < 0) || (order.side == "sell" && gap_price > 0){
-            false
-        }else if  (order.side == "buy" && gap_price >= 0) || (order.side == "sell" && gap_price <= 0) {
-            true
-        }else {
-            unreachable!()
-        }
-    };
+
+
+pub fn match_order(mut taker_order: BookOrder) -> (AddBook2, Vec<LastTrade2>) {
+    let total_amount = taker_order.amount;
+    let mut book  = & mut crate::BOOK.lock().unwrap();
 
     //fixme: 先在match_order进行落盘，后期挪到其他线程
-    let mut trades = Vec::<LastTrade>::new();
-    let mut update_book = AddBook {
-        asks: vec![],
-        bids: vec![],
+    let mut trades = Vec::<LastTrade2>::new();
+    let mut update_book = AddBook2 {
+        asks: HashMap::<u64,u64>::new(),
+        bids: HashMap::<u64,u64>::new(),
     };
-    'batch_orders : loop{
-        if !can_match() {
-            //todo: insert this order
-            break;
+
+    let mut sum_matched: u64 = 0;
+    info!(" _0001");
+    'marker_orders : loop {
+        info!(" _0002");
+        match &taker_order.side {
+            Side::Buy => {
+                info!(" _0003");
+                if book.sell.is_empty() || taker_order.price < book.sell.first().unwrap().price {
+                    //此时一定是有吃单剩余
+                    let stat = update_book.bids.entry(taker_order.price.clone()).or_insert(taker_order.amount);
+                    *stat += taker_order.amount;
+
+                    //insert this order by compare price and created_at
+                    //fixme:tmpcode,优化，还有时间排序的问题
+                    book.buy.push(taker_order);
+                    book.buy.sort_by(|a,b| {
+                        a.price.partial_cmp(&b.price).unwrap()
+                    });
+                    book.buy.reverse();
+                    info!(" _0004");
+                    break 'marker_orders;
+                }else {
+                    info!(" _0005");
+                    let marker_order = book.sell.first().unwrap();
+                    let matched_amount = std::cmp::min(taker_order.amount,marker_order.amount);
+                    trades.push(LastTrade2{
+                        price: marker_order.price.clone(),
+                        amount: matched_amount,
+                        taker_side: taker_order.side.clone(),
+                    });
+
+                    //update asks
+                    let stat = update_book.asks.entry(marker_order.price.clone()).or_insert(matched_amount);
+                    *stat += matched_amount;
+
+                    //remove sell[0]
+                    taker_order.amount -= matched_amount;
+                    if taker_order.amount == 0 {
+                        marker_order.amount.sub(matched_amount);
+                        if  marker_order.amount == 0 {
+                            book.sell.pop();
+                        }
+                        break 'marker_orders;
+                    }
+                }
+            }
+            Side::Sell => {
+                if book.buy.is_empty() || taker_order.price > book.buy.first().unwrap().price {
+                    //此时一定是有吃单剩余
+                    let stat = update_book.asks.entry(taker_order.price.clone()).or_insert(taker_order.amount);
+                    *stat += taker_order.amount;
+
+                    //insert this order by compare price and created_at
+                    //fixme:tmpcode,优化，还有时间的问题
+                    book.sell.push(taker_order);
+                    book.sell.sort_by(|a,b| {
+                        a.price.partial_cmp(&b.price).unwrap()
+                    });
+                    book.sell.reverse();
+                    info!(" _00014");
+                    break 'marker_orders;
+                }else {
+                    info!(" _00015");
+                    let mut marker_order = book.buy[0].clone();
+                    let matched_amount = std::cmp::min(taker_order.amount,marker_order.amount);
+                    trades.push(LastTrade2{
+                        price: marker_order.price.clone(),
+                        amount: matched_amount,
+                        taker_side: taker_order.side.clone(),
+                    });
+
+                    //info!("gen new trade {:?}",trades);
+                    //update asks
+                    let stat = update_book.bids.entry(marker_order.price.clone()).or_insert(matched_amount);
+                    *stat += matched_amount;
+
+
+                    info!("before sub {:?},matched_amount={}",marker_order.amount,matched_amount);
+                    marker_order.amount -= matched_amount;
+                    taker_order.amount -= matched_amount;
+
+                    if marker_order.amount != 0 && taker_order.amount == 0 {
+                        book.buy[0] = marker_order;
+                        break 'marker_orders;
+                    }else if  marker_order.amount == 0 && taker_order.amount != 0 {
+                        book.buy.pop();
+                    }else if marker_order.amount != 0 && taker_order.amount == 0 {
+                        book.buy.pop();
+                        break 'marker_orders;
+                    }else {
+                        unreachable!()
+                    }
+
+                }
+            }
         }
+    };
 
-        let matched_amount = std::cmp::min(order.amount.clone(),opponents_book[0].amount);
 
-        //fix: 编译有错
-        order.amount -= opponents_book[1].amount;
-        if order.amount == 0 {
-            break;
-        }
+    //todo: update orders and trades in psql
 
-        let now = Local::now().timestamp_millis() as u64;
-        let mut match_trade = LastTrade{
-            id: "".to_string(),
-            price: narrow(opponents_book[1].price),
-            amount: narrow(matched_amount),
-            taker_side: order.side.clone(),
-            updated_at: now,
-        };
+    //drop(book);
+    //info!("current book = {:?}",crate::BOOK.lock().unwrap());
+    info!("current book = {:?}",book);
 
-        match_trade.id = sha256(serde_json::to_string(&match_trade).unwrap());
-        opponents_book.push(order.clone());
-        trades.push(match_trade);
-    }
+    info!(" _0007");
+    //let now = Local::now().timestamp_millis() as u64;
+
+        //match_trade.id = sha256(serde_json::to_string(&match_trade).unwrap());
+
     (update_book, trades)
 }
-*/
+
 pub fn cancel(){
     todo!()
 }
