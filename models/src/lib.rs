@@ -6,10 +6,14 @@ pub mod engine;
 extern crate jsonrpc_client_core;
 extern crate jsonrpc_client_http;
 
+use std::any::Any;
 use postgres::{Client, Error, NoTls};
 use std::env;
+use std::fmt::Debug;
 use std::fs::OpenOptions;
 use std::sync::Mutex;
+use serde::Deserialize;
+
 
 #[macro_use]
 extern crate lazy_static;
@@ -20,6 +24,7 @@ use chrono::prelude::*;
 use chrono::Local;
 use std::ptr::null;
 use std::time::Instant;
+use crate::engine::{OrderInfo, TradeInfo};
 
 lazy_static! {
     static ref CLIENTDB: Mutex<postgres::Client> = Mutex::new({ connetDB().unwrap() });
@@ -61,6 +66,59 @@ fn connetDB() -> Option<postgres::Client> {
         }
     };
     Some(client)
+}
+
+pub trait FormatSql {
+    fn string4sql(&self) -> String;
+}
+
+impl FormatSql for String {
+    fn string4sql(&self) -> String {
+        format!("'{}'", self)
+    }
+}
+
+pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
+    let mut trade_vec: Vec<String> = vec![];
+    let value = value as &dyn Any;
+    match value.downcast_ref::<TradeInfo>() {
+        Some(trade) => {
+            trade_vec.push(trade.id.string4sql());
+            trade_vec.push(trade.transaction_id.to_string());
+            trade_vec.push(trade.transaction_hash.string4sql());
+            trade_vec.push(trade.status.string4sql());
+            trade_vec.push(trade.market_id.string4sql());
+            trade_vec.push(trade.maker.string4sql());
+            trade_vec.push(trade.taker.string4sql());
+            trade_vec.push(trade.price.to_string());
+            trade_vec.push(trade.amount.to_string());
+            trade_vec.push(trade.taker_side.string4sql());
+            trade_vec.push(trade.maker_order_id.string4sql());
+            trade_vec.push(trade.taker_order_id.string4sql());
+            trade_vec.push(trade.updated_at.string4sql());
+            trade_vec.push(trade.created_at.string4sql());
+        }
+        None => (),
+    };
+    match value.downcast_ref::<OrderInfo>() {
+        Some(trade) => {
+            trade_vec.push(trade.id.string4sql());
+            trade_vec.push(trade.account.string4sql());
+            trade_vec.push(trade.market_id.string4sql());
+            trade_vec.push(trade.side.string4sql());
+            trade_vec.push(trade.price.to_string());
+            trade_vec.push(trade.amount.to_string());
+            trade_vec.push(trade.status.string4sql());
+            trade_vec.push(trade.available_amount.to_string());
+            trade_vec.push(trade.confirmed_amount.to_string());
+            trade_vec.push(trade.canceled_amount.to_string());
+            trade_vec.push(trade.matched_amount.to_string());
+            trade_vec.push(trade.updated_at.string4sql());
+            trade_vec.push(trade.created_at.string4sql());
+        }
+        None => (),
+    };
+    trade_vec
 }
 
 #[cfg(test)]

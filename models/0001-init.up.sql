@@ -133,29 +133,6 @@ create table chemix_transactions(
 create unique index idx_chemix_transactions_pendingtx2 on chemix_transactions (created_at, status, transaction_hash);
 
 
-create table chemix_bridge(
-  id text PRIMARY KEY,
-  address  text default '',
-  token_name text default '',
-  amount numeric(32,8) default 0,
-  side  text default '', 
-  master_txid text default '',
-  master_txid_status text default '',
-  child_txid  text default '',
-  child_txid_status  text default '',
-  fee_asset  text default '', 
-  fee_amount  text default '',
-  updated_at  timestamp default now(),
-  created_at  timestamp default now()
-);
-
-create index idx_chemix_bridge_pending_decode on chemix_bridge (address,master_txid_status,created_at);
-create index idx_chemix_bridge_my_bridge on chemix_bridge (address,created_at);
-create index idx_chemix_bridge_pending_trade on chemix_bridge (side,master_txid_status,child_txid_status,created_at);
-
-create index idx_chemix_bridge_statistical on chemix_bridge (side,token_name);
-
-
 
 
 create table chemix_market_quotation_tmp(
@@ -181,36 +158,3 @@ create table chemix_order_book_tmp(
   created_at  timestamp default now()
 );
 create index idx_chemix_order_book_tmp_market_book on chemix_order_book_tmp (market_id,precision);
-
-/**
-id                   | text                        |          | not null |
- address              | text                        |          |          |
- deposit_assetid      | text                        |          |          |
- deposit_amount       | numeric(32,18)              |          |          |
- deposit_token_name   | text                        |          |          |
- deposit_price        | numeric(32,18)              |          |          |
- interest_rate        | numeric(32,18)              |          |          |
- cdp_id               | integer                     |          |          |
- status               | text                        |          |          |
- zhiya_rate           | numeric(32,18)              |          |          |
- usage                | text                        |          |          |
- borrow_amount        | numeric(32,18)              |          |          |
- borrow_time          | integer                     |          |          |
- repaid_amount        | numeric(32,18)              |          |          |
- should_repaid_amount | numeric(32,18)              |          |          |
- cdp_address          | text                        |          |          |
- updated_at           | timestamp without time zone |          |          |
- created_at           | timestamp without time zone |          |          |
-索引：****/
-create table chemix_borrows(
-  id text default '',
-  address text default '',
-  token text default '',
-  trade_id text default '',
-  amount  numeric(32,18) default 0,
-  repaid_amount numeric(32,18) default 0,
-  rate numeric(32,18) default 0, --一小时利率
-  status text default '', --open,close,forced 爆仓
-  updated_at  timestamp default now(),
-  created_at  timestamp default now()
-);

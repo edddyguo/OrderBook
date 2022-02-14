@@ -20,6 +20,18 @@ pub enum Side {
     #[serde(rename = "sell")]
     Sell,
 }
+//  status text , --"full_filled","partial_filled","pending"
+#[derive(RustcEncodable,Deserialize, Debug,PartialEq,Clone,Serialize)]
+pub enum Status {
+    #[serde(rename = "full_filled")]
+    FullFilled,
+    #[serde(rename = "partial_filled")]
+    PartialFilled,
+    #[serde(rename = "pending")]
+    Pending,
+    #[serde(rename = "canceled")]
+    Canceled,
+}
 
 #[derive(RustcEncodable, Clone, Serialize)]
 pub struct EventOrder {
@@ -59,8 +71,7 @@ pub struct EngineOrder {
 */
 
 
-pub fn match_order(mut taker_order: BookOrder, agg_trades: &mut Vec<LastTrade2>, add_depth: &mut AddBook2){
-    let total_amount = taker_order.amount;
+pub fn match_order(mut taker_order: BookOrder, agg_trades: &mut Vec<LastTrade2>, add_depth: &mut AddBook2) -> u64{
     let mut book  = & mut crate::BOOK.lock().unwrap();
 
     //fixme: 先在match_order进行落盘，后期挪到其他线程
@@ -73,7 +84,7 @@ pub fn match_order(mut taker_order: BookOrder, agg_trades: &mut Vec<LastTrade2>,
 
      */
 
-    let mut sum_matched: u64 = 0;
+    let mut total_matched_amount: u64 = 0;
     info!(" _0001");
     'marker_orders : loop {
         info!(" _0002");
@@ -109,7 +120,9 @@ pub fn match_order(mut taker_order: BookOrder, agg_trades: &mut Vec<LastTrade2>,
                     *stat += matched_amount;
 
                     marker_order.amount -= matched_amount;
+                    //todo: 不在去减，用total_matched_amount 判断
                     taker_order.amount -= matched_amount;
+                    total_matched_amount += matched_amount;
                     if marker_order.amount != 0 && taker_order.amount == 0 {
                         book.sell[0] = marker_order;
                         break 'marker_orders;
@@ -156,6 +169,7 @@ pub fn match_order(mut taker_order: BookOrder, agg_trades: &mut Vec<LastTrade2>,
 
                     marker_order.amount -= matched_amount;
                     taker_order.amount -= matched_amount;
+                    total_matched_amount += matched_amount;
                     if marker_order.amount != 0 && taker_order.amount == 0 {
                         book.buy[0] = marker_order;
                         break 'marker_orders;
@@ -182,6 +196,7 @@ pub fn match_order(mut taker_order: BookOrder, agg_trades: &mut Vec<LastTrade2>,
     //match_trade.id = sha256(serde_json::to_string(&match_trade).unwrap());
 
     //(add_depth, trades)
+    total_matched_amount
 }
 
 pub fn cancel(){

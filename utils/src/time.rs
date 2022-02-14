@@ -10,3 +10,8 @@ pub fn get_current_time() -> String {
     let dt: DateTime<Local> = Local::now();
     dt.format("%Y-%m-%d %H:%M:%S.%f").to_string()
 }
+
+pub fn get_unix_time() -> String {
+    let dt: DateTime<Local> = Local::now();
+    dt.format("%Y-%m-%d %H:%M:%S.%f").to_string()
+}

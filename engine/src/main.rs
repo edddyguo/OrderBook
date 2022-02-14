@@ -1,5 +1,3 @@
-#![feature(bigint_helper_methods)]
-
 mod order;
 mod trade;
 
@@ -28,6 +26,7 @@ use utils::{time as chemix_time,algorithm};
 use ethers::{prelude::*};
 use utils::math::MathOperation;
 use ethers_core::abi::ethereum_types::{U256, U64};
+use chemix_models::engine::{insert_order, OrderInfo};
 use utils::algorithm::sha256;
 use crate::Side::{Buy, Sell};
 
@@ -281,19 +280,24 @@ async fn listen_blocks() -> anyhow::Result<()> {
                     asks: HashMap::<u64,u64>::new(),
                     bids: HashMap::<u64,u64>::new(),
                 };
-
+                //let orders = Vec::new();
+                //let db_orders = Vec::<OrderInfo>::new();
                 for  (index,order) in orders.into_iter().enumerate() {
+
+                    //let db_order = OrderInfo::new("BTC-USDT","BTC-USDT".to_s,account,side,price,amount);
                     info!("start match_order index {}",index);
-                    let match_result = match_order(order, &mut agg_trades, &mut add_depth);
-                    info!("match_result = {:?}",match_result);
+                    let matched_amount = match_order(order, &mut agg_trades, &mut add_depth);
                     info!("finished match_order index {}",index);
                 }
 
+                //insert_order();
+                //todo: sync data to psql
+
+
                 info!("finished compute  agg_trades {:?},add_depth {:?}",agg_trades,add_depth);
 
-
-
                 //tmp code
+                /***
                 let updateBook = AddBook {
                     asks: vec![(5000.123, -1.1), (6000.123, 1.1)],
                     bids: vec![(4000.123, -1.1), (3000.123, 1.1)],
@@ -316,10 +320,11 @@ async fn listen_blocks() -> anyhow::Result<()> {
                     taker_side: "sell".to_string(),
                     updated_at: 1644287259123,
                 });
+                 */
 
                 let rt = Runtime::new().unwrap();
                 rt.block_on(async move {
-                    let json_str = serde_json::to_string(&updateBook).unwrap();
+                    let json_str = serde_json::to_string(&add_depth).unwrap();
                     arc_rsmq
                         .write()
                         .unwrap()
@@ -327,13 +332,15 @@ async fn listen_blocks() -> anyhow::Result<()> {
                         .await
                         .expect("failed to send message");
 
-                    let json_str = serde_json::to_string(&updateTrade).unwrap();
-                    arc_rsmq
-                        .write()
-                        .unwrap()
-                        .send_message("newTrade", json_str, None)
-                        .await
-                        .expect("failed to send message");
+                    if !agg_trades.is_empty() {
+                        let json_str = serde_json::to_string(&agg_trades).unwrap();
+                        arc_rsmq
+                            .write()
+                            .unwrap()
+                            .send_message("newTrade", json_str, None)
+                            .await
+                            .expect("failed to send message");
+                    }
                 });
             }
         });
