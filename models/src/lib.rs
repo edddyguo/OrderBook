@@ -9,6 +9,7 @@ extern crate jsonrpc_client_http;
 use std::any::Any;
 use postgres::{Client, Error, NoTls};
 use std::env;
+use std::ffi::OsString;
 use std::fmt::Debug;
 use std::fs::OpenOptions;
 use std::sync::Mutex;
@@ -43,17 +44,16 @@ pub fn restartDB() -> bool {
 
 fn connetDB() -> Option<postgres::Client> {
     let mut client;
-    let mut dbname = "chemix".to_string();
-    if let Some(mist_mode) = env::var_os("MIST_MODE") {
-        dbname = mist_mode.into_string().unwrap();
-    } else {
-        eprintln!("have no MIST_MODE env");
-    }
+    let dbname = match env::var_os("CHEMIX_MODE") {
+        None => {
+            "chemix_local".to_string()
+        }
+        Some(mist_mode) => {
+            format!("chemix_{}",mist_mode.into_string().unwrap())
+        }
+    };
 
-    let url = format!(
-        "host=localhost user=postgres port=5432 password=postgres dbname={}",
-        dbname
-    );
+    let url = format!("host=localhost user=postgres port=5432 password=postgres dbname={}", dbname);
 
     match Client::connect(&url, NoTls) {
         Ok(tmp) => {

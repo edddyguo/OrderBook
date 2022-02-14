@@ -10,6 +10,7 @@ use handler::Event;
 use rsmq_async::{Rsmq, RsmqConnection};
 use std::collections::HashMap;
 use std::convert::Infallible;
+use std::env;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -144,8 +145,26 @@ async fn main() {
 
              */
 
+            let channel_update_book = match env::var_os("CHEMIX_MODE") {
+                None => {
+                    "update_book_local".to_string()
+                }
+                Some(mist_mode) => {
+                    format!("bot_{}",mist_mode.into_string().unwrap())
+                }
+            };
+
+            let channel_new_trade = match env::var_os("CHEMIX_MODE") {
+                None => {
+                    "new_trade_local".to_string()
+                }
+                Some(mist_mode) => {
+                    format!("new_trade_{}",mist_mode.into_string().unwrap())
+                }
+            };
+
             let message = rsmq
-                .receive_message::<String>("updateBook", None)
+                .receive_message::<String>(channel_update_book.as_str(), None)
                 .await
                 .expect("cannot receive message");
             if let Some(message) = message {
@@ -157,13 +176,13 @@ async fn main() {
                     message: message.message.clone(),
                 };
                 handler::publish_handler(event, clients.clone()).await;
-                rsmq.delete_message("updateBook", &message.id).await;
+                rsmq.delete_message(channel_update_book.as_str(), &message.id).await;
             } else {
                 tokio::time::sleep(time::Duration::from_millis(10)).await;
             }
 
             let message = rsmq
-                .receive_message::<String>("newTrade", None)
+                .receive_message::<String>(channel_new_trade.as_str(), None)
                 .await
                 .expect("cannot receive message");
             if let Some(message) = message {
@@ -175,7 +194,7 @@ async fn main() {
                     message: message.message.clone(),
                 };
                 handler::publish_handler(event, clients.clone()).await;
-                rsmq.delete_message("newTrade", &message.id).await;
+                rsmq.delete_message(channel_new_trade.as_str(), &message.id).await;
             } else {
                 tokio::time::sleep(time::Duration::from_millis(10)).await;
             }

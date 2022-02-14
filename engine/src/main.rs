@@ -12,6 +12,7 @@ use rsmq_async::{Rsmq, RsmqConnection, RsmqError, RsmqQueueAttributes};
 use rustc_serialize::json;
 use serde::Serialize;
 use std::convert::TryFrom;
+use std::env;
 use std::fmt::Debug;
 use std::ops::Add;
 use std::str::FromStr;
@@ -173,8 +174,27 @@ async fn listen_blocks() -> anyhow::Result<()> {
     let mut rsmq = Rsmq::new(Default::default())
         .await
         .expect("connection failed");
-    check_queue("newTrade").await;
-    check_queue("updateBook").await;
+
+    let channel_update_book = match env::var_os("CHEMIX_MODE") {
+        None => {
+            "update_book_local".to_string()
+        }
+        Some(mist_mode) => {
+            format!("update_book_{}",mist_mode.into_string().unwrap())
+        }
+    };
+
+    let channel_new_trade = match env::var_os("CHEMIX_MODE") {
+        None => {
+            "new_trade_local".to_string()
+        }
+        Some(mist_mode) => {
+            format!("new_trade_{}",mist_mode.into_string().unwrap())
+        }
+    };
+
+    check_queue(channel_update_book.as_str()).await;
+    check_queue(channel_new_trade.as_str()).await;
 
 
     //todo: wss://bsc-ws-node.nariox.org:443
@@ -192,12 +212,12 @@ async fn listen_blocks() -> anyhow::Result<()> {
         .unwrap();
     let address = wallet.address();
     println!("wallet address {:?}", address);
-    let mut height = provider_http.get_block_number().await.unwrap();
+    //let mut height = provider_http.get_block_number().await.unwrap();
     //166475590u64
     //16477780u64
     let mut height: U64 = U64::from(16647865u64);
-    let client = SignerMiddleware::new(provider_http.clone(), wallet.clone());
-    let client = Arc::new(client);
+    //let client = SignerMiddleware::new(provider_http.clone(), wallet.clone());
+    //let client = Arc::new(client);
 
     let (event_sender, event_receiver) = mpsc::sync_channel(0);
     let mut arc_rsmq = Arc::new(RwLock::new(rsmq));
@@ -216,7 +236,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                     } else {
                         let addr = parse_address("0xE41d6cA6Ffe32eC8Ceb927c549dFc36dbefe2c0C")
                             .unwrap();
-                        let contract = SimpleContract::new(addr, client.clone());
+                        //let contract = SimpleContract::new(addr, client.clone());
                         /**
                         let logs: Vec<NewOrderFilter> = contract
                             .new_order_filter()
@@ -227,11 +247,19 @@ async fn listen_blocks() -> anyhow::Result<()> {
                         event_sender.send(logs).expect("failed to send orders");
                          */
                         //tmp code, 压力测试也可以在这里,链上tps受限
-                        check_queue("bot").await;
+                        let channel_bot = match env::var_os("CHEMIX_MODE") {
+                            None => {
+                                "bot_local".to_string()
+                            }
+                            Some(mist_mode) => {
+                                format!("bot_{}",mist_mode.into_string().unwrap())
+                            }
+                        };
+                        check_queue(channel_bot.as_str()).await;
                         let rsmq = arc_rsmq2.clone();
                         'listen_new_order : loop{
                             let message = rsmq.write().unwrap()
-                                .receive_message::<String>("bot", None)
+                                .receive_message::<String>(channel_bot.as_str(), None)
                                 .await
                                 .expect("cannot receive message");
                             if let Some(message) = message {
@@ -258,9 +286,9 @@ async fn listen_blocks() -> anyhow::Result<()> {
                                     }
                                 },).collect::<Vec<BookOrder>>();
                                 event_sender.send(new_orders).expect("failed to send orders");
-                                rsmq.write().unwrap().delete_message("bot", &message.id).await;
+                                rsmq.write().unwrap().delete_message(channel_bot.as_str(), &message.id).await;
                             } else {
-                                let test1 = Address::from_str("1").unwrap();
+                                //let test1 = Address::from_str("1").unwrap();
                                 //let test2 = test1.to_string()
                                 //let test2 = String::from_utf8(test1).unwrap()
                                 tokio::time::sleep(time::Duration::from_millis(10)).await;
@@ -346,13 +374,16 @@ async fn listen_blocks() -> anyhow::Result<()> {
                 });
                  */
 
+
+                let channel_update_book = channel_update_book.clone();
+                let channel_new_trade = channel_new_trade.clone();
                 let rt = Runtime::new().unwrap();
                 rt.block_on(async move {
                     let json_str = serde_json::to_string(&add_depth).unwrap();
                     arc_rsmq
                         .write()
                         .unwrap()
-                        .send_message("updateBook", json_str, None)
+                        .send_message(channel_update_book.as_str(), json_str, None)
                         .await
                         .expect("failed to send message");
 
@@ -361,7 +392,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                         arc_rsmq
                             .write()
                             .unwrap()
-                            .send_message("newTrade", json_str, None)
+                            .send_message(channel_new_trade.as_str(), json_str, None)
                             .await
                             .expect("failed to send message");
                     }

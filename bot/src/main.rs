@@ -15,6 +15,7 @@ use rsmq_async::{Rsmq, RsmqConnection, RsmqError, RsmqQueueAttributes};
 use rustc_serialize::json;
 use serde::Serialize;
 use std::convert::TryFrom;
+use std::env;
 use std::ops::{Add, Range};
 use std::str::FromStr;
 use std::sync::{mpsc, Arc, RwLock};
@@ -49,8 +50,17 @@ async fn new_order(side: String ,price: f64, amount: f64) {
     let events = vec![event];
 
     let json_str = serde_json::to_string(&events).unwrap();
+    let channel_name = match env::var_os("CHEMIX_MODE") {
+        None => {
+            "bot_local".to_string()
+        }
+        Some(mist_mode) => {
+            format!("bot_{}",mist_mode.into_string().unwrap())
+        }
+    };
+
     rsmq
-        .send_message("bot", json_str, None)
+        .send_message(channel_name.as_str(), json_str, None)
         .await
         .expect("failed to send message");
 }
