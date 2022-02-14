@@ -276,19 +276,21 @@ async fn listen_blocks() -> anyhow::Result<()> {
                 );
                 //TODO: matched order
                 //update OrderBook
-                let mut updateTrade2 = Vec::<LastTrade>::new();
-                let mut updateBook2 = AddBook {
-                    asks: vec![],
-                    bids: vec![],
+                let mut agg_trades = Vec::<LastTrade2>::new();
+                let mut add_depth = AddBook2 {
+                    asks: HashMap::<u64,u64>::new(),
+                    bids: HashMap::<u64,u64>::new(),
                 };
 
                 for  (index,order) in orders.into_iter().enumerate() {
                     info!("start match_order index {}",index);
-                    let match_result = match_order(order);
+                    let match_result = match_order(order, &mut agg_trades, &mut add_depth);
                     info!("match_result = {:?}",match_result);
                     info!("finished match_order index {}",index);
                 }
-                
+
+                info!("finished compute  agg_trades {:?},add_depth {:?}",agg_trades,add_depth);
+
 
 
                 //tmp code

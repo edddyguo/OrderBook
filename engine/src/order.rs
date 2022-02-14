@@ -59,16 +59,19 @@ pub struct EngineOrder {
 */
 
 
-pub fn match_order(mut taker_order: BookOrder) -> (AddBook2, Vec<LastTrade2>) {
+pub fn match_order(mut taker_order: BookOrder, agg_trades: &mut Vec<LastTrade2>, add_depth: &mut AddBook2){
     let total_amount = taker_order.amount;
     let mut book  = & mut crate::BOOK.lock().unwrap();
 
     //fixme: 先在match_order进行落盘，后期挪到其他线程
+    /***
     let mut trades = Vec::<LastTrade2>::new();
-    let mut update_book = AddBook2 {
+    let mut add_depth = AddBook2 {
         asks: HashMap::<u64,u64>::new(),
         bids: HashMap::<u64,u64>::new(),
     };
+
+     */
 
     let mut sum_matched: u64 = 0;
     info!(" _0001");
@@ -79,7 +82,7 @@ pub fn match_order(mut taker_order: BookOrder) -> (AddBook2, Vec<LastTrade2>) {
                 info!(" _0003");
                 if book.sell.is_empty() || taker_order.price < book.sell.first().unwrap().price {
                     //此时一定是有吃单剩余
-                    let stat = update_book.bids.entry(taker_order.price.clone()).or_insert(taker_order.amount);
+                    let stat = add_depth.bids.entry(taker_order.price.clone()).or_insert(taker_order.amount);
                     *stat += taker_order.amount;
 
                     //insert this order by compare price and created_at
@@ -95,14 +98,14 @@ pub fn match_order(mut taker_order: BookOrder) -> (AddBook2, Vec<LastTrade2>) {
                     info!(" _0005");
                     let mut marker_order = book.sell[0].clone();
                     let matched_amount = std::cmp::min(taker_order.amount,marker_order.amount);
-                    trades.push(LastTrade2{
+                    agg_trades.push(LastTrade2{
                         price: marker_order.price.clone(),
                         amount: matched_amount,
                         taker_side: taker_order.side.clone(),
                     });
 
                     //update asks
-                    let stat = update_book.asks.entry(marker_order.price.clone()).or_insert(matched_amount);
+                    let stat = add_depth.asks.entry(marker_order.price.clone()).or_insert(matched_amount);
                     *stat += matched_amount;
 
                     marker_order.amount -= matched_amount;
@@ -123,7 +126,7 @@ pub fn match_order(mut taker_order: BookOrder) -> (AddBook2, Vec<LastTrade2>) {
             Side::Sell => {
                 if book.buy.is_empty() || taker_order.price > book.buy.first().unwrap().price {
                     //此时一定是有吃单剩余
-                    let stat = update_book.asks.entry(taker_order.price.clone()).or_insert(taker_order.amount);
+                    let stat = add_depth.asks.entry(taker_order.price.clone()).or_insert(taker_order.amount);
                     *stat += taker_order.amount;
 
                     //insert this order by compare price and created_at
@@ -139,7 +142,7 @@ pub fn match_order(mut taker_order: BookOrder) -> (AddBook2, Vec<LastTrade2>) {
                     info!(" _00015");
                     let mut marker_order = book.buy[0].clone();
                     let matched_amount = std::cmp::min(taker_order.amount,marker_order.amount);
-                    trades.push(LastTrade2{
+                    agg_trades.push(LastTrade2{
                         price: marker_order.price.clone(),
                         amount: matched_amount,
                         taker_side: taker_order.side.clone(),
@@ -147,7 +150,7 @@ pub fn match_order(mut taker_order: BookOrder) -> (AddBook2, Vec<LastTrade2>) {
 
                     //info!("gen new trade {:?}",trades);
                     //update asks
-                    let stat = update_book.bids.entry(marker_order.price.clone()).or_insert(matched_amount);
+                    let stat = add_depth.bids.entry(marker_order.price.clone()).or_insert(matched_amount);
                     *stat += matched_amount;
 
 
@@ -178,7 +181,7 @@ pub fn match_order(mut taker_order: BookOrder) -> (AddBook2, Vec<LastTrade2>) {
     info!("current book = {:?}",book);
     //match_trade.id = sha256(serde_json::to_string(&match_trade).unwrap());
 
-    (update_book, trades)
+    //(add_depth, trades)
 }
 
 pub fn cancel(){
