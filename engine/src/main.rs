@@ -28,9 +28,10 @@ use utils::{time as chemix_time,algorithm};
 use ethers::{prelude::*};
 use utils::math::{MathOperation, narrow};
 use ethers_core::abi::ethereum_types::{U256, U64};
-use chemix_models::order::{insert_order, OrderInfo, Side};
+use chemix_models::order::{get_order, insert_order, OrderInfo, Side, update_order, UpdateOrder};
 use chemix_models::trade::TradeInfo;
 use utils::algorithm::sha256;
+use utils::time::get_current_time;
 use crate::order::Status::{FullFilled, PartialFilled};
 use crate::Side::{Buy, Sell};
 
@@ -323,12 +324,12 @@ async fn listen_blocks() -> anyhow::Result<()> {
 
                 let mut db_trades = Vec::<TradeInfo>::new();
                 let mut db_orders = Vec::<OrderInfo>::new();
-
+                //market_orders的移除或者减少
+                let mut db_marker_orders_reduce = HashMap::<String,f64>::new();
 
                 for  (index,order) in orders.into_iter().enumerate() {
                     let mut db_order = OrderInfo::new(order.id.clone(),"BTC-USDT".to_string(),order.account.clone(),order.side.clone(),order.price.clone(),order.amount.clone());
-                    info!("start match_order index {}",index);
-                    let matched_amount = match_order(order, &mut db_trades, &mut add_depth);
+                    let matched_amount = match_order(order, &mut db_trades, &mut add_depth,&mut db_marker_orders_reduce);
 
                     warn!("taker_amount={},matched_amount={}",db_order.amount,matched_amount);
                     db_order.status = if narrow(matched_amount) == db_order.amount {
@@ -355,10 +356,40 @@ async fn listen_blocks() -> anyhow::Result<()> {
                         taker_side: x.taker_side.clone(),
                     }
                 ).collect::<Vec<LastTrade2>>();
-                //todo: marker orders的状态也要更新掉
-                insert_order(db_orders);
-                //todo: sync data to psql
 
+
+
+
+                //------------------
+                //todo: marker orders的状态也要更新掉
+                //todo: 异步落表
+                //todo： 异步发送bsc交易
+                insert_order(db_orders);
+                //update marker orders
+                for orders in db_marker_orders_reduce {
+                    let marker_order_ori = get_order(orders.0.as_str());
+
+                    let new_matched_amount = marker_order_ori.matched_amount + orders.1;
+                    let new_available_amount = marker_order_ori.available_amount - orders.1;
+
+                    let new_status = if new_available_amount == 0.0 {
+                        "full_filled".to_string()
+                    }else{
+                        "partial_filled".to_string()
+                    };
+
+                    let update_info = UpdateOrder{
+                        id: orders.0,
+                        status: new_status,
+                        available_amount: new_available_amount,
+                        canceled_amount: marker_order_ori.canceled_amount,
+                        matched_amount: new_matched_amount,
+                        updated_at: get_current_time()
+                    };
+                    update_order(&update_info);
+
+                }
+                //----------------------
 
                 info!("finished compute  agg_trades {:?},add_depth {:?}",agg_trades,add_depth);
 

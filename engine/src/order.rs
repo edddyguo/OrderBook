@@ -46,6 +46,7 @@ pub struct BookOrder {
     pub amount: u64,
     pub created_at: u64,
 }
+
 #[derive(Deserialize, Debug, Default, Clone)]
 pub struct EngineOrder {
     pub id: String,
@@ -68,7 +69,7 @@ pub struct EngineOrder {
 */
 
 
-pub fn match_order(mut taker_order: BookOrder, trades: &mut Vec<TradeInfo>, orders: &mut AddBook2) -> u64{
+pub fn match_order(mut taker_order: BookOrder, trades: &mut Vec<TradeInfo>, orders: &mut AddBook2,marker_reduced_orders: &mut HashMap<String,f64>) -> u64{
     let mut book  = & mut crate::BOOK.lock().unwrap();
     let mut total_matched_amount: u64 = 0;
     info!(" _0001");
@@ -103,6 +104,9 @@ pub fn match_order(mut taker_order: BookOrder, trades: &mut Vec<TradeInfo>, orde
                     //update asks
                     let stat = orders.asks.entry(marker_order.price.clone()).or_insert(matched_amount);
                     *stat += matched_amount;
+
+                    //get marker_order change value
+                    marker_reduced_orders.insert(marker_order.id.clone(),narrow(matched_amount));
 
                     marker_order.amount -= matched_amount;
                     //todo: 不在去减，用total_matched_amount 判断
@@ -148,6 +152,10 @@ pub fn match_order(mut taker_order: BookOrder, trades: &mut Vec<TradeInfo>, orde
                     //update asks
                     let stat = orders.bids.entry(marker_order.price.clone()).or_insert(matched_amount);
                     *stat += matched_amount;
+
+                    //get change marker order
+                    marker_reduced_orders.insert(marker_order.id.clone(),narrow(matched_amount));
+
 
 
                     marker_order.amount -= matched_amount;

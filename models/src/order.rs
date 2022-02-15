@@ -18,13 +18,10 @@ use crate::struct2array;
 #[derive(Deserialize, Debug, Default, Clone)]
 pub struct UpdateOrder {
     pub id: String,
-    pub trader_address: String,
     pub status: String,
-    pub amount: f64,
     pub available_amount: f64,
-    pub confirmed_amount: f64,
     pub canceled_amount: f64,
-    pub pending_amount: f64,
+    pub matched_amount: f64,
     pub updated_at: String,
 }
 
@@ -48,7 +45,7 @@ pub enum Side {
 /**
 amount = available_amount + matched_amount + canceled_amount
 */
-#[derive(Deserialize, Debug, Clone,Serialize)]
+#[derive(Deserialize, Debug, Clone,Serialize,Default)]
 pub struct OrderInfo {
     pub id: String,
     pub market_id: String,
@@ -122,16 +119,15 @@ pub fn insert_order(orders: Vec<OrderInfo>) {
 
 }
 
-pub fn update_order(order: &UpdateOrder, trade_table: &str) {
-    // fixme:注入的写法暂时有问题，先直接拼接
+pub fn update_order(order: &UpdateOrder) {
+    // fixme:考虑数据后期增加的问题，做每日的临时表
     let sql = format!(
-        "UPDATE {} SET (available_amount,confirmed_amount,\
-         canceled_amount,pending_amount,status,updated_at)=\
-         ({},confirmed_amount,{},{},'{}','{}') WHERE id='{}'",
-        trade_table,
+        "UPDATE chemix_orders SET (available_amount,\
+         canceled_amount,matched_amount,status,updated_at)=\
+         ({},{},{},'{}','{}') WHERE id='{}'",
         order.available_amount,
         order.canceled_amount,
-        order.pending_amount,
+        order.matched_amount,
         order.status,
         order.updated_at,
         order.id
@@ -178,4 +174,52 @@ pub fn list_available_orders(market_id: &str,side: &str, channel: &str) -> Vec<E
         orders.push(info);
     }
     orders
+}
+
+pub fn get_order(id: &str) -> OrderInfo {
+    let sql = format!(
+        "select id,market_id,account,side,
+         cast(amount as float8),\
+         cast(price as float8),\
+         status,\
+         cast(available_amount as float8),\
+         cast(canceled_amount as float8),\
+         cast(matched_amount as float8),\
+         cast(updated_at as text) ,\
+         cast(created_at as text) \
+         from chemix_orders where id=$1"
+    );
+    let mut order: OrderInfo = Default::default();
+    let mut result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[&id]);
+    if let Err(err) = result {
+        //info!("get order failed {:?},sql={}", err, sql);
+        if !crate::restartDB() {
+            return order;
+        }
+        result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[&id]);
+    }
+    //id 唯一，直接去第一个成员
+    /***
+    status: rows[0].get(2),
+        amount: rows[0].get(3),
+        available_amount: rows[0].get(4),
+        canceled_amount: rows[0].get(6),
+        updated_at: rows[0].get(8),
+    */
+    let rows = result.unwrap();
+    order = OrderInfo {
+        id: rows[0].get(0),
+        market_id: rows[0].get(1),
+        account: rows[0].get(2),
+        side: rows[0].get(3),
+        price: rows[0].get(4),
+        amount: rows[0].get(5),
+        status: rows[0].get(6),
+        available_amount: rows[0].get(7),
+        matched_amount: rows[0].get(8),
+        canceled_amount: rows[0].get(9),
+        updated_at: rows[0].get(10),
+        created_at: rows[0].get(11)
+    };
+    order
 }
