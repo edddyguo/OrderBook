@@ -54,6 +54,9 @@ impl TradeInfo {
 
 
 pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
+    if trades.is_empty() {
+        return
+    }
     let mut query = format!("insert into chemix_trades values(");
     let mut tradesArr: Vec<Vec<String>> = trades.into_iter().
         map(|x| {
@@ -86,6 +89,7 @@ pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
         tradesArr2.append(&mut str_trade);
         index += 1;
     }
+    println!("----query==={}",query);
     let mut result = crate::CLIENTDB.lock().unwrap().execute(&*query, &[]);
     // let mut result = crate::CLIENTDB.lock().unwrap().execute(&*query, &tradesArr[0..tradesArr.len()]);
     if let Err(err) = result {

@@ -90,7 +90,7 @@ async fn main() -> anyhow::Result<()> {
         let amount = (base_amount + amount_add).to_fix(8);
         println!("[newOrder]: side {} price {},amount {}",side,price,amount);
         new_order(side,price,amount).await;
-        tokio::time::sleep(time::Duration::from_millis(50)).await;
+        tokio::time::sleep(time::Duration::from_millis(1000)).await;
     }
 
     //[newOrder]: side buy price 40503.19859207,amount 0.36172409

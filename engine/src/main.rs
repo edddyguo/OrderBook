@@ -29,7 +29,7 @@ use ethers::{prelude::*};
 use utils::math::{MathOperation, narrow};
 use ethers_core::abi::ethereum_types::{U256, U64};
 use chemix_models::order::{get_order, insert_order, OrderInfo, Side, update_order, UpdateOrder};
-use chemix_models::trade::TradeInfo;
+use chemix_models::trade::{insert_trades, TradeInfo};
 use utils::algorithm::sha256;
 use utils::time::get_current_time;
 use crate::order::Status::{FullFilled, PartialFilled};
@@ -331,7 +331,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                     let mut db_order = OrderInfo::new(order.id.clone(),"BTC-USDT".to_string(),order.account.clone(),order.side.clone(),order.price.clone(),order.amount.clone());
                     let matched_amount = match_order(order, &mut db_trades, &mut add_depth,&mut db_marker_orders_reduce);
 
-                    warn!("taker_amount={},matched_amount={}",db_order.amount,matched_amount);
+                    error!("index={},taker_amount={},matched_amount={}",index,db_order.amount,matched_amount);
                     db_order.status = if narrow(matched_amount) == db_order.amount {
                         "full_filled".to_string()
                     }else if  matched_amount != 0 && narrow(matched_amount) < db_order.amount{
@@ -348,6 +348,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                     db_orders.push(db_order);
                     info!("finished match_order index {}",index);
                 }
+                error!("db_trades = {:?}",db_trades);
 
                 let agg_trades = db_trades.iter().map(|x|
                     LastTrade2 {
@@ -389,7 +390,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                     update_order(&update_info);
 
                 }
-                //insert_
+                insert_trades(&mut db_trades);
                 //----------------------
 
                 info!("finished compute  agg_trades {:?},add_depth {:?}",agg_trades,add_depth);

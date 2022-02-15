@@ -89,6 +89,7 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
                 Side::Buy => {"buy"}
                 Side::Sell => {"sell"}
             };
+
             trade_vec.push(trade.id.string4sql());
             trade_vec.push(trade.transaction_id.to_string());
             trade_vec.push(trade.transaction_hash.string4sql());
@@ -109,8 +110,8 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
     match value.downcast_ref::<OrderInfo>() {
         Some(trade) => {
             trade_vec.push(trade.id.string4sql());
-            trade_vec.push(trade.account.string4sql());
             trade_vec.push(trade.market_id.string4sql());
+            trade_vec.push(trade.account.string4sql());
             trade_vec.push(trade.side.string4sql());
             trade_vec.push(trade.price.to_string());
             trade_vec.push(trade.amount.to_string());

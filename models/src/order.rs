@@ -183,8 +183,8 @@ pub fn get_order(id: &str) -> OrderInfo {
          cast(price as float8),\
          status,\
          cast(available_amount as float8),\
-         cast(canceled_amount as float8),\
          cast(matched_amount as float8),\
+         cast(canceled_amount as float8),\
          cast(updated_at as text) ,\
          cast(created_at as text) \
          from chemix_orders where id=$1"
