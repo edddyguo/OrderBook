@@ -316,7 +316,6 @@ async fn listen_blocks() -> anyhow::Result<()> {
                 );
                 //TODO: matched order
                 //update OrderBook
-                let mut agg_trades = Vec::<LastTrade2>::new();
                 let mut add_depth = AddBook2 {
                     asks: HashMap::<u64,u64>::new(),
                     bids: HashMap::<u64,u64>::new(),
@@ -357,8 +356,6 @@ async fn listen_blocks() -> anyhow::Result<()> {
                         taker_side: x.taker_side.clone(),
                     }
                 ).collect::<Vec<LastTrade2>>();
-
-
 
 
                 //------------------

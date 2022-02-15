@@ -4,6 +4,7 @@ mod market;
 mod order;
 mod trade;
 
+use std::env;
 use actix_cors::Cors;
 use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder};
 use chemix_chain::{listen_block, sign};
@@ -312,6 +313,17 @@ async fn main() -> std::io::Result<()> {
     let query_cfg = web::QueryConfig::default().error_handler(|err, req| {
         error::InternalError::from_response(err, HttpResponse::Conflict().finish()).into()
     });
+
+    let port = match env::var_os("API_PORT") {
+        None => {
+            7010
+        }
+        Some(mist_mode) => {
+            mist_mode.into_string().unwrap().parse::<u32>()
+        }
+    };
+    let service = format!("0.0.0.0:{}",port);
+
     HttpServer::new(move || {
         App::new() //.app_data(query_cfg)
             .wrap(
@@ -339,7 +351,7 @@ async fn main() -> std::io::Result<()> {
             .service(echo)
         //.service(web::resource("/chemix/depth").route(web::get().to(depth)))
     })
-    .bind("0.0.0.0:7010")?
+    .bind(service.as_str())?
     .run()
     .await
 }

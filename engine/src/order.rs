@@ -72,13 +72,9 @@ pub struct EngineOrder {
 pub fn match_order(mut taker_order: BookOrder, trades: &mut Vec<TradeInfo>, orders: &mut AddBook2,marker_reduced_orders: &mut HashMap<String,f64>) -> u64{
     let mut book  = & mut crate::BOOK.lock().unwrap();
     let mut total_matched_amount: u64 = 0;
-    info!(" _0001");
     'marker_orders : loop {
-        info!(" _0002");
         match &taker_order.side {
             Side::Buy => {
-                info!(" _0003");
-
                 if book.sell.is_empty() || taker_order.price < book.sell.first().unwrap().price {
                     //此时一定是有吃单剩余
                     let stat = orders.bids.entry(taker_order.price.clone()).or_insert(taker_order.amount);
@@ -91,14 +87,10 @@ pub fn match_order(mut taker_order: BookOrder, trades: &mut Vec<TradeInfo>, orde
                         a.price.partial_cmp(&b.price).unwrap()
                     });
                     book.buy.reverse();
-                    info!(" _0004");
                     break 'marker_orders;
                 }else {
-                    info!(" _0005");
-                    error!("[_taker_side_buy]: taker_order {:#?},maker_order{:#?}",taker_order, book.sell.first().unwrap());
                     let mut marker_order = book.sell[0].clone();
                     let matched_amount = std::cmp::min(taker_order.amount,marker_order.amount);
-                    error!("[buy]: taker_order_id={},matched_amount={},taker_order.amount={},marker_order.amount={}",taker_order.id,matched_amount,taker_order.amount,marker_order.amount);
 
                     trades.push(TradeInfo::new(taker_order.account.clone(), marker_order.account.clone(),
                                                narrow(marker_order.price.clone()), narrow(matched_amount), taker_order.side.clone(),
@@ -115,21 +107,13 @@ pub fn match_order(mut taker_order: BookOrder, trades: &mut Vec<TradeInfo>, orde
                     //todo: 不在去减，用total_matched_amount 判断
                     taker_order.amount -= matched_amount;
                     total_matched_amount += matched_amount;
-                    error!("__0005");
                     if marker_order.amount != 0 && taker_order.amount == 0 {
-                        error!("__0006");
                         book.sell[0] = marker_order;
                         break 'marker_orders;
                     }else if  marker_order.amount == 0 && taker_order.amount != 0 {
-                        error!("__0007");
-                        error!("[test_pop]: book_sell1 {:#?}",book.sell);
-                        //book.sell.pop();
                         book.sell.remove(0);
-                        error!("[test_pop]: book_sell2 {:#?}",book.sell);
 
                     }else if marker_order.amount != 0 && taker_order.amount == 0 {
-                        error!("__0008");
-                        //book.sell.pop();
                         book.sell.remove(0);
                         break 'marker_orders;
                     }else {
@@ -150,15 +134,11 @@ pub fn match_order(mut taker_order: BookOrder, trades: &mut Vec<TradeInfo>, orde
                     book.sell.sort_by(|a,b| {
                         a.price.partial_cmp(&b.price).unwrap()
                     });
-                    info!(" _00014");
                     break 'marker_orders;
                 }else {
-                    info!(" _00015");
-                    error!("[_taker_side_sell]: taker_order {:#?},maker_order{:#?}",taker_order, book.buy.first().unwrap());
 
                     let mut marker_order = book.buy[0].clone();
                     let matched_amount = std::cmp::min(taker_order.amount,marker_order.amount);
-                    error!("[sell]: taker_order_id={},matched_amount={},taker_order.amount={},marker_order.amount={}",taker_order.id,matched_amount,taker_order.amount,marker_order.amount);
 
                     trades.push(TradeInfo::new(taker_order.account.clone(), marker_order.account.clone(),
                                                narrow(marker_order.price.clone()), narrow(matched_amount), taker_order.side.clone(),
@@ -177,21 +157,13 @@ pub fn match_order(mut taker_order: BookOrder, trades: &mut Vec<TradeInfo>, orde
                     marker_order.amount -= matched_amount;
                     taker_order.amount -= matched_amount;
                     total_matched_amount += matched_amount;
-                    error!("__0001");
                     if marker_order.amount != 0 && taker_order.amount == 0 {
                         book.buy[0] = marker_order;
-                        error!("__0002");
                         break 'marker_orders;
                     }else if  marker_order.amount == 0 && taker_order.amount != 0 {
-                        error!("__0003");
-                        error!("[test_pop]: book_buy1 {:#?}",book.buy);
-                        //book.buy.pop();
                         book.buy.remove(0);
-                        error!("[test_pop]: book_buy1 {:#?}",book.buy);
 
                     }else if marker_order.amount != 0 && taker_order.amount == 0 {
-                        error!("__0004");
-                        //book.buy.pop();
                         book.buy.remove(0);
                         break 'marker_orders;
                     }else {

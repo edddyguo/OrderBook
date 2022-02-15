@@ -80,8 +80,15 @@ async fn ws_service(clients: Clients) {
                 Method::HEAD,
             ]),
     );
-
-    warp::serve(routes).run(([0, 0, 0, 0], 7020)).await;
+    let port= match env::var_os("WS_PORT") {
+        None => {
+            7020u16
+        }
+        Some(mist_mode) => {
+            mist_mode.into_string().unwrap().parse::<u16>().unwrap()
+        }
+    };
+    warp::serve(routes).run(([0, 0, 0, 0], port)).await;
 }
 
 async fn listen_msg_queue(
@@ -120,6 +127,8 @@ async fn main() {
         let mut rsmq = Rsmq::new(Default::default())
             .await
             .expect("connection failed");
+
+
         //let plus_one = |x: i32| -> i32 { x + 1 };
         //let mut rsmq_arc = Arc::new(RwLock::new(rsmq));
         loop {
