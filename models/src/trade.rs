@@ -4,6 +4,7 @@ use utils::algorithm::sha256;
 use utils::time::get_current_time;
 use crate::order::Side;
 use serde::Serialize;
+use crate::struct2array;
 
 
 extern crate rustc_serialize;
@@ -51,19 +52,20 @@ impl TradeInfo {
     }
 }
 
-pub fn insert_trades(trades: &mut Vec<Vec<String>>) {
-    //之前用表名区别开发环境改为用不同数据库
-    insert_trade(trades);
-    insert_trade(trades);
-}
 
-pub fn insert_trade(trades: &mut Vec<Vec<String>>) {
+pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
     let mut query = format!("insert into chemix_trades values(");
-    let mut tradesArr: Vec<&str> = Default::default();
+    let mut tradesArr: Vec<Vec<String>> = trades.into_iter().
+        map(|x| {
+            struct2array(x)
+        }).collect::<Vec<Vec<String>>>();
     let mut index = 0;
-    let trades_len = trades.len();
+    let trades_len = tradesArr.len();
+
+    //not used
+    let mut tradesArr2: Vec<String> = Default::default();
     // fixme:注入的写法暂时有问题，先直接拼接
-    for trade in trades {
+    for trade in tradesArr {
         let mut temp_value = "".to_string();
         for i in 0..trade.len() {
             if i < trade.len() - 1 {
@@ -77,11 +79,11 @@ pub fn insert_trade(trades: &mut Vec<Vec<String>>) {
         } else {
             query = format!("{}{})", query, temp_value);
         }
-        let mut str_trade: Vec<&str> = Default::default();
+        let mut str_trade: Vec<String> = Default::default();
         for item in trade {
-            str_trade.push(&*item);
+            str_trade.push(item);
         }
-        tradesArr.append(str_trade.as_mut());
+        tradesArr2.append(&mut str_trade);
         index += 1;
     }
     let mut result = crate::CLIENTDB.lock().unwrap().execute(&*query, &[]);
