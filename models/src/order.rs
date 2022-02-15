@@ -11,8 +11,8 @@ use std::ops::Mul;
 //#[derive(Serialize)]
 use serde::Serialize;
 use slog::info;
-use utils::math::narrow;
-use utils::time::get_current_time;
+use chemix_utils::math::narrow;
+use chemix_utils::time::get_current_time;
 use crate::struct2array;
 
 #[derive(Deserialize, Debug, Default, Clone)]

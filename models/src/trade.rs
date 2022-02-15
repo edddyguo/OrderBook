@@ -1,9 +1,10 @@
 use postgres::{config::Config, error::Error, row::SimpleQueryRow, Client, NoTls};
 use slog::{debug, error, info};
-use utils::algorithm::sha256;
-use utils::time::get_current_time;
+use chemix_utils::algorithm::sha256;
+use chemix_utils::time::get_current_time;
 use crate::order::Side;
 use serde::Serialize;
+use crate::Side::{Buy, Sell};
 use crate::struct2array;
 
 
@@ -12,7 +13,7 @@ extern crate rustc_serialize;
 #[derive(Serialize,Debug)]
 pub struct TradeInfo {
     pub id: String,
-    pub transaction_id: u32,
+    pub transaction_id: i32,
     pub transaction_hash: String,
     pub status: String,
     pub market_id: String,
@@ -102,4 +103,65 @@ pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
     }
     let rows = result.unwrap();
     //info!("insert trade successful insert {:?} rows,sql={}",rows, query);
+}
+
+
+pub fn list_trades(num: u32) -> Vec<TradeInfo> {
+    let sql = format!("select \
+    id,\
+    transaction_id,\
+    transaction_hash,\
+    status,\
+    market_id,\
+    maker,\
+    taker,\
+    cast(price as float8),\
+    cast(amount as float8),\
+    taker_side,\
+    maker_order_id, \
+    taker_order_id,\
+    cast(created_at as text), \
+    cast(updated_at as text) \
+    from chemix_trades \
+    where market_id='BTC-USDT' order by created_at ASC limit {}",num);
+    let mut trades: Vec<TradeInfo> = Vec::new();
+    let mut result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[]);
+    if let Err(err) = result {
+        //info!("list_available_orders failed {:?}", err);
+        if !crate::restartDB() {
+            return trades;
+        }
+        result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[]);
+    }
+    let rows = result.unwrap();
+    for row in rows {
+        let test1 : String = row.get(9);
+        let side = match test1.as_str() {
+            "sell" => Sell,
+            "buy" => Buy,
+            _ => {
+                println!("side {}", test1.as_str());
+                assert!(false);
+                Buy
+            }
+        };
+        let info = TradeInfo {
+            id: row.get(0),
+            transaction_id: row.get(1), //todo: 待加逻辑
+            transaction_hash: row.get(2),
+            status: row.get(3),
+            market_id: row.get(4),
+            taker: row.get(5),
+            maker: row.get(6),
+            price: row.get(7),
+            amount: row.get(8),
+            taker_side: side,
+            maker_order_id: row.get(10),
+            taker_order_id: row.get(11),
+            updated_at: row.get(12),
+            created_at: row.get(13),
+        };
+        trades.push(info);
+    }
+    trades
 }

@@ -10,6 +10,8 @@ use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder}
 use chemix_chain::{listen_block, sign};
 use chemix_models::api::{list_markets as list_markets2, MarketInfo};
 use serde::{Deserialize, Serialize};
+use chemix_models::trade::list_trades;
+use chemix_utils::time::time2unix;
 
 /***
 * @api {get} /user/:id Request User information
@@ -180,6 +182,7 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
     let mut time = 1644391550;
     let price = 50000.0f64;
     let mut trades = Vec::<trade::Trade>::new();
+    /***
     for _ in 0..info.limit {
         time -= 10;
         let rand: u32 = rand::random();
@@ -192,6 +195,17 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
         };
         trades.push(trade);
     }
+
+     */
+    let trades = list_trades(info.limit).iter().map(|x| {
+        trade::Trade {
+            id: x.id.clone(),
+            price: x.price,
+            amount: x.amount,
+            taker_side: x.taker_side.clone(),
+            updated_at: time2unix(x.created_at.clone())
+        }
+    }).collect::<Vec<trade::Trade>>();
 
     respond_json(200, "".to_string(), serde_json::to_string(&trades).unwrap())
 }
@@ -316,10 +330,10 @@ async fn main() -> std::io::Result<()> {
 
     let port = match env::var_os("API_PORT") {
         None => {
-            7010
+            7010u32
         }
         Some(mist_mode) => {
-            mist_mode.into_string().unwrap().parse::<u32>()
+            mist_mode.into_string().unwrap().parse::<u32>().unwrap()
         }
     };
     let service = format!("0.0.0.0:{}",port);

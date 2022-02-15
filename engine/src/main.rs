@@ -24,9 +24,9 @@ use crate::order::{BookOrder, EventOrder, match_order};
 
 use chrono::offset::LocalResult;
 use chrono::prelude::*;
-use utils::{time as chemix_time,algorithm};
+use chemix_utils::{time as chemix_time,algorithm};
 use ethers::{prelude::*};
-use utils::math::{MathOperation, narrow};
+use chemix_utils::math::{MathOperation, narrow};
 use ethers_core::abi::ethereum_types::{U256, U64};
 use chemix_models::order::{get_order, insert_order, OrderInfo, Side, update_order, UpdateOrder};
 use chemix_models::trade::{insert_trades, TradeInfo};

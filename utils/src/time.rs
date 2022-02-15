@@ -5,6 +5,7 @@ use rust_decimal::Decimal;
 use std::any::Any;
 use std::ffi::CString;
 use std::fmt::Debug;
+use std::str::FromStr;
 
 pub fn get_current_time() -> String {
     let dt: DateTime<Local> = Local::now();
@@ -13,4 +14,11 @@ pub fn get_current_time() -> String {
 
 pub fn get_unix_time() -> u64 {
     Local::now().timestamp_millis() as u64
+
+}
+
+pub fn time2unix(time_str: String) -> u64 {
+    let dt = Utc.datetime_from_str(time_str.as_str(),"%Y-%m-%d %H:%M:%S.%f").unwrap();
+    //let dt: DateTime<Local> = DateTime::from_str(time_str.as_str()).unwrap();
+    dt.timestamp_millis() as u64
 }
