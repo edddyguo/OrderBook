@@ -20,7 +20,7 @@ use std::sync::{mpsc, Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::time;
 use std::sync::Mutex;
-use crate::order::{BookOrder, EventOrder, match_order, Side};
+use crate::order::{BookOrder, EventOrder, match_order};
 
 use chrono::offset::LocalResult;
 use chrono::prelude::*;
@@ -28,7 +28,8 @@ use utils::{time as chemix_time,algorithm};
 use ethers::{prelude::*};
 use utils::math::{MathOperation, narrow};
 use ethers_core::abi::ethereum_types::{U256, U64};
-use chemix_models::engine::{insert_order, OrderInfo};
+use chemix_models::order::{insert_order, OrderInfo, Side};
+use chemix_models::trade::TradeInfo;
 use utils::algorithm::sha256;
 use crate::order::Status::{FullFilled, PartialFilled};
 use crate::Side::{Buy, Sell};
@@ -104,8 +105,8 @@ pub struct LastTrade {
 
 #[derive(RustcEncodable, Clone, Serialize,Debug)]
 pub struct LastTrade2 {
-    price: u64,
-    amount: u64,
+    price: f64,
+    amount: f64,
     taker_side: Side,
 }
 
@@ -319,13 +320,15 @@ async fn listen_blocks() -> anyhow::Result<()> {
                     asks: HashMap::<u64,u64>::new(),
                     bids: HashMap::<u64,u64>::new(),
                 };
-                //let orders = Vec::new();
+
+                let mut db_trades = Vec::<TradeInfo>::new();
                 let mut db_orders = Vec::<OrderInfo>::new();
+
+
                 for  (index,order) in orders.into_iter().enumerate() {
-                    let side_str = format!("{:?}",order.side);
-                    let mut db_order = OrderInfo::new(order.id.clone(),"BTC-USDT".to_string(),order.account.clone(),side_str,order.price.clone(),order.amount.clone());
+                    let mut db_order = OrderInfo::new(order.id.clone(),"BTC-USDT".to_string(),order.account.clone(),order.side.clone(),order.price.clone(),order.amount.clone());
                     info!("start match_order index {}",index);
-                    let matched_amount = match_order(order, &mut agg_trades, &mut add_depth);
+                    let matched_amount = match_order(order, &mut db_trades, &mut add_depth);
 
                     warn!("taker_amount={},matched_amount={}",db_order.amount,matched_amount);
                     db_order.status = if narrow(matched_amount) == db_order.amount {
@@ -345,6 +348,13 @@ async fn listen_blocks() -> anyhow::Result<()> {
                     info!("finished match_order index {}",index);
                 }
 
+                let agg_trades = db_trades.iter().map(|x|
+                    LastTrade2 {
+                        price: x.price,
+                        amount: x.amount,
+                        taker_side: x.taker_side.clone(),
+                    }
+                ).collect::<Vec<LastTrade2>>();
                 //todo: marker orders的状态也要更新掉
                 insert_order(db_orders);
                 //todo: sync data to psql

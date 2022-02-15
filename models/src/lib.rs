@@ -1,6 +1,7 @@
 pub mod api;
 pub mod chain;
-pub mod engine;
+pub mod order;
+pub mod trade;
 
 #[macro_use]
 extern crate jsonrpc_client_core;
@@ -25,7 +26,8 @@ use chrono::prelude::*;
 use chrono::Local;
 use std::ptr::null;
 use std::time::Instant;
-use crate::engine::{OrderInfo, TradeInfo};
+use crate::order::{OrderInfo, Side};
+use crate::trade::TradeInfo;
 
 lazy_static! {
     static ref CLIENTDB: Mutex<postgres::Client> = Mutex::new({ connetDB().unwrap() });
@@ -83,6 +85,10 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
     let value = value as &dyn Any;
     match value.downcast_ref::<TradeInfo>() {
         Some(trade) => {
+            let side = match trade.taker_side {
+                Side::Buy => {"buy"}
+                Side::Sell => {"sell"}
+            };
             trade_vec.push(trade.id.string4sql());
             trade_vec.push(trade.transaction_id.to_string());
             trade_vec.push(trade.transaction_hash.string4sql());
@@ -92,7 +98,7 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
             trade_vec.push(trade.taker.string4sql());
             trade_vec.push(trade.price.to_string());
             trade_vec.push(trade.amount.to_string());
-            trade_vec.push(trade.taker_side.string4sql());
+            trade_vec.push(side.to_string().string4sql());
             trade_vec.push(trade.maker_order_id.string4sql());
             trade_vec.push(trade.taker_order_id.string4sql());
             trade_vec.push(trade.updated_at.string4sql());
@@ -112,7 +118,6 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
             trade_vec.push(trade.available_amount.to_string());
             trade_vec.push(trade.matched_amount.to_string());
             trade_vec.push(trade.canceled_amount.to_string());
-            trade_vec.push(trade.confirmed_amount.to_string());
             trade_vec.push(trade.updated_at.string4sql());
             trade_vec.push(trade.created_at.string4sql());
         }

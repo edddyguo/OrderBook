@@ -85,7 +85,6 @@ create table chemix_orders(
   available_amount  numeric(32,8) ,
   matched_amount  numeric(32,8) ,
   canceled_amount  numeric(32,8) ,
-  confirmed_amount  numeric(32,8) ,
   updated_at  timestamp,
   created_at  timestamp
 );

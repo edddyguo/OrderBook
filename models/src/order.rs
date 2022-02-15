@@ -37,25 +37,18 @@ pub struct EngineOrder {
     pub created_at: String,
 }
 
-#[derive(Deserialize, Debug, Default)]
-pub struct TradeInfo {
-    pub id: String,
-    pub transaction_id: i32,
-    pub transaction_hash: String,
-    pub status: String,
-    pub market_id: String,
-    pub maker: String,
-    pub taker: String,
-    pub price: f64,
-    pub amount: f64,
-    pub taker_side: String,
-    pub maker_order_id: String,
-    pub taker_order_id: String,
-    pub updated_at: String,
-    pub created_at: String,
+#[derive(RustcEncodable,Deserialize, Debug,PartialEq,Clone,Serialize)]
+pub enum Side {
+    #[serde(rename = "buy")]
+    Buy,
+    #[serde(rename = "sell")]
+    Sell,
 }
 
-#[derive(Deserialize, RustcDecodable, Debug, Default, Clone)]
+/**
+amount = available_amount + matched_amount + canceled_amount
+*/
+#[derive(Deserialize, Debug, Clone,Serialize)]
 pub struct OrderInfo {
     pub id: String,
     pub market_id: String,
@@ -67,7 +60,6 @@ pub struct OrderInfo {
     pub available_amount: f64,
     pub matched_amount: f64,
     pub canceled_amount: f64,
-    pub confirmed_amount: f64,
     pub updated_at: String,
     pub created_at: String,
 }
@@ -79,19 +71,22 @@ pub struct MarketVolume {
 }
 
 impl OrderInfo {
-    pub fn new(id:String, market_id:String, account:String, side: String, price:u64, amount:u64) -> OrderInfo {
+    pub fn new(id:String, market_id:String, account:String, side: Side, price:u64, amount:u64) -> OrderInfo {
+        let side = match side {
+            Side::Buy => {"buy"}
+            Side::Sell => {"sell"}
+        };
         OrderInfo {
             id,
             market_id,
             account,
-            side,
+            side: side.to_string(),
             price: narrow(price),
             amount: narrow(amount),
             status: "pending".to_string(),
             available_amount: narrow(amount),
             matched_amount: 0.0,
             canceled_amount: 0.0,
-            confirmed_amount: 0.0,
             updated_at: get_current_time(),
             created_at: get_current_time()
         }

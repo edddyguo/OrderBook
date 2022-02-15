@@ -12,14 +12,10 @@ use chrono::offset::LocalResult;
 use chrono::offset::Local;
 use std::sync::MutexGuard;
 use std::time;
+use chemix_models::order::{OrderInfo, Side};
+use chemix_models::trade::TradeInfo;
 
-#[derive(RustcEncodable,Deserialize, Debug,PartialEq,Clone,Serialize)]
-pub enum Side {
-    #[serde(rename = "buy")]
-    Buy,
-    #[serde(rename = "sell")]
-    Sell,
-}
+
 //  status text , --"full_filled","partial_filled","pending"
 #[derive(RustcEncodable,Deserialize, Debug,PartialEq,Clone,Serialize)]
 pub enum Status {
@@ -72,7 +68,7 @@ pub struct EngineOrder {
 */
 
 
-pub fn match_order(mut taker_order: BookOrder, agg_trades: &mut Vec<LastTrade2>, add_depth: &mut AddBook2) -> u64{
+pub fn match_order(mut taker_order: BookOrder, trades: &mut Vec<TradeInfo>, orders: &mut AddBook2) -> u64{
     let mut book  = & mut crate::BOOK.lock().unwrap();
     let mut total_matched_amount: u64 = 0;
     info!(" _0001");
@@ -83,7 +79,7 @@ pub fn match_order(mut taker_order: BookOrder, agg_trades: &mut Vec<LastTrade2>,
                 info!(" _0003");
                 if book.sell.is_empty() || taker_order.price < book.sell.first().unwrap().price {
                     //此时一定是有吃单剩余
-                    let stat = add_depth.bids.entry(taker_order.price.clone()).or_insert(taker_order.amount);
+                    let stat = orders.bids.entry(taker_order.price.clone()).or_insert(taker_order.amount);
                     *stat += taker_order.amount;
 
                     //insert this order by compare price and created_at
@@ -99,14 +95,13 @@ pub fn match_order(mut taker_order: BookOrder, agg_trades: &mut Vec<LastTrade2>,
                     info!(" _0005");
                     let mut marker_order = book.sell[0].clone();
                     let matched_amount = std::cmp::min(taker_order.amount,marker_order.amount);
-                    agg_trades.push(LastTrade2{
-                        price: marker_order.price.clone(),
-                        amount: matched_amount,
-                        taker_side: taker_order.side.clone(),
-                    });
+
+                    trades.push(TradeInfo::new(taker_order.account.clone(), marker_order.account.clone(),
+                                               narrow(marker_order.price.clone()), narrow(matched_amount), taker_order.side.clone(),
+                                               marker_order.id.clone(), taker_order.id.clone()));
 
                     //update asks
-                    let stat = add_depth.asks.entry(marker_order.price.clone()).or_insert(matched_amount);
+                    let stat = orders.asks.entry(marker_order.price.clone()).or_insert(matched_amount);
                     *stat += matched_amount;
 
                     marker_order.amount -= matched_amount;
@@ -129,7 +124,7 @@ pub fn match_order(mut taker_order: BookOrder, agg_trades: &mut Vec<LastTrade2>,
             Side::Sell => {
                 if book.buy.is_empty() || taker_order.price > book.buy.first().unwrap().price {
                     //此时一定是有吃单剩余
-                    let stat = add_depth.asks.entry(taker_order.price.clone()).or_insert(taker_order.amount);
+                    let stat = orders.asks.entry(taker_order.price.clone()).or_insert(taker_order.amount);
                     *stat += taker_order.amount;
 
                     //insert this order by compare price and created_at
@@ -145,15 +140,13 @@ pub fn match_order(mut taker_order: BookOrder, agg_trades: &mut Vec<LastTrade2>,
                     info!(" _00015");
                     let mut marker_order = book.buy[0].clone();
                     let matched_amount = std::cmp::min(taker_order.amount,marker_order.amount);
-                    agg_trades.push(LastTrade2{
-                        price: marker_order.price.clone(),
-                        amount: matched_amount,
-                        taker_side: taker_order.side.clone(),
-                    });
+                    trades.push(TradeInfo::new(taker_order.account.clone(), marker_order.account.clone(),
+                                               narrow(marker_order.price.clone()), narrow(matched_amount), taker_order.side.clone(),
+                                               marker_order.id.clone(), taker_order.id.clone()));
 
                     //info!("gen new trade {:?}",trades);
                     //update asks
-                    let stat = add_depth.bids.entry(marker_order.price.clone()).or_insert(matched_amount);
+                    let stat = orders.bids.entry(marker_order.price.clone()).or_insert(matched_amount);
                     *stat += matched_amount;
 
 

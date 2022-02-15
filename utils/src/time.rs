@@ -11,7 +11,6 @@ pub fn get_current_time() -> String {
     dt.format("%Y-%m-%d %H:%M:%S.%f").to_string()
 }
 
-pub fn get_unix_time() -> String {
-    let dt: DateTime<Local> = Local::now();
-    dt.format("%Y-%m-%d %H:%M:%S.%f").to_string()
+pub fn get_unix_time() -> u64 {
+    Local::now().timestamp_millis() as u64
 }
