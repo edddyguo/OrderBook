@@ -5,7 +5,8 @@ const { expect } = require('chai') //断言模块
 async function main() {
     //const upgradeContractName = 'ChemixTrade' //升级合约的名称
     //const proxyContractAddress = '0xE41d6cA6Ffe32eC8Ceb927c549dFc36dbefe2c0C' //代理合约的名称
-    const proxyContractAddress = '0x68b4a22a9dF974f7EB96e0952eD99309A828647a' //代理合约的名称
+    const proxyContractAddress = '0x4A0C012c4db5801254B47CE142cf916b196FdAdd' //代理合约的名称
+    //const proxyContractAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3' //代理合约的名称
 
     const DemoUpgrade = await ethers.getContractAt("ChemixTrade",proxyContractAddress)
     let name = await DemoUpgrade.DEXName();
