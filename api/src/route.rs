@@ -14,31 +14,7 @@ use chemix_models::trade::list_trades;
 use chemix_utils::time::time2unix;
 use serde::{Deserialize, Serialize};
 
-/***
-* @api {get} /user/:id Request User information
-* @apiName GetUser
-* @apiGroup User
-*
-* @apiParam {Number} id Users unique ID.
-*
-* @apiSuccess {String} firstname Firstname of the User.
- * @apiSuccess {String} lastname  Lastname of the User.
-*
-* @apiSuccessExample Success-Response:
- *     HTTP/1.1 200 OK
- *     {
- *       "firstname": "John",
- *       "lastname": "Doe"
- *     }
-*
-* @apiError UserNotFound The id of the User was not found.
-*
-* @apiErrorExample Error-Response:
- *     HTTP/1.1 404 Not Found
- *     {
- *       "error": "UserNotFound"
- *     }
- * */
+
 #[get("/{id}/{name}/index.html")]
 async fn index(web::Path((id, name)): web::Path<(u32, String)>) -> impl Responder {
     format!("Hello {}! id:{}", name, id)
@@ -51,6 +27,19 @@ struct Markets {
     quote_token_name: String,
     base_token_name: String,
     engine_address: String,
+}
+
+#[derive(Deserialize, Serialize)]
+struct DexProfile {
+    cumulativeTVL : f64,
+    cumulativeTransactions : u32,
+    cumulativeTraders : u32,
+    numberOfTraders : u32,
+    tradingVolume : f64,
+    numberOfTransactions : u32,
+    TVL : f64,
+    tradingPairs : u8,
+    price : f64,
 }
 
 #[derive(Serialize)]
@@ -241,24 +230,7 @@ async fn klines(web::Query(info): web::Query<KlinesRequest>) -> impl Responder {
 }
 
 /***
-* @api {post} /register   register WS connect
-* @apiBody {Number} [user_id=1]
-* @apiName ws_register
-* @apiGroup WS
-*
-* @apiSuccess {json} result ws url
-* @apiSuccessExample {json} Success-Response:
-* {
-*   "msg": "",
-*   "data": "ws://139.196.155.96:7020/ws/a0d982449ae0489a84d8167289f690ec",
-*   "code": 200
-* }
-*
-*@apiSampleRequest http://139.196.155.96:7020/register
- * */
-
-/***
-* @api {get} ----ws://139.196.155.96:7020/ws/373308c53a4545abaead65b04a857e2e    WS connect
+* @api {get} ----ws://139.196.155.96:7020/chemix   WS connect
 * @apiName ws_subscribe
 * @apiGroup WS
 *
@@ -266,12 +238,14 @@ async fn klines(web::Query(info): web::Query<KlinesRequest>) -> impl Responder {
 * @apiSuccess {json} aggTrade recent matched trade
 
 * @apiSuccessExample {json} Success-Response:
-*{"method": "SUBSCRIBE", "params": ["BTC-USDT@aggTrade"]}
+*{"method": "SUBSCRIBE","params":{"channel":["BTC-USDT@aggTrade"],"hash":""}}
 *   [
 *        {"id":"BTC-USDT","price":1000.0,"amount":10.1,"taker_side":"buy","updated_at":1644287259123},
 *        {"id":"BTC-USDT","price":1001.0,"amount":20.2,"taker_side":"sell","updated_at":1644287259123}
 *   ]
-*{"method": "SUBSCRIBE", "params": ["BTC-USDT@depth"]}
+*
+*
+*{"method": "SUBSCRIBE","params":{"channel":["BTC-USDT@depth"],"hash":""}}
 *   {"asks":[
 *               [1000.0,-10.0001],
 *               [2000.0,10.0002]
@@ -281,36 +255,27 @@ async fn klines(web::Query(info): web::Query<KlinesRequest>) -> impl Responder {
 *               [2000.0,-10.0002]
 *        ]
 *   }
-*{"method": "UNSUBSCRIBE", "params": ["BTC-USDT@depth"]}
+*
+*
+*{"method": "PING","params":{"channel":[],"hash":""}}
+*   {"channel":"","method":"PONG","data":""}
 * */
 
+
 /***
-* @api {delete} /register   unregister WS connect
-* @apiName ws_unregister
-* @apiGroup WS
+* @api {get} /dashBoard/profile dex profile info
+* @apiName profile
+* @apiGroup dashBoard
 *
-* @apiSuccess {json} result ws url
+* @apiSuccess {json} data profile info
 * @apiSuccessExample {json} Success-Response:
 * {
-*   "msg": "",
-*   "data": "ws://139.196.155.96:7020/ws/a0d982449ae0489a84d8167289f690ec",
-*   "code": 200
+*	"code": 200,
+*	"msg": "",
+*	"data": "{\"cumulativeTVL\":0.0,\"cumulativeTransactions\":0,\"cumulativeTraders\":0,\"numberOfTraders\":0,\"tradingVolume\":0.0,\"numberOfTransactions\":0,\"TVL\":0.0,\"tradingPairs\":0,\"price\":0.0}"
 * }
-*
-*@apiSampleRequest http://139.196.155.96:7020/register/a0d982449ae0489a84d8167289f690ec
+*@apiSampleRequest http://139.196.155.96:7010/dashBoard/profile
  * */
-#[derive(Deserialize, Serialize)]
-struct DexProfile {
-    cumulativeTVL : f64,
-    cumulativeTransactions : u32,
-    cumulativeTraders : u32,
-    numberOfTraders : u32,
-    tradingVolume : f64,
-    numberOfTransactions : u32,
-    TVL : f64,
-    tradingPairs : u8,
-    price : f64,
-}
 #[get("/dashBoard/profile")]
 async fn dex_profile() -> impl Responder {
     let profile = DexProfile {
