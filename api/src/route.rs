@@ -1,4 +1,4 @@
-mod chemix_depth;
+mod depth;
 mod kline;
 mod market;
 mod order;
@@ -126,7 +126,7 @@ struct DepthRequest {
 }
 
 #[get("/chemix/depth")]
-async fn depth(web::Query(info): web::Query<DepthRequest>) -> String {
+async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     format!("symbol222 {}, limit:{}", info.symbol, info.limit);
     let available_buy_orders = list_available_orders("BTC-USDT", "buy");
     let available_sell_orders = list_available_orders("BTC-USDT", "sell");
@@ -160,36 +160,7 @@ async fn depth(web::Query(info): web::Query<DepthRequest>) -> String {
         bids.push((available_sell_order.price, available_sell_order.amount));
     }
 
-    let mut depth_data = chemix_depth::Depth { asks, bids };
-
-    /***
-    let stat = orders.asks.entry(marker_order.price.clone()).or_insert(matched_amount);
-                    *stat += matched_amount;
-    */
-    //mock data
-    /***
-    let mut depth_data = chemix_depth::Depth {
-        asks: vec![(5000.123, 1000.1), (6000.123, 1000.1)],
-        bids: vec![(4000.123, 1000.1), (3000.123, 1000.1)],
-    };
-
-     */
-    /***
-    let base_price = 50000.0f64;
-    for _ in 0..info.limit {
-        let rand: u32 = rand::random();
-        depth_data
-            .bids
-            .push((base_price - (rand % 1000) as f64, (rand % 100) as f64));
-    }
-    for _ in 0..info.limit {
-        let rand: u32 = rand::random();
-        depth_data
-            .asks
-            .push((base_price + (rand % 1000) as f64, (rand % 100) as f64));
-    }
-     */
-
+    let mut depth_data = depth::Depth { asks, bids };
     depth_data.sort();
     respond_json(
         200,
@@ -224,24 +195,6 @@ struct AggTradesRequest {
 
 #[get("/chemix/aggTrades")]
 async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Responder {
-    let _time = 1644391550;
-    let _price = 50000.0f64;
-    let _trades = Vec::<trade::Trade>::new();
-    /***
-    for _ in 0..info.limit {
-        time -= 10;
-        let rand: u32 = rand::random();
-        let trade = trade::Trade {
-            id: "BTC-USDT".to_string(),
-            price: price - (rand % 1000) as f64,
-            amount: (rand % 10) as f64,
-            taker_side: "".to_string(),
-            updated_at: time,
-        };
-        trades.push(trade);
-    }
-
-     */
     let trades = list_trades(info.limit)
         .iter()
         .map(|x| trade::Trade {
@@ -346,10 +299,32 @@ async fn klines(web::Query(info): web::Query<KlinesRequest>) -> impl Responder {
 *
 *@apiSampleRequest http://139.196.155.96:7020/register/a0d982449ae0489a84d8167289f690ec
  * */
-
-#[get("/dexInfo")]
-async fn dex_info(web::Path((_id, _name)): web::Path<(u32, String)>) -> impl Responder {
-    format!("Hello {}! id:{}", "test", 10)
+#[derive(Deserialize, Serialize)]
+struct DexProfile {
+    cumulativeTVL : f64,
+    cumulativeTransactions : u32,
+    cumulativeTraders : u32,
+    numberOfTraders : u32,
+    tradingVolume : f64,
+    numberOfTransactions : u32,
+    TVL : f64,
+    tradingPairs : u8,
+    price : f64,
+}
+#[get("/dashBoard/profile")]
+async fn dex_profile() -> impl Responder {
+    let profile = DexProfile {
+        cumulativeTVL: 0.0,
+        cumulativeTransactions: 0,
+        cumulativeTraders: 0,
+        numberOfTraders: 0,
+        tradingVolume: 0.0,
+        numberOfTransactions: 0,
+        TVL: 0.0,
+        tradingPairs: 0,
+        price: 0.0
+    };
+    respond_json(200, "".to_string(), serde_json::to_string(&profile).unwrap())
 }
 
 #[get("/freezeBalance/{user}")]
@@ -396,8 +371,8 @@ async fn main() -> std::io::Result<()> {
             )
             .service(index)
             .service(list_markets)
-            .service(dex_info)
-            .service(depth)
+            .service(dex_profile)
+            .service(dex_depth)
             .service(klines)
             .service(agg_trades)
             .service(freeze_balance)
