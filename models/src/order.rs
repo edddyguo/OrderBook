@@ -1,16 +1,16 @@
 
-use postgres::{config::Config, error::Error, row::SimpleQueryRow, Client, NoTls};
+
 
 extern crate rustc_serialize;
 use serde::Deserialize;
 
 
-use rustc_serialize::json;
 
-use std::ops::Mul;
+
+
 //#[derive(Serialize)]
 use serde::Serialize;
-use slog::info;
+
 use chemix_utils::math::narrow;
 use chemix_utils::time::get_current_time;
 use crate::Side::{Buy, Sell};
@@ -109,14 +109,14 @@ pub fn insert_order(orders: Vec<OrderInfo>) {
         // info!("insert order successful insert,sql={}", query);
         let mut result = crate::CLIENTDB.lock().unwrap().execute(&*query, &[]);
         // let mut result = crate::CLIENTDB.lock().unwrap().execute(&*query, &tradesArr[0..tradesArr.len()]);
-        if let Err(err) = result {
+        if let Err(_err) = result {
             //info!("insert order sql={} failed {:?}", query, err);
             if !crate::restartDB() {
                 return;
             }
             result = crate::CLIENTDB.lock().unwrap().execute(&*query, &[]);
         }
-        let rows = result.unwrap();
+        let _rows = result.unwrap();
     }
 
 }
@@ -135,7 +135,7 @@ pub fn update_order(order: &UpdateOrder) {
         order.id
     );
     let mut result = crate::CLIENTDB.lock().unwrap().execute(&*sql, &[]);
-    if let Err(err) = result {
+    if let Err(_err) = result {
         //info!("update order failed {:?},sql={}", err, sql);
         if !crate::restartDB() {
             return;
@@ -162,7 +162,7 @@ pub fn list_available_orders(market_id: &str,side: &str) -> Vec<EngineOrder> {
     where market_id='{}' and available_amount>0 and side='{}' order by price {} ,created_at ASC", market_id, side, sort_by);
     let mut orders: Vec<EngineOrder> = Vec::new();
     let mut result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[]);
-    if let Err(err) = result {
+    if let Err(_err) = result {
         //info!("list_available_orders failed {:?}", err);
         if !crate::restartDB() {
             return orders;
@@ -205,7 +205,7 @@ pub fn get_order(id: &str) -> OrderInfo {
     );
     let mut order: OrderInfo = Default::default();
     let mut result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[&id]);
-    if let Err(err) = result {
+    if let Err(_err) = result {
         //info!("get order failed {:?},sql={}", err, sql);
         if !crate::restartDB() {
             return order;

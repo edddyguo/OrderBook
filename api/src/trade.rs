@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 use chemix_models::order::Side;
 
 #[derive(Serialize)]

@@ -5,26 +5,26 @@ extern crate rsmq_async;
 extern crate rand;
 extern crate num;
 
-use anyhow::Result;
-use ethers::{prelude::*, utils::Ganache,types::{U256}};
-use std::time::Duration;
+
+use ethers::{prelude::*,types::{U256}};
+
 //use ethers::providers::Ws;
-use ethers_contract_abigen::{parse_address, Address};
-use ethers_providers::{Http, Middleware, Provider, StreamExt, Ws};
-use rsmq_async::{Rsmq, RsmqConnection, RsmqError, RsmqQueueAttributes};
-use rustc_serialize::json;
-use serde::Serialize;
-use std::convert::TryFrom;
+use ethers_contract_abigen::{Address};
+
+use rsmq_async::{Rsmq, RsmqConnection};
+
+
+
 use std::env;
-use std::ops::{Add, Range};
+
 use std::str::FromStr;
-use std::sync::{mpsc, Arc, RwLock};
-use tokio::runtime::Runtime;
+
+
 use tokio::time;
-use rand::prelude::SliceRandom;
+
 use util::MathOperation;
 use rand::Rng;
-use rand::distributions::uniform::SampleRange;
+
 
 abigen!(
     SimpleContract,

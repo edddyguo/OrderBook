@@ -8,13 +8,13 @@ extern crate jsonrpc_client_core;
 extern crate jsonrpc_client_http;
 
 use std::any::Any;
-use postgres::{Client, Error, NoTls};
+use postgres::{Client, NoTls};
 use std::env;
-use std::ffi::OsString;
+
 use std::fmt::Debug;
-use std::fs::OpenOptions;
+
 use std::sync::Mutex;
-use serde::Deserialize;
+
 
 
 #[macro_use]
@@ -22,15 +22,15 @@ extern crate lazy_static;
 extern crate chrono;
 extern crate postgres;
 
-use chrono::prelude::*;
+
 use chrono::Local;
-use std::ptr::null;
-use std::time::Instant;
+
+
 use crate::order::{OrderInfo, Side};
 use crate::trade::TradeInfo;
 
 lazy_static! {
-    static ref CLIENTDB: Mutex<postgres::Client> = Mutex::new({ connetDB().unwrap() });
+    static ref CLIENTDB: Mutex<postgres::Client> = Mutex::new(connetDB().unwrap());
 }
 
 pub fn restartDB() -> bool {
@@ -45,7 +45,7 @@ pub fn restartDB() -> bool {
 }
 
 fn connetDB() -> Option<postgres::Client> {
-    let mut client;
+    let client;
     let dbname = match env::var_os("CHEMIX_MODE") {
         None => {
             "chemix_local".to_string()

@@ -6,10 +6,10 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::ws::{Message, WebSocket};
 //use warp::filters::ws::Message;
-use std::collections::HashMap;
+
 use uuid::Uuid;
 use crate::handler::PublishRespond;
-use crate::ws::WSMethod::PONG;
+
 
 
 #[derive(Deserialize, Debug)]
@@ -133,7 +133,7 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
             WSMethod::SUBSCRIBE => {
                 v.topics = topics_req.params.channel;
                 println!("v----topics={:?}", v.topics);
-                if let Some(sender) = &v.sender {
+                if let Some(_sender) = &v.sender {
                     //todo: 可能要推全量数据
                 }
             }

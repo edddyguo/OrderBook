@@ -1,7 +1,7 @@
 use rust_decimal::Decimal;
-use std::any::Any;
-use std::ffi::CString;
-use std::fmt::Debug;
+
+
+
 use rust_decimal::prelude::ToPrimitive;
 use std::ops::Deref;
 
@@ -27,7 +27,7 @@ impl MathOperation for f64 {
         println!("self---{}",self);
         let test3 = self.deref().to_fix(8);
         println!("self2---{}",test3);
-        let test1 = (*self * 100_000_000.00f64);
+        let test1 = *self * 100_000_000.00f64;
         println!("test1---{}",test1);
         test1.to_fix(8) as u64
     }

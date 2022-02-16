@@ -1,7 +1,7 @@
 use crate::{ws, Client, Clients, Result};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use warp::{http::StatusCode, reply::json, ws::Message, Reply};
+
+use warp::{http::StatusCode, ws::Message, Reply};
 
 #[derive(Deserialize, Debug)]
 pub struct RegisterRequest {
@@ -53,7 +53,7 @@ pub async fn publish_handler(body: Event, clients: Clients) -> Result<impl Reply
     Ok(StatusCode::OK)
 }
 
-async fn register_client(id: String, user_id: usize, clients: Clients) {
+async fn register_client(id: String, _user_id: usize, clients: Clients) {
     clients.write().await.insert(
         id,
         Client {

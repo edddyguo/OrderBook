@@ -3,37 +3,37 @@ mod trade;
 
 use std::collections::HashMap;
 use anyhow::Result;
-use ethers::{prelude::*, utils::Ganache};
-use std::time::Duration;
+use ethers::{prelude::*};
+
 //use ethers::providers::Ws;
-use ethers_contract_abigen::{parse_address, Address};
-use ethers_providers::{Http, Middleware, Provider, StreamExt, Ws};
-use rsmq_async::{Rsmq, RsmqConnection, RsmqError, RsmqQueueAttributes};
-use rustc_serialize::json;
+use ethers_contract_abigen::{parse_address};
+use ethers_providers::{Http, Middleware, Provider, StreamExt};
+use rsmq_async::{Rsmq, RsmqConnection, RsmqError};
+
 use serde::Serialize;
 use std::convert::TryFrom;
 use std::env;
 use std::fmt::Debug;
-use std::ops::Add;
-use std::str::FromStr;
+
+
 use std::sync::{mpsc, Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::time;
 use std::sync::Mutex;
-use crate::order::{BookOrder, EventOrder, match_order};
+use crate::order::{BookOrder, match_order};
 
-use chrono::offset::LocalResult;
+
 use chrono::prelude::*;
-use chemix_utils::{time as chemix_time,algorithm};
-use ethers::{prelude::*};
+use chemix_utils::{time as chemix_time};
+
 use chemix_utils::math::{MathOperation, narrow};
-use ethers_core::abi::ethereum_types::{U256, U64};
+use ethers_core::abi::ethereum_types::{U64};
 use chemix_models::order::{EngineOrder,list_available_orders,get_order, insert_order, OrderInfo, Side, update_order, UpdateOrder};
 use chemix_models::trade::{insert_trades, TradeInfo};
 use chemix_utils::time::time2unix;
 use chemix_utils::algorithm::sha256;
 use chemix_utils::time::get_current_time;
-use crate::order::Status::{FullFilled, PartialFilled};
+
 use crate::Side::{Buy, Sell};
 
 
@@ -195,9 +195,9 @@ async fn listen_blocks() -> anyhow::Result<()> {
     //testnet
     let host = "https://data-seed-prebsc-2-s3.binance.org:8545";
 
-    let provider_http = Provider::<Http>::try_from(host).unwrap();
+    let _provider_http = Provider::<Http>::try_from(host).unwrap();
 
-    let mut rsmq = Rsmq::new(Default::default())
+    let rsmq = Rsmq::new(Default::default())
         .await
         .expect("connection failed");
 
@@ -241,12 +241,12 @@ async fn listen_blocks() -> anyhow::Result<()> {
     //let mut height = provider_http.get_block_number().await.unwrap();
     //166475590u64
     //16477780u64
-    let mut height: U64 = U64::from(16647865u64);
+    let _height: U64 = U64::from(16647865u64);
     //let client = SignerMiddleware::new(provider_http.clone(), wallet.clone());
     //let client = Arc::new(client);
 
     let (event_sender, event_receiver) = mpsc::sync_channel(0);
-    let mut arc_rsmq = Arc::new(RwLock::new(rsmq));
+    let arc_rsmq = Arc::new(RwLock::new(rsmq));
     let arc_rsmq2 = arc_rsmq.clone();
     rayon::scope(|s| {
         //send event in new block
@@ -260,7 +260,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                         tokio::time::sleep(time::Duration::from_secs(2)).await;
                         println!("block not found,and wait a moment");
                     } else {
-                        let addr = parse_address("0xE41d6cA6Ffe32eC8Ceb927c549dFc36dbefe2c0C")
+                        let _addr = parse_address("0xE41d6cA6Ffe32eC8Ceb927c549dFc36dbefe2c0C")
                             .unwrap();
                         //let contract = SimpleContract::new(addr, client.clone());
                         /**
@@ -331,7 +331,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
         });
         s.spawn(move |_| {
             loop {
-                let mut arc_rsmq = arc_rsmq.clone();
+                let arc_rsmq = arc_rsmq.clone();
                 let orders: Vec<BookOrder> =
                     event_receiver.recv().expect("failed to recv columns");
                 println!(

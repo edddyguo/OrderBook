@@ -1,5 +1,5 @@
-use postgres::{config::Config, error::Error, row::SimpleQueryRow, Client, NoTls};
-use slog::{debug, error, info};
+
+
 use chemix_utils::algorithm::sha256;
 use chemix_utils::time::get_current_time;
 use crate::order::Side;
@@ -59,7 +59,7 @@ pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
         return
     }
     let mut query = format!("insert into chemix_trades values(");
-    let mut tradesArr: Vec<Vec<String>> = trades.into_iter().
+    let tradesArr: Vec<Vec<String>> = trades.into_iter().
         map(|x| {
             struct2array(x)
         }).collect::<Vec<Vec<String>>>();
@@ -78,7 +78,7 @@ pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
                 temp_value = format!("{}{}", temp_value, trade[i]);
             }
         }
-        if (index < trades_len - 1) {
+        if index < trades_len - 1 {
             query = format!("{}{}),(", query, temp_value);
         } else {
             query = format!("{}{})", query, temp_value);
@@ -93,7 +93,7 @@ pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
     println!("----query==={}",query);
     let mut result = crate::CLIENTDB.lock().unwrap().execute(&*query, &[]);
     // let mut result = crate::CLIENTDB.lock().unwrap().execute(&*query, &tradesArr[0..tradesArr.len()]);
-    if let Err(err) = result {
+    if let Err(_err) = result {
         //error!("insert trade sql={} failed {:?}", query, err);
         if !crate::restartDB() {
             return;
@@ -101,7 +101,7 @@ pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
         //&[&bar, &baz],
         result = crate::CLIENTDB.lock().unwrap().execute(&*query, &[]);
     }
-    let rows = result.unwrap();
+    let _rows = result.unwrap();
     //info!("insert trade successful insert {:?} rows,sql={}",rows, query);
 }
 
@@ -126,7 +126,7 @@ pub fn list_trades(num: u32) -> Vec<TradeInfo> {
     where market_id='BTC-USDT' order by created_at ASC limit {}",num);
     let mut trades: Vec<TradeInfo> = Vec::new();
     let mut result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[]);
-    if let Err(err) = result {
+    if let Err(_err) = result {
         //info!("list_available_orders failed {:?}", err);
         if !crate::restartDB() {
             return trades;

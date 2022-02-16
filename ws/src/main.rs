@@ -11,11 +11,11 @@ use rsmq_async::{Rsmq, RsmqConnection};
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::env;
-use std::ops::Deref;
-use std::rc::Rc;
+
+
 use std::sync::Arc;
-use std::sync::RwLock as StdRwlock;
-use tokio::runtime::Runtime;
+
+
 use tokio::sync::{mpsc, RwLock};
 use tokio::time;
 use warp::http::Method;
@@ -41,7 +41,7 @@ fn with_clients(
 
 async fn ws_service(clients: Clients) {
     let health_route = warp::path!("health").and_then(handler::health_handler);
-    let register = warp::path("register");
+    let _register = warp::path("register");
 
     /***
     let publish = warp::path!("publish")

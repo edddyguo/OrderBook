@@ -1,6 +1,6 @@
 // use the anyhow crate for easy idiomatic error handling
 use anyhow::Result;
-use ethers::{prelude::*, utils::Ganache};
+use ethers::{prelude::*};
 use std::time::Duration;
 //use ethers::providers::Ws;
 use ethers_providers::{Middleware, Provider, StreamExt, Ws};

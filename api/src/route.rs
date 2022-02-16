@@ -7,8 +7,8 @@ mod trade;
 use std::env;
 use actix_cors::Cors;
 use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder};
-use chemix_chain::{listen_block, sign};
-use chemix_models::api::{list_markets as list_markets2, MarketInfo};
+
+use chemix_models::api::{list_markets as list_markets2};
 use serde::{Deserialize, Serialize};
 use chemix_models::order::list_available_orders;
 use chemix_models::trade::list_trades;
@@ -91,7 +91,7 @@ fn respond_json(code: u8, msg: String, data: String) -> String {
  * */
 #[get("/chemix/listMarkets")]
 async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
-    let mut markets = Vec::<Markets>::new();
+    let _markets = Vec::<Markets>::new();
     let test1 = list_markets2();
     respond_json(200, "".to_string(), serde_json::to_string(&test1).unwrap())
 }
@@ -228,9 +228,9 @@ struct AggTradesRequest {
 
 #[get("/chemix/aggTrades")]
 async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Responder {
-    let mut time = 1644391550;
-    let price = 50000.0f64;
-    let mut trades = Vec::<trade::Trade>::new();
+    let _time = 1644391550;
+    let _price = 50000.0f64;
+    let _trades = Vec::<trade::Trade>::new();
     /***
     for _ in 0..info.limit {
         time -= 10;
@@ -351,16 +351,16 @@ async fn klines(web::Query(info): web::Query<KlinesRequest>) -> impl Responder {
  * */
 
 #[get("/dexInfo")]
-async fn dex_info(web::Path((id, name)): web::Path<(u32, String)>) -> impl Responder {
+async fn dex_info(web::Path((_id, _name)): web::Path<(u32, String)>) -> impl Responder {
     format!("Hello {}! id:{}", "test", 10)
 }
 
 #[get("/freezeBalance/{user}")]
-async fn freeze_balance(web::Path((user)): web::Path<(String)>) -> impl Responder {
+async fn freeze_balance(web::Path(user): web::Path<String>) -> impl Responder {
     format!("Hello {}! id:{}", user, 10)
 }
 
-async fn add_market(web::Path((contract_address)): web::Path<(String)>) -> HttpResponse {
+async fn add_market(web::Path(contract_address): web::Path<String>) -> HttpResponse {
     HttpResponse::Ok().body(contract_address)
 }
 
@@ -374,7 +374,7 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
     //sign();
     //listen_block().await;
-    let query_cfg = web::QueryConfig::default().error_handler(|err, req| {
+    let _query_cfg = web::QueryConfig::default().error_handler(|err, _req| {
         error::InternalError::from_response(err, HttpResponse::Conflict().finish()).into()
     });
 
