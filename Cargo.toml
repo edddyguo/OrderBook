@@ -4,9 +4,9 @@ members = [
     "api",
 	"chain",
 	"models",
-	"test1",
 	"engine",
 	"ws",
 	"bot",
 	"utils"
+	"scanner"
 ]
