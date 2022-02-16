@@ -1,21 +1,9 @@
-
-
-
 use serde::Serialize;
-
 
 //use ethers::{prelude::*,types::{U256}};
 use serde::Deserialize;
 
-
-
-
-
-
-
-
-
-#[derive(RustcEncodable,Deserialize, Debug,PartialEq,Clone,Serialize)]
+#[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
 pub enum Status {
     #[serde(rename = "matched")]
     Matched,

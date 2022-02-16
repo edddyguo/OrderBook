@@ -1,20 +1,13 @@
-
-
-
 extern crate rustc_serialize;
 use serde::Deserialize;
-
-
-
-
 
 //#[derive(Serialize)]
 use serde::Serialize;
 
+use crate::struct2array;
+use crate::Side::{Buy, Sell};
 use chemix_utils::math::narrow;
 use chemix_utils::time::get_current_time;
-use crate::Side::{Buy, Sell};
-use crate::struct2array;
 
 #[derive(Deserialize, Debug, Default, Clone)]
 pub struct UpdateOrder {
@@ -36,7 +29,7 @@ pub struct EngineOrder {
     pub created_at: String,
 }
 
-#[derive(RustcEncodable,Deserialize, Debug,PartialEq,Clone,Serialize)]
+#[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
 pub enum Side {
     #[serde(rename = "buy")]
     Buy,
@@ -47,7 +40,7 @@ pub enum Side {
 /**
 amount = available_amount + matched_amount + canceled_amount
 */
-#[derive(Deserialize, Debug, Clone,Serialize,Default)]
+#[derive(Deserialize, Debug, Clone, Serialize, Default)]
 pub struct OrderInfo {
     pub id: String,
     pub market_id: String,
@@ -70,10 +63,17 @@ pub struct MarketVolume {
 }
 
 impl OrderInfo {
-    pub fn new(id:String, market_id:String, account:String, side: Side, price:u64, amount:u64) -> OrderInfo {
+    pub fn new(
+        id: String,
+        market_id: String,
+        account: String,
+        side: Side,
+        price: u64,
+        amount: u64,
+    ) -> OrderInfo {
         let side = match side {
-            Side::Buy => {"buy"}
-            Side::Sell => {"sell"}
+            Side::Buy => "buy",
+            Side::Sell => "sell",
         };
         OrderInfo {
             id,
@@ -87,11 +87,10 @@ impl OrderInfo {
             matched_amount: 0.0,
             canceled_amount: 0.0,
             updated_at: get_current_time(),
-            created_at: get_current_time()
+            created_at: get_current_time(),
         }
     }
 }
-
 
 pub fn insert_order(orders: Vec<OrderInfo>) {
     //fixme: 想办法批量插入
@@ -118,7 +117,6 @@ pub fn insert_order(orders: Vec<OrderInfo>) {
         }
         let _rows = result.unwrap();
     }
-
 }
 
 pub fn update_order(order: &UpdateOrder) {
@@ -146,12 +144,8 @@ pub fn update_order(order: &UpdateOrder) {
     return;
 }
 
-pub fn list_available_orders(market_id: &str,side: &str) -> Vec<EngineOrder> {
-    let sort_by = if side == "buy" {
-        "DESC"
-    }else {
-        "ASC"
-    };
+pub fn list_available_orders(market_id: &str, side: &str) -> Vec<EngineOrder> {
+    let sort_by = if side == "buy" { "DESC" } else { "ASC" };
 
     let sql = format!("select id,\
     account,
@@ -171,11 +165,13 @@ pub fn list_available_orders(market_id: &str,side: &str) -> Vec<EngineOrder> {
     }
     let rows = result.unwrap();
     for row in rows {
-        let side_str : String = row.get(4);
+        let side_str: String = row.get(4);
         let side = match side_str.as_str() {
-            "buy" => {Buy},
-            "sell" => {Sell},
-            _ => {unreachable!()}
+            "buy" => Buy,
+            "sell" => Sell,
+            _ => {
+                unreachable!()
+            }
         };
         let info = EngineOrder {
             id: row.get(0),
@@ -233,7 +229,7 @@ pub fn get_order(id: &str) -> OrderInfo {
         matched_amount: rows[0].get(8),
         canceled_amount: rows[0].get(9),
         updated_at: rows[0].get(10),
-        created_at: rows[0].get(11)
+        created_at: rows[0].get(11),
     };
     order
 }

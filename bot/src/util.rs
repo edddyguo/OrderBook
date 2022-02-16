@@ -4,9 +4,6 @@ use num::ToPrimitive;
 //use ring::digest;
 use rust_decimal::Decimal;
 
-
-
-
 // use crate::consume::engine::EngineTrade;
 
 pub trait MathOperation {

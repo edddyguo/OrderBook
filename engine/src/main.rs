@@ -1,12 +1,12 @@
 mod order;
 mod trade;
 
-use std::collections::HashMap;
 use anyhow::Result;
-use ethers::{prelude::*};
+use ethers::prelude::*;
+use std::collections::HashMap;
 
 //use ethers::providers::Ws;
-use ethers_contract_abigen::{parse_address};
+use ethers_contract_abigen::parse_address;
 use ethers_providers::{Http, Middleware, Provider, StreamExt};
 use rsmq_async::{Rsmq, RsmqConnection, RsmqError};
 
@@ -15,27 +15,27 @@ use std::convert::TryFrom;
 use std::env;
 use std::fmt::Debug;
 
-
+use crate::order::{match_order, BookOrder};
+use std::sync::Mutex;
 use std::sync::{mpsc, Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::time;
-use std::sync::Mutex;
-use crate::order::{BookOrder, match_order};
 
-
+use chemix_utils::time as chemix_time;
 use chrono::prelude::*;
-use chemix_utils::{time as chemix_time};
 
-use chemix_utils::math::{MathOperation, narrow};
-use ethers_core::abi::ethereum_types::{U64};
-use chemix_models::order::{EngineOrder,list_available_orders,get_order, insert_order, OrderInfo, Side, update_order, UpdateOrder};
+use chemix_models::order::{
+    get_order, insert_order, list_available_orders, update_order, EngineOrder, OrderInfo, Side,
+    UpdateOrder,
+};
 use chemix_models::trade::{insert_trades, TradeInfo};
-use chemix_utils::time::time2unix;
 use chemix_utils::algorithm::sha256;
+use chemix_utils::math::{narrow, MathOperation};
 use chemix_utils::time::get_current_time;
+use chemix_utils::time::time2unix;
+use ethers_core::abi::ethereum_types::U64;
 
 use crate::Side::{Buy, Sell};
-
 
 #[macro_use]
 extern crate lazy_static;
@@ -43,9 +43,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
-
-
-#[derive(Clone, Serialize,Debug)]
+#[derive(Clone, Serialize, Debug)]
 struct EngineBook {
     pub buy: Vec<BookOrder>,
     pub sell: Vec<BookOrder>,
@@ -104,10 +102,10 @@ pub struct AddBook {
     pub bids: Vec<(f64, f64)>,
 }
 
-#[derive(RustcEncodable, Clone, Serialize,Debug)]
+#[derive(RustcEncodable, Clone, Serialize, Debug)]
 pub struct AddBook2 {
-    pub asks: HashMap<u64,u64>,
-    pub bids: HashMap<u64,u64>,
+    pub asks: HashMap<u64, u64>,
+    pub bids: HashMap<u64, u64>,
 }
 
 /***
@@ -127,7 +125,7 @@ pub struct LastTrade {
     updated_at: u64,
 }
 
-#[derive(RustcEncodable, Clone, Serialize,Debug)]
+#[derive(RustcEncodable, Clone, Serialize, Debug)]
 pub struct LastTrade2 {
     price: f64,
     amount: f64,
@@ -154,7 +152,6 @@ abigen!(
 );
 
 pub fn sign() -> Result<()> {
-
     println!("in sign");
     Ok(())
 }
@@ -202,26 +199,21 @@ async fn listen_blocks() -> anyhow::Result<()> {
         .expect("connection failed");
 
     let channel_update_book = match env::var_os("CHEMIX_MODE") {
-        None => {
-            "update_book_local".to_string()
-        }
+        None => "update_book_local".to_string(),
         Some(mist_mode) => {
-            format!("update_book_{}",mist_mode.into_string().unwrap())
+            format!("update_book_{}", mist_mode.into_string().unwrap())
         }
     };
 
     let channel_new_trade = match env::var_os("CHEMIX_MODE") {
-        None => {
-            "new_trade_local".to_string()
-        }
+        None => "new_trade_local".to_string(),
         Some(mist_mode) => {
-            format!("new_trade_{}",mist_mode.into_string().unwrap())
+            format!("new_trade_{}", mist_mode.into_string().unwrap())
         }
     };
 
     check_queue(channel_update_book.as_str()).await;
     check_queue(channel_new_trade.as_str()).await;
-
 
     //todo: wss://bsc-ws-node.nariox.org:443
     /***
@@ -274,45 +266,62 @@ async fn listen_blocks() -> anyhow::Result<()> {
                          */
                         //tmp code, 压力测试也可以在这里,链上tps受限
                         let channel_bot = match env::var_os("CHEMIX_MODE") {
-                            None => {
-                                "bot_local".to_string()
-                            }
+                            None => "bot_local".to_string(),
                             Some(mist_mode) => {
-                                format!("bot_{}",mist_mode.into_string().unwrap())
+                                format!("bot_{}", mist_mode.into_string().unwrap())
                             }
                         };
                         check_queue(channel_bot.as_str()).await;
                         let rsmq = arc_rsmq2.clone();
-                        'listen_new_order : loop{
-                            let message = rsmq.write().unwrap()
+                        'listen_new_order: loop {
+                            let message = rsmq
+                                .write()
+                                .unwrap()
                                 .receive_message::<String>(channel_bot.as_str(), None)
                                 .await
                                 .expect("cannot receive message");
                             if let Some(message) = message {
                                 println!("receive new message {:?}", message.message);
-                                let new_orders: Vec<NewOrderFilter> = serde_json::from_str(&message.message).unwrap();
-                                println!("receive new order {:?} at {}", new_orders,chemix_time::get_current_time());
+                                let new_orders: Vec<NewOrderFilter> =
+                                    serde_json::from_str(&message.message).unwrap();
+                                println!(
+                                    "receive new order {:?} at {}",
+                                    new_orders,
+                                    chemix_time::get_current_time()
+                                );
                                 //    event NewOrder(address user, string baseToken, string quoteToken ,string side, uint amount, uint price);
-                                let new_orders = new_orders.iter().map(|x | {
-                                    let now = Local::now().timestamp_millis() as u64;
-                                    let order_json = format!("{}{}",serde_json::to_string(&x).unwrap(),now);
-                                    let order_id = sha256(order_json);
-                                    let side = match x.side.as_str() {
-                                        "sell" => Sell,
-                                        "buy" => Buy,
-                                        _ => unreachable!()
-                                    };
-                                    BookOrder {
-                                        id: order_id,
-                                        account: x.user.to_string(),
-                                        side,
-                                        price: x.price.as_u64(),
-                                        amount: x.amount.as_u64(),
-                                        created_at: now,
-                                    }
-                                },).collect::<Vec<BookOrder>>();
-                                event_sender.send(new_orders).expect("failed to send orders");
-                                rsmq.write().unwrap().delete_message(channel_bot.as_str(), &message.id).await;
+                                let new_orders = new_orders
+                                    .iter()
+                                    .map(|x| {
+                                        let now = Local::now().timestamp_millis() as u64;
+                                        let order_json = format!(
+                                            "{}{}",
+                                            serde_json::to_string(&x).unwrap(),
+                                            now
+                                        );
+                                        let order_id = sha256(order_json);
+                                        let side = match x.side.as_str() {
+                                            "sell" => Sell,
+                                            "buy" => Buy,
+                                            _ => unreachable!(),
+                                        };
+                                        BookOrder {
+                                            id: order_id,
+                                            account: x.user.to_string(),
+                                            side,
+                                            price: x.price.as_u64(),
+                                            amount: x.amount.as_u64(),
+                                            created_at: now,
+                                        }
+                                    })
+                                    .collect::<Vec<BookOrder>>();
+                                event_sender
+                                    .send(new_orders)
+                                    .expect("failed to send orders");
+                                rsmq.write()
+                                    .unwrap()
+                                    .delete_message(channel_bot.as_str(), &message.id)
+                                    .await;
                             } else {
                                 //let test1 = Address::from_str("1").unwrap();
                                 //let test2 = test1.to_string()
@@ -322,9 +331,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                         }
                         //tmp code
 
-
                         //block content logs [NewOrderFilter { user: 0xfaa56b120b8de4597cf20eff21045a9883e82aad, base_token: "BTC", quote_token: "USDT", amount: 3, price: 4 }]
-
                     }
                 }
             });
@@ -489,7 +496,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
-    info!("initial book {:#?}",crate::BOOK.lock().unwrap());
+    info!("initial book {:#?}", crate::BOOK.lock().unwrap());
     listen_blocks().await;
     Ok(())
 }

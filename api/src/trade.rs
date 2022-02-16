@@ -1,5 +1,5 @@
-use serde::{Serialize};
 use chemix_models::order::Side;
+use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct Trade {

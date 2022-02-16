@@ -1,30 +1,25 @@
 mod util;
 
 extern crate ethers_contract_abigen;
-extern crate rsmq_async;
-extern crate rand;
 extern crate num;
+extern crate rand;
+extern crate rsmq_async;
 
-
-use ethers::{prelude::*,types::{U256}};
+use ethers::{prelude::*, types::U256};
 
 //use ethers::providers::Ws;
-use ethers_contract_abigen::{Address};
+use ethers_contract_abigen::Address;
 
 use rsmq_async::{Rsmq, RsmqConnection};
-
-
 
 use std::env;
 
 use std::str::FromStr;
 
-
 use tokio::time;
 
-use util::MathOperation;
 use rand::Rng;
-
+use util::MathOperation;
 
 abigen!(
     SimpleContract,
@@ -32,7 +27,7 @@ abigen!(
     event_derives(serde::Deserialize, serde::Serialize)
 );
 
-async fn new_order(side: String ,price: f64, amount: f64) {
+async fn new_order(side: String, price: f64, amount: f64) {
     let mut rsmq = Rsmq::new(Default::default())
         .await
         .expect("connection failed");
@@ -44,30 +39,25 @@ async fn new_order(side: String ,price: f64, amount: f64) {
         base_token: "USDT".to_string(),
         quote_token: "BTC".to_string(),
         side,
-        amount: U256::from(amount_nano) ,
+        amount: U256::from(amount_nano),
         price: U256::from(price_nano),
     };
     let events = vec![event];
 
     let json_str = serde_json::to_string(&events).unwrap();
     let channel_name = match env::var_os("CHEMIX_MODE") {
-        None => {
-            "bot_local".to_string()
-        }
+        None => "bot_local".to_string(),
         Some(mist_mode) => {
-            format!("bot_{}",mist_mode.into_string().unwrap())
+            format!("bot_{}", mist_mode.into_string().unwrap())
         }
     };
 
-    rsmq
-        .send_message(channel_name.as_str(), json_str, None)
+    rsmq.send_message(channel_name.as_str(), json_str, None)
         .await
         .expect("failed to send message");
 }
 
 //fn cancle_order() {}
-
-
 
 //todo: send bsc
 #[tokio::main]
@@ -83,13 +73,16 @@ async fn main() -> anyhow::Result<()> {
         let side_random: u8 = rng.gen_range(0..=1);
         let side = match side_random {
             0 => "buy".to_string(),
-            _ => "sell".to_string()
+            _ => "sell".to_string(),
         };
 
         let price = (base_price + price_add).to_fix(8);
         let amount = (base_amount + amount_add).to_fix(8);
-        println!("[newOrder]: side {} price {},amount {}",side,price,amount);
-        new_order(side,price,amount).await;
+        println!(
+            "[newOrder]: side {} price {},amount {}",
+            side, price, amount
+        );
+        new_order(side, price, amount).await;
         tokio::time::sleep(time::Duration::from_millis(1000)).await;
     }
 

@@ -4,15 +4,15 @@ mod market;
 mod order;
 mod trade;
 
-use std::env;
 use actix_cors::Cors;
 use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder};
+use std::env;
 
-use chemix_models::api::{list_markets as list_markets2};
-use serde::{Deserialize, Serialize};
+use chemix_models::api::list_markets as list_markets2;
 use chemix_models::order::list_available_orders;
 use chemix_models::trade::list_trades;
 use chemix_utils::time::time2unix;
+use serde::{Deserialize, Serialize};
 
 /***
 * @api {get} /user/:id Request User information
@@ -144,8 +144,7 @@ async fn depth(web::Query(info): web::Query<DepthRequest>) -> String {
         if asks.len() as u32 == info.limit {
             break 'buy_orders;
         }
-        asks.push((available_buy_order.price,available_buy_order.amount));
-
+        asks.push((available_buy_order.price, available_buy_order.amount));
     }
 
     'sell_orders: for available_sell_order in available_sell_orders {
@@ -158,13 +157,10 @@ async fn depth(web::Query(info): web::Query<DepthRequest>) -> String {
         if bids.len() as u32 == info.limit {
             break 'sell_orders;
         }
-        bids.push((available_sell_order.price,available_sell_order.amount));
+        bids.push((available_sell_order.price, available_sell_order.amount));
     }
 
-    let mut depth_data = chemix_depth::Depth {
-        asks,
-        bids,
-    };
+    let mut depth_data = chemix_depth::Depth { asks, bids };
 
     /***
     let stat = orders.asks.entry(marker_order.price.clone()).or_insert(matched_amount);
@@ -246,15 +242,16 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
     }
 
      */
-    let trades = list_trades(info.limit).iter().map(|x| {
-        trade::Trade {
+    let trades = list_trades(info.limit)
+        .iter()
+        .map(|x| trade::Trade {
             id: x.id.clone(),
             price: x.price,
             amount: x.amount,
             taker_side: x.taker_side.clone(),
             updated_at: time2unix(x.created_at.clone()),
-        }
-    }).collect::<Vec<trade::Trade>>();
+        })
+        .collect::<Vec<trade::Trade>>();
 
     respond_json(200, "".to_string(), serde_json::to_string(&trades).unwrap())
 }
@@ -379,12 +376,8 @@ async fn main() -> std::io::Result<()> {
     });
 
     let port = match env::var_os("API_PORT") {
-        None => {
-            7010u32
-        }
-        Some(mist_mode) => {
-            mist_mode.into_string().unwrap().parse::<u32>().unwrap()
-        }
+        None => 7010u32,
+        Some(mist_mode) => mist_mode.into_string().unwrap().parse::<u32>().unwrap(),
     };
     let service = format!("0.0.0.0:{}", port);
 
@@ -415,7 +408,7 @@ async fn main() -> std::io::Result<()> {
             .service(echo)
         //.service(web::resource("/chemix/depth").route(web::get().to(depth)))
     })
-        .bind(service.as_str())?
-        .run()
-        .await
+    .bind(service.as_str())?
+    .run()
+    .await
 }

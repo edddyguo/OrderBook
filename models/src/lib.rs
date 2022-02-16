@@ -7,24 +7,20 @@ pub mod trade;
 extern crate jsonrpc_client_core;
 extern crate jsonrpc_client_http;
 
-use std::any::Any;
 use postgres::{Client, NoTls};
+use std::any::Any;
 use std::env;
 
 use std::fmt::Debug;
 
 use std::sync::Mutex;
 
-
-
 #[macro_use]
 extern crate lazy_static;
 extern crate chrono;
 extern crate postgres;
 
-
 use chrono::Local;
-
 
 use crate::order::{OrderInfo, Side};
 use crate::trade::TradeInfo;
@@ -47,15 +43,16 @@ pub fn restartDB() -> bool {
 fn connetDB() -> Option<postgres::Client> {
     let client;
     let dbname = match env::var_os("CHEMIX_MODE") {
-        None => {
-            "chemix_local".to_string()
-        }
+        None => "chemix_local".to_string(),
         Some(mist_mode) => {
-            format!("chemix_{}",mist_mode.into_string().unwrap())
+            format!("chemix_{}", mist_mode.into_string().unwrap())
         }
     };
 
-    let url = format!("host=localhost user=postgres port=5432 password=postgres dbname={}", dbname);
+    let url = format!(
+        "host=localhost user=postgres port=5432 password=postgres dbname={}",
+        dbname
+    );
 
     match Client::connect(&url, NoTls) {
         Ok(tmp) => {
@@ -86,8 +83,8 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
     match value.downcast_ref::<TradeInfo>() {
         Some(trade) => {
             let side = match trade.taker_side {
-                Side::Buy => {"buy"}
-                Side::Sell => {"sell"}
+                Side::Buy => "buy",
+                Side::Sell => "sell",
             };
 
             trade_vec.push(trade.id.string4sql());

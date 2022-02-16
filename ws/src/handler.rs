@@ -22,7 +22,6 @@ pub struct Event {
     pub(crate) message: String,
 }
 
-
 pub async fn publish_handler(body: Event, clients: Clients) -> Result<impl Reply> {
     let respond = PublishRespond {
         channel: body.topic.clone(),
@@ -30,23 +29,21 @@ pub async fn publish_handler(body: Event, clients: Clients) -> Result<impl Reply
         data: body.message.clone(),
     };
     let respond_str = serde_json::to_string(&respond).unwrap();
-    println!("-==========={:?}",respond_str);
+    println!("-==========={:?}", respond_str);
     clients
         .read()
         .await
         .iter()
-        .filter(|(id, _)| {
-            match body.user_id {
-                Some(v) => **id == v.to_string(),
-                None => true,
-            }
+        .filter(|(id, _)| match body.user_id {
+            Some(v) => **id == v.to_string(),
+            None => true,
         })
         .filter(|(_, client)| client.topics.contains(&body.topic))
         .for_each(|(_, client)| {
             if let Some(sender) = &client.sender {
-                println!("-==========={:?}",respond_str);
+                println!("-==========={:?}", respond_str);
                 let _ = sender.send(Ok(Message::text(respond_str.clone())));
-                println!("+++++++{:?}",respond_str);
+                println!("+++++++{:?}", respond_str);
             }
         });
 
@@ -63,8 +60,8 @@ async fn register_client(id: String, _user_id: usize, clients: Clients) {
     );
 }
 
-pub async fn ws_handler(ws: warp::ws::Ws,clients: Clients) -> Result<impl Reply> {
-    Ok(ws.on_upgrade(move |socket| ws::client_connection(socket,clients)))
+pub async fn ws_handler(ws: warp::ws::Ws, clients: Clients) -> Result<impl Reply> {
+    Ok(ws.on_upgrade(move |socket| ws::client_connection(socket, clients)))
 }
 
 pub async fn health_handler() -> Result<impl Reply> {

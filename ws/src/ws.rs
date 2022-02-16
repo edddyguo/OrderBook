@@ -7,17 +7,15 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::ws::{Message, WebSocket};
 //use warp::filters::ws::Message;
 
-use uuid::Uuid;
 use crate::handler::PublishRespond;
-
-
+use uuid::Uuid;
 
 #[derive(Deserialize, Debug)]
 pub struct TopicsRequest {
     topics: Vec<String>,
 }
 
-#[derive(Deserialize, Debug,PartialEq)]
+#[derive(Deserialize, Debug, PartialEq)]
 pub enum WSMethod {
     #[serde(rename = "UNSUBSCRIBE")]
     UNSUBSCRIBE,
@@ -41,7 +39,7 @@ pub enum WSMethod {
 }
 ***/
 
-#[derive(Deserialize, Debug,PartialEq)]
+#[derive(Deserialize, Debug, PartialEq)]
 pub struct PARAMS {
     hash: String,
     channel: Vec<String>,
@@ -70,18 +68,15 @@ pub async fn client_connection(
 
     //insert new client
     let id = Uuid::new_v4().simple().to_string();
-    let client = Client{
+    let client = Client {
         topics: vec![],
-        sender: Some(client_sender.clone())
+        sender: Some(client_sender.clone()),
     };
-
-
 
     let mut test1 = clients.write().await;
     test1.insert(id.clone(), client.clone());
     drop(test1);
     println!("1111---");
-
 
     tokio::task::spawn(client_rcv.forward(client_ws_sender).map(|result| {
         if let Err(e) = result {

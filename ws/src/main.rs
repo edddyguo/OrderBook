@@ -2,8 +2,8 @@ extern crate futures;
 extern crate rsmq_async;
 extern crate serde_json;
 extern crate tokio;
-extern crate warp;
 extern crate uuid;
+extern crate warp;
 
 use futures::TryFutureExt;
 use handler::Event;
@@ -12,9 +12,7 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 use std::env;
 
-
 use std::sync::Arc;
-
 
 use tokio::sync::{mpsc, RwLock};
 use tokio::time;
@@ -56,7 +54,6 @@ async fn ws_service(clients: Clients) {
         .and(with_clients(clients.clone()))
         .and_then(handler::ws_handler);
 
-
     let routes = health_route.or(ws_route).with(
         warp::cors()
             .allow_any_origin()
@@ -80,13 +77,9 @@ async fn ws_service(clients: Clients) {
                 Method::HEAD,
             ]),
     );
-    let port= match env::var_os("WS_PORT") {
-        None => {
-            7020u16
-        }
-        Some(mist_mode) => {
-            mist_mode.into_string().unwrap().parse::<u16>().unwrap()
-        }
+    let port = match env::var_os("WS_PORT") {
+        None => 7020u16,
+        Some(mist_mode) => mist_mode.into_string().unwrap().parse::<u16>().unwrap(),
     };
     warp::serve(routes).run(([0, 0, 0, 0], port)).await;
 }
@@ -128,7 +121,6 @@ async fn main() {
             .await
             .expect("connection failed");
 
-
         //let plus_one = |x: i32| -> i32 { x + 1 };
         //let mut rsmq_arc = Arc::new(RwLock::new(rsmq));
         loop {
@@ -155,20 +147,16 @@ async fn main() {
              */
 
             let channel_update_book = match env::var_os("CHEMIX_MODE") {
-                None => {
-                    "update_book_local".to_string()
-                }
+                None => "update_book_local".to_string(),
                 Some(mist_mode) => {
-                    format!("update_book_{}",mist_mode.into_string().unwrap())
+                    format!("update_book_{}", mist_mode.into_string().unwrap())
                 }
             };
 
             let channel_new_trade = match env::var_os("CHEMIX_MODE") {
-                None => {
-                    "new_trade_local".to_string()
-                }
+                None => "new_trade_local".to_string(),
                 Some(mist_mode) => {
-                    format!("new_trade_{}",mist_mode.into_string().unwrap())
+                    format!("new_trade_{}", mist_mode.into_string().unwrap())
                 }
             };
 
@@ -185,7 +173,8 @@ async fn main() {
                     message: message.message.clone(),
                 };
                 handler::publish_handler(event, clients.clone()).await;
-                rsmq.delete_message(channel_update_book.as_str(), &message.id).await;
+                rsmq.delete_message(channel_update_book.as_str(), &message.id)
+                    .await;
             } else {
                 tokio::time::sleep(time::Duration::from_millis(10)).await;
             }
@@ -203,7 +192,8 @@ async fn main() {
                     message: message.message.clone(),
                 };
                 handler::publish_handler(event, clients.clone()).await;
-                rsmq.delete_message(channel_new_trade.as_str(), &message.id).await;
+                rsmq.delete_message(channel_new_trade.as_str(), &message.id)
+                    .await;
             } else {
                 tokio::time::sleep(time::Duration::from_millis(10)).await;
             }
