@@ -24,3 +24,4 @@ rust_decimal = { version = "1.0.3", features = ["postgres"] }
 rustc-serialize = "0.3.18"
 chrono = "0.4"
 chemix-utils = { path = "../utils" }
+

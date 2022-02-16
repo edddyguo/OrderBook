@@ -6,7 +6,7 @@ use std::ops::{Deref, Index, Sub};
 use crate::{AddBook, LastTrade, EngineBook, AddBook2, LastTrade2};
 //use ethers::{prelude::*,types::{U256}};
 use serde::Deserialize;
-use utils::algorithm::sha256;
+use chemix_utils::algorithm::sha256;
 use chemix_utils::math::narrow;
 use chrono::offset::LocalResult;
 use chrono::offset::Local;
@@ -45,16 +45,6 @@ pub struct BookOrder {
     pub price: u64,
     pub amount: u64,
     pub created_at: u64,
-}
-
-#[derive(Deserialize, Debug, Default, Clone)]
-pub struct EngineOrder {
-    pub id: String,
-    pub trader_address: String,
-    pub status: String,
-    pub total_amount: u64,
-    pub available_amount: u64,
-    pub updated_at: u64,
 }
 
 /***

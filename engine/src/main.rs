@@ -28,10 +28,11 @@ use chemix_utils::{time as chemix_time,algorithm};
 use ethers::{prelude::*};
 use chemix_utils::math::{MathOperation, narrow};
 use ethers_core::abi::ethereum_types::{U256, U64};
-use chemix_models::order::{get_order, insert_order, OrderInfo, Side, update_order, UpdateOrder};
+use chemix_models::order::{EngineOrder,list_available_orders,get_order, insert_order, OrderInfo, Side, update_order, UpdateOrder};
 use chemix_models::trade::{insert_trades, TradeInfo};
-use utils::algorithm::sha256;
-use utils::time::get_current_time;
+use chemix_utils::time::time2unix;
+use chemix_utils::algorithm::sha256;
+use chemix_utils::time::get_current_time;
 use crate::order::Status::{FullFilled, PartialFilled};
 use crate::Side::{Buy, Sell};
 
@@ -52,14 +53,36 @@ struct EngineBook {
 
 lazy_static! {
     static ref BOOK: Mutex<EngineBook> = Mutex::new({
-        info!("lazy_static--postgres");
-        //let available_sell_orders = postgresql::list_available_orders("sell", market);
-        //let available_buy_orders = postgresql::list_available_orders("buy", market);
-        let available_sell = Vec::<BookOrder>::new();
-        let available_buy = Vec::<BookOrder>::new();
+        let available_sell : Vec<EngineOrder> = list_available_orders("BTC-USDT","sell");
+        let available_buy : Vec<EngineOrder> = list_available_orders("BTC-USDT","buy");
+
+        let available_sell2 = available_sell.iter().map(|x|{
+            BookOrder {
+                id: x.id.clone(),
+                account: x.account.clone(),
+                side: x.side.clone(),
+                price: x.price.to_nano(),
+                amount: x.amount.to_nano(),
+                created_at: time2unix(x.created_at.clone())
+            }
+         }).collect::<Vec<BookOrder>>();
+
+        let available_buy2 = available_buy.iter().map(|x|{
+            BookOrder {
+                id: x.id.clone(),
+                account: x.account.clone(),
+                side: x.side.clone(),
+                price: x.price.to_nano(),
+                amount: x.amount.to_nano(),
+                created_at: time2unix(x.created_at.clone())
+            }
+        }).collect::<Vec<BookOrder>>();
+
+        //let available_sell = Vec::<BookOrder>::new();
+        //let available_buy = Vec::<BookOrder>::new();
         EngineBook {
-            buy: available_buy,
-            sell: available_sell
+            buy: available_buy2,
+            sell: available_sell2
         }
     });
 }
@@ -131,6 +154,7 @@ abigen!(
 );
 
 pub fn sign() -> Result<()> {
+
     println!("in sign");
     Ok(())
 }
@@ -451,6 +475,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
+    info!("initial book {:#?}",crate::BOOK.lock().unwrap());
     listen_blocks().await;
     Ok(())
 }

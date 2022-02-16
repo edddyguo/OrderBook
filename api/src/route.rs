@@ -10,6 +10,7 @@ use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder}
 use chemix_chain::{listen_block, sign};
 use chemix_models::api::{list_markets as list_markets2, MarketInfo};
 use serde::{Deserialize, Serialize};
+use chemix_models::order::list_available_orders;
 use chemix_models::trade::list_trades;
 use chemix_utils::time::time2unix;
 
@@ -55,7 +56,8 @@ struct Markets {
 #[derive(Serialize)]
 struct ChemixRespond {
     code: u8,
-    msg: String, //200 default success
+    msg: String,
+    //200 default success
     data: String,
 }
 
@@ -122,14 +124,60 @@ struct DepthRequest {
     symbol: String,
     limit: u32,
 }
+
 #[get("/chemix/depth")]
 async fn depth(web::Query(info): web::Query<DepthRequest>) -> String {
     format!("symbol222 {}, limit:{}", info.symbol, info.limit);
-    //mock data
+    let available_buy_orders = list_available_orders("BTC-USDT", "buy");
+    let available_sell_orders = list_available_orders("BTC-USDT", "sell");
+
+    let mut asks = Vec::<(f64, f64)>::new();
+    let mut bids = Vec::<(f64, f64)>::new();
+
+    'buy_orders: for available_buy_order in available_buy_orders {
+        'asks: for mut ask in asks.clone() {
+            if available_buy_order.price == ask.0 {
+                ask.1 += available_buy_order.amount;
+                continue 'buy_orders;
+            }
+        }
+        if asks.len() as u32 == info.limit {
+            break 'buy_orders;
+        }
+        asks.push((available_buy_order.price,available_buy_order.amount));
+
+    }
+
+    'sell_orders: for available_sell_order in available_sell_orders {
+        'bids: for mut bid in bids.clone() {
+            if available_sell_order.price == bid.0 {
+                bid.1 += available_sell_order.amount;
+                continue 'sell_orders;
+            }
+        }
+        if bids.len() as u32 == info.limit {
+            break 'sell_orders;
+        }
+        bids.push((available_sell_order.price,available_sell_order.amount));
+    }
+
     let mut depth_data = chemix_depth::Depth {
-        asks: vec![(5000.123,1000.1),(6000.123,1000.1)],
-        bids: vec![(4000.123,1000.1),(3000.123,1000.1)],
+        asks,
+        bids,
     };
+
+    /***
+    let stat = orders.asks.entry(marker_order.price.clone()).or_insert(matched_amount);
+                    *stat += matched_amount;
+    */
+    //mock data
+    /***
+    let mut depth_data = chemix_depth::Depth {
+        asks: vec![(5000.123, 1000.1), (6000.123, 1000.1)],
+        bids: vec![(4000.123, 1000.1), (3000.123, 1000.1)],
+    };
+
+     */
     /***
     let base_price = 50000.0f64;
     for _ in 0..info.limit {
@@ -177,6 +225,7 @@ struct AggTradesRequest {
     symbol: String,
     limit: u32,
 }
+
 #[get("/chemix/aggTrades")]
 async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Responder {
     let mut time = 1644391550;
@@ -203,7 +252,7 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
             price: x.price,
             amount: x.amount,
             taker_side: x.taker_side.clone(),
-            updated_at: time2unix(x.created_at.clone())
+            updated_at: time2unix(x.created_at.clone()),
         }
     }).collect::<Vec<trade::Trade>>();
 
@@ -235,6 +284,7 @@ struct KlinesRequest {
     limit: u32,
     interval: u32,
 }
+
 #[get("/chemix/klines")]
 async fn klines(web::Query(info): web::Query<KlinesRequest>) -> impl Responder {
     respond_json(200, "".to_string(), serde_json::to_string(&info).unwrap())
@@ -336,7 +386,7 @@ async fn main() -> std::io::Result<()> {
             mist_mode.into_string().unwrap().parse::<u32>().unwrap()
         }
     };
-    let service = format!("0.0.0.0:{}",port);
+    let service = format!("0.0.0.0:{}", port);
 
     HttpServer::new(move || {
         App::new() //.app_data(query_cfg)
@@ -365,7 +415,7 @@ async fn main() -> std::io::Result<()> {
             .service(echo)
         //.service(web::resource("/chemix/depth").route(web::get().to(depth)))
     })
-    .bind(service.as_str())?
-    .run()
-    .await
+        .bind(service.as_str())?
+        .run()
+        .await
 }

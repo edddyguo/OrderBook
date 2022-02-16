@@ -13,6 +13,7 @@ use serde::Serialize;
 use slog::info;
 use chemix_utils::math::narrow;
 use chemix_utils::time::get_current_time;
+use crate::Side::{Buy, Sell};
 use crate::struct2array;
 
 #[derive(Deserialize, Debug, Default, Clone)]
@@ -25,12 +26,13 @@ pub struct UpdateOrder {
     pub updated_at: String,
 }
 
-#[derive(Deserialize, RustcDecodable, RustcEncodable, Debug, Default, Clone)]
+#[derive(Deserialize, RustcEncodable, Debug, Clone)]
 pub struct EngineOrder {
     pub id: String,
+    pub account: String,
     pub price: f64,
     pub amount: f64,
-    pub side: String,
+    pub side: Side,
     pub created_at: String,
 }
 
@@ -144,14 +146,19 @@ pub fn update_order(order: &UpdateOrder) {
     return;
 }
 
-pub fn list_available_orders(market_id: &str,side: &str, channel: &str) -> Vec<EngineOrder> {
+pub fn list_available_orders(market_id: &str,side: &str) -> Vec<EngineOrder> {
     let sort_by = if side == "buy" {
         "DESC"
     }else {
         "ASC"
     };
 
-    let sql = format!("select id,cast(price as float8),cast(available_amount as float8),side,cast(created_at as text) from chemix_orders \
+    let sql = format!("select id,\
+    account,
+    cast(price as float8),\
+    cast(available_amount as float8),\
+    side,\
+    cast(created_at as text) from chemix_orders \
     where market_id='{}' and available_amount>0 and side='{}' order by price {} ,created_at ASC", market_id, side, sort_by);
     let mut orders: Vec<EngineOrder> = Vec::new();
     let mut result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[]);
@@ -164,12 +171,19 @@ pub fn list_available_orders(market_id: &str,side: &str, channel: &str) -> Vec<E
     }
     let rows = result.unwrap();
     for row in rows {
+        let side_str : String = row.get(4);
+        let side = match side_str.as_str() {
+            "buy" => {Buy},
+            "sell" => {Sell},
+            _ => {unreachable!()}
+        };
         let info = EngineOrder {
             id: row.get(0),
-            price: row.get(1),
-            amount: row.get(2),
-            side: row.get(3),
-            created_at: row.get(4),
+            account: row.get(1),
+            price: row.get(2),
+            amount: row.get(3),
+            side,
+            created_at: row.get(5),
         };
         orders.push(info);
     }
