@@ -159,7 +159,7 @@ async fn main() {
                     "update_book_local".to_string()
                 }
                 Some(mist_mode) => {
-                    format!("bot_{}",mist_mode.into_string().unwrap())
+                    format!("update_book_{}",mist_mode.into_string().unwrap())
                 }
             };
 

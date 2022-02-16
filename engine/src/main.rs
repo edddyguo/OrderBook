@@ -416,12 +416,25 @@ async fn listen_blocks() -> anyhow::Result<()> {
 
                 info!("finished compute  agg_trades {:?},add_depth {:?}",agg_trades,add_depth);
 
+                let asks2 = add_depth.asks.iter().map(|(x,y)| {
+                    (narrow(x.to_owned()),narrow(y.to_owned()))
+                }).collect::<Vec<(f64,f64)>>();
+
+                let bids2 = add_depth.bids.iter().map(|(x,y)| {
+                    (narrow(x.to_owned()),narrow(y.to_owned()))
+                }).collect::<Vec<(f64,f64)>>();
+
+                let book2 = AddBook {
+                    asks:asks2,
+                    bids:bids2,
+                };
                 //tmp code
                 /***
                 let updateBook = AddBook {
                     asks: vec![(5000.123, -1.1), (6000.123, 1.1)],
                     bids: vec![(4000.123, -1.1), (3000.123, 1.1)],
                 };
+
 
                 //update new trade
                 let mut updateTrade = Vec::<LastTrade>::new();
@@ -447,7 +460,8 @@ async fn listen_blocks() -> anyhow::Result<()> {
                 let channel_new_trade = channel_new_trade.clone();
                 let rt = Runtime::new().unwrap();
                 rt.block_on(async move {
-                    let json_str = serde_json::to_string(&add_depth).unwrap();
+                    let json_str = serde_json::to_string(&book2).unwrap();
+                    //let json_str = serde_json::to_string(&add_depth).unwrap();
                     arc_rsmq
                         .write()
                         .unwrap()
