@@ -435,33 +435,6 @@ async fn listen_blocks() -> anyhow::Result<()> {
                     asks:asks2,
                     bids:bids2,
                 };
-                //tmp code
-                /***
-                let updateBook = AddBook {
-                    asks: vec![(5000.123, -1.1), (6000.123, 1.1)],
-                    bids: vec![(4000.123, -1.1), (3000.123, 1.1)],
-                };
-
-
-                //update new trade
-                let mut updateTrade = Vec::<LastTrade>::new();
-                updateTrade.push(LastTrade {
-                    id: "BTC-USDT".to_string(),
-                    price: 1000.0,
-                    amount: 10.1,
-                    taker_side: "buy".to_string(),
-                    updated_at: 1644287259123,
-                });
-                //理论上一次撮合taker_side是一样的
-                updateTrade.push(LastTrade {
-                    id: "BTC-USDT".to_string(),
-                    price: 1001.0,
-                    amount: 20.2,
-                    taker_side: "sell".to_string(),
-                    updated_at: 1644287259123,
-                });
-                 */
-
 
                 let channel_update_book = channel_update_book.clone();
                 let channel_new_trade = channel_new_trade.clone();
