@@ -41,7 +41,6 @@ pub fn restartDB() -> bool {
 }
 
 fn connetDB() -> Option<postgres::Client> {
-    let client;
     let dbname = match env::var_os("CHEMIX_MODE") {
         None => "chemix_local".to_string(),
         Some(mist_mode) => {
@@ -55,16 +54,15 @@ fn connetDB() -> Option<postgres::Client> {
     );
 
     match Client::connect(&url, NoTls) {
-        Ok(tmp) => {
-            client = tmp;
+        Ok(client) => {
             eprintln!("connect postgresql successfully");
+            Some(client)
         }
         Err(error) => {
             eprintln!("connect postgresql failed,{:?}", error);
-            return None;
+            None
         }
-    };
-    Some(client)
+    }
 }
 
 pub trait FormatSql {
