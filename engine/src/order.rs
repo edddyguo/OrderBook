@@ -11,19 +11,6 @@ use chemix_utils::math::narrow;
 use chemix_models::order::Side;
 use chemix_models::trade::TradeInfo;
 
-//  status text , --"full_filled","partial_filled","pending"
-#[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
-pub enum Status {
-    #[serde(rename = "full_filled")]
-    FullFilled,
-    #[serde(rename = "partial_filled")]
-    PartialFilled,
-    #[serde(rename = "pending")]
-    Pending,
-    #[serde(rename = "canceled")]
-    Canceled,
-}
-
 #[derive(RustcEncodable, Clone, Serialize)]
 pub struct EventOrder {
     pub market_id: String,

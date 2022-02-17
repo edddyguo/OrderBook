@@ -1,4 +1,6 @@
 extern crate rustc_serialize;
+
+use jsonrpc_http_server::tokio::prelude::future::Ok;
 use serde::Deserialize;
 
 //#[derive(Serialize)]
@@ -8,6 +10,45 @@ use crate::struct2array;
 use crate::Side::{Buy, Sell};
 use chemix_utils::math::narrow;
 use chemix_utils::time::get_current_time;
+
+#[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
+pub enum Status {
+    #[serde(rename = "full_filled")]
+    FullFilled,
+    #[serde(rename = "partial_filled")]
+    PartialFilled,
+    #[serde(rename = "pending")]
+    Pending,
+    #[serde(rename = "canceled")]
+    Canceled,
+    #[serde(rename = "abandoned")]
+    Abandoned,
+}
+
+impl Status {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            FullFilled => "full_filled",
+            PartialFilled => "partial_filled",
+            Pending => "pending",
+            Canceled => "canceled",
+            Abandoned => "abandoned",
+        }
+    }
+}
+
+impl From<&str> for Status {
+    fn from(status_str: &str) -> Self {
+        match status_str {
+            "full_filled" => Self::FullFilled,
+            "partial_filled" => Self::PartialFilled,
+            "pending" => Self::Pending,
+            "canceled" => Self::Canceled,
+            "abandoned" => Self::Abandoned,
+            _ => unreachable!()
+        }
+    }
+}
 
 #[derive(Deserialize, Debug, Default, Clone)]
 pub struct UpdateOrder {
@@ -37,10 +78,30 @@ pub enum Side {
     Sell,
 }
 
+impl Side {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Buy => "buy",
+            Sell => "sell",
+        }
+    }
+}
+
+impl From<&str> for Side {
+    fn from(side_str: &str) -> Self {
+        match side_str {
+            "buy" => Self::Buy,
+            "sell" => Self::Sell,
+            _ => unreachable!()
+        }
+    }
+}
+
+
 /**
 amount = available_amount + matched_amount + canceled_amount
 */
-#[derive(Deserialize, Debug, Clone, Serialize, Default)]
+#[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct OrderInfo {
     pub id: String,
     pub market_id: String,
@@ -48,7 +109,7 @@ pub struct OrderInfo {
     pub side: String,
     pub price: f64,
     pub amount: f64,
-    pub status: String,
+    pub status: Status,
     pub available_amount: f64,
     pub matched_amount: f64,
     pub canceled_amount: f64,
@@ -82,7 +143,7 @@ impl OrderInfo {
             side: side.to_string(),
             price: narrow(price),
             amount: narrow(amount),
-            status: "pending".to_string(),
+            status: Status::Pending,
             available_amount: narrow(amount),
             matched_amount: 0.0,
             canceled_amount: 0.0,
@@ -186,7 +247,7 @@ pub fn list_available_orders(market_id: &str, side: &str) -> Vec<EngineOrder> {
     orders
 }
 
-pub fn get_order(id: &str) -> OrderInfo {
+pub fn get_order(id: &str) -> Result<OrderInfo,String> {
     let sql = format!(
         "select id,market_id,account,side,
          cast(amount as float8),\
@@ -199,37 +260,29 @@ pub fn get_order(id: &str) -> OrderInfo {
          cast(created_at as text) \
          from chemix_orders where id=$1"
     );
-    let mut order: OrderInfo = Default::default();
     let mut result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[&id]);
     if let Err(_err) = result {
         //info!("get order failed {:?},sql={}", err, sql);
         if !crate::restartDB() {
-            return order;
+            return Err("psql restart failed".to_string());
         }
         result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[&id]);
     }
-    //id 唯一，直接去第一个成员
-    /***
-    status: rows[0].get(2),
-        amount: rows[0].get(3),
-        available_amount: rows[0].get(4),
-        canceled_amount: rows[0].get(6),
-        updated_at: rows[0].get(8),
-    */
+
     let rows = result.unwrap();
-    order = OrderInfo {
+    let order = OrderInfo {
         id: rows[0].get(0),
         market_id: rows[0].get(1),
         account: rows[0].get(2),
         side: rows[0].get(3),
         price: rows[0].get(4),
         amount: rows[0].get(5),
-        status: rows[0].get(6),
+        status: Status::from(rows[0].get::<usize,&str>(6usize)),
         available_amount: rows[0].get(7),
         matched_amount: rows[0].get(8),
         canceled_amount: rows[0].get(9),
         updated_at: rows[0].get(10),
         created_at: rows[0].get(11),
     };
-    order
+    Ok(order)
 }

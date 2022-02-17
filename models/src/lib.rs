@@ -112,7 +112,7 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
             trade_vec.push(trade.side.string4sql());
             trade_vec.push(trade.price.to_string());
             trade_vec.push(trade.amount.to_string());
-            trade_vec.push(trade.status.string4sql());
+            trade_vec.push(trade.status.as_str().to_string().string4sql());
             trade_vec.push(trade.available_amount.to_string());
             trade_vec.push(trade.matched_amount.to_string());
             trade_vec.push(trade.canceled_amount.to_string());

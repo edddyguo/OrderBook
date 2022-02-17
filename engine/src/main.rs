@@ -24,10 +24,7 @@ use tokio::time;
 use chemix_utils::time as chemix_time;
 use chrono::prelude::*;
 
-use chemix_models::order::{
-    get_order, insert_order, list_available_orders, update_order, EngineOrder, OrderInfo, Side,
-    UpdateOrder,
-};
+use chemix_models::order::{get_order, insert_order, list_available_orders, update_order, EngineOrder, OrderInfo, Side, UpdateOrder, Status as OrderStatus};
 use chemix_models::trade::{insert_trades, TradeInfo};
 use chemix_utils::algorithm::sha256;
 use chemix_utils::math::{narrow, MathOperation};
@@ -300,11 +297,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                                             now
                                         );
                                         let order_id = sha256(order_json);
-                                        let side = match x.side.as_str() {
-                                            "sell" => Sell,
-                                            "buy" => Buy,
-                                            _ => unreachable!(),
-                                        };
+                                        let side = Side::from(x.side.as_str());
                                         BookOrder {
                                             id: order_id,
                                             account: x.user.to_string(),
@@ -363,15 +356,15 @@ async fn listen_blocks() -> anyhow::Result<()> {
 
                     error!("index={},taker_amount={},matched_amount={}",index,db_order.amount,matched_amount);
                     db_order.status = if narrow(matched_amount) == db_order.amount {
-                        "full_filled".to_string()
+                        OrderStatus::FullFilled
                     }else if  matched_amount != 0 && narrow(matched_amount) < db_order.amount{
-                        "partial_filled".to_string()
+                        OrderStatus::PartialFilled
                     }else if matched_amount == 0{
-                        "pending".to_string()
+                        OrderStatus::Pending
                     }else {
                         error!("assert: taker_amount={},matched_amount={},matched_amount less than order amount {}",db_order.amount,narrow(matched_amount),narrow(matched_amount) < db_order.amount);
                         assert!(false);
-                        "".to_string()
+                        OrderStatus::Pending
                     };
                     db_order.matched_amount = narrow(matched_amount);
                     db_order.available_amount = db_order.amount - narrow(matched_amount);
@@ -396,7 +389,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                 insert_order(db_orders);
                 //update marker orders
                 for orders in db_marker_orders_reduce {
-                    let marker_order_ori = get_order(orders.0.as_str());
+                    let marker_order_ori = get_order(orders.0.as_str()).unwrap();
 
                     let new_matched_amount = marker_order_ori.matched_amount + orders.1;
                     let new_available_amount = marker_order_ori.available_amount - orders.1;
