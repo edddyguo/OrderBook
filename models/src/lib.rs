@@ -20,6 +20,9 @@ extern crate lazy_static;
 extern crate chrono;
 extern crate postgres;
 
+#[macro_use]
+extern crate log;
+
 use chrono::Local;
 
 use crate::order::{OrderInfo, Side};

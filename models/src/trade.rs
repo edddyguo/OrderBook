@@ -1,3 +1,5 @@
+use std::str::FromStr;
+use ethers_core::types::U256;
 use crate::order::Side;
 use crate::struct2array;
 use crate::Side::{Buy, Sell};
@@ -40,8 +42,8 @@ pub struct TradeInfo {
     pub market_id: String,
     pub maker: String,
     pub taker: String,
-    pub price: f64,
-    pub amount: f64,
+    pub price: U256,
+    pub amount: U256,
     pub taker_side: Side,
     pub maker_order_id: String,
     pub taker_order_id: String,
@@ -54,8 +56,8 @@ impl TradeInfo {
     pub fn new(
         taker: String,
         maker: String,
-        price: f64,
-        amount: f64,
+        price: U256,
+        amount: U256,
         taker_side: Side,
         maker_order_id: String,
         taker_order_id: String,
@@ -143,8 +145,8 @@ pub fn list_trades(num: u32) -> Vec<TradeInfo> {
     market_id,\
     maker,\
     taker,\
-    cast(price as float8),\
-    cast(amount as float8),\
+    price,\
+    amount,\
     taker_side,\
     maker_order_id, \
     taker_order_id,\
@@ -183,8 +185,8 @@ pub fn list_trades(num: u32) -> Vec<TradeInfo> {
             market_id: row.get(4),
             taker: row.get(5),
             maker: row.get(6),
-            price: row.get(7),
-            amount: row.get(8),
+            price: U256::from_str(row.get::<usize,&str>(7)).unwrap(),
+            amount: U256::from_str(row.get::<usize,&str>(8)).unwrap(),
             taker_side: side,
             maker_order_id: row.get(10),
             taker_order_id: row.get(11),

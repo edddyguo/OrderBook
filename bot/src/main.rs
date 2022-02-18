@@ -119,7 +119,7 @@ async fn new_order(side: String, price: f64, amount: f64) {
 async fn main() -> anyhow::Result<()> {
     println!("Hello, world!");
     env_logger::init();
-    let base_price = 40000.0f64;
+    let base_price = 1000.0f64;
     let base_amount = 1.0f64;
     //get_dex_name().await;
 

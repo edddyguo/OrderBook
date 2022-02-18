@@ -14,7 +14,7 @@ use serde::Serialize;
 use std::convert::TryFrom;
 use std::env;
 use std::fmt::Debug;
-use std::ops::{Add, Div};
+use std::ops::{Add, Div, Sub};
 
 use crate::order::{match_order, BookOrder};
 use std::sync::Mutex;
@@ -54,16 +54,16 @@ struct EngineBook {
 
 lazy_static! {
     static ref BOOK: Mutex<EngineBook> = Mutex::new({
-        let available_sell : Vec<EngineOrder> = list_available_orders("BTC-USDT","sell");
-        let available_buy : Vec<EngineOrder> = list_available_orders("BTC-USDT","buy");
+        let available_sell : Vec<EngineOrder> = list_available_orders("BTC-USDT",Side::Sell);
+        let available_buy : Vec<EngineOrder> = list_available_orders("BTC-USDT",Side::Buy);
 
         let available_sell2 = available_sell.iter().map(|x|{
             BookOrder {
                 id: x.id.clone(),
                 account: x.account.clone(),
                 side: x.side.clone(),
-                price: x.price.to_nano(),
-                amount: x.amount.to_nano(),
+                price: x.price,
+                amount: x.amount,
                 created_at: time2unix(x.created_at.clone())
             }
          }).collect::<Vec<BookOrder>>();
@@ -73,8 +73,8 @@ lazy_static! {
                 id: x.id.clone(),
                 account: x.account.clone(),
                 side: x.side.clone(),
-                price: x.price.to_nano(),
-                amount: x.amount.to_nano(),
+                price: x.price,
+                amount: x.amount,
                 created_at: time2unix(x.created_at.clone())
             }
         }).collect::<Vec<BookOrder>>();
@@ -102,16 +102,16 @@ pub struct NewOrderEvent {
 }
  */
 
-#[derive(RustcEncodable, Clone, Serialize)]
+#[derive(Clone, Serialize)]
 pub struct AddBook {
-    pub asks: Vec<(f64, f64)>,
-    pub bids: Vec<(f64, f64)>,
+    pub asks: Vec<(U256,U256)>,
+    pub bids: Vec<(U256,U256)>,
 }
 
-#[derive(RustcEncodable, Clone, Serialize, Debug)]
+#[derive(Clone, Serialize, Debug)]
 pub struct AddBook2 {
-    pub asks: HashMap<u64, u64>,
-    pub bids: HashMap<u64, u64>,
+    pub asks: HashMap<U256, U256>,
+    pub bids: HashMap<U256, U256>,
 }
 
 /***
@@ -131,10 +131,10 @@ pub struct LastTrade {
     updated_at: u64,
 }
 
-#[derive(RustcEncodable, Clone, Serialize, Debug)]
+#[derive(Clone, Serialize, Debug)]
 pub struct LastTrade2 {
-    price: f64,
-    amount: f64,
+    price: U256,
+    amount: U256,
     taker_side: Side,
 }
 
@@ -240,7 +240,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
         .parse::<LocalWallet>()
         .unwrap();
     //private network start
-    let mut height: U64 = U64::from(24100u64);
+    let mut height: U64 = U64::from(25515u64);
     let client = SignerMiddleware::new(provider_http.clone(), wallet.clone());
     let client = Arc::new(client);
 
@@ -286,15 +286,14 @@ async fn listen_blocks() -> anyhow::Result<()> {
                                     false => Sell,
                                 };
                                 info!("__0001_{:#?}",x);
-                                let price =  x.limit_price.div(U256::from(10i32).pow(U256::from(BaseTokenDecimal - QuoteTokenDecimal))).as_u64();
-                                let amount = x.order_amount.div(U256::from(10i32).pow(U256::from(QuoteTokenDecimal))).as_u64();
-                                info!("__0002_{}_{}",price,amount);
+                                //let price =  x.limit_price.div(U256::from(10i32).pow(U256::from(BaseTokenDecimal - QuoteTokenDecimal))).as_u64();
+                                //let amount = x.order_amount.div(U256::from(10i32).pow(U256::from(QuoteTokenDecimal))).as_u64();
                                 BookOrder {
                                     id: order_id,
                                     account: x.order_user.to_string(),
                                     side,
-                                    price,
-                                    amount,
+                                    price: x.limit_price,
+                                    amount: x.order_amount,
                                     created_at: now,
                                 }
                             })
@@ -322,37 +321,39 @@ async fn listen_blocks() -> anyhow::Result<()> {
                 //TODO: matched order
                 //update OrderBook
                 let mut add_depth = AddBook2 {
-                    asks: HashMap::<u64,u64>::new(),
-                    bids: HashMap::<u64,u64>::new(),
+                    asks: HashMap::<U256,U256>::new(),
+                    bids: HashMap::<U256,U256>::new(),
                 };
 
                 let mut db_trades = Vec::<TradeInfo>::new();
                 let mut db_orders = Vec::<OrderInfo>::new();
                 //market_orders的移除或者减少
-                let mut db_marker_orders_reduce = HashMap::<String,f64>::new();
+                let mut db_marker_orders_reduce = HashMap::<String,U256>::new();
+                let u256_zero = U256::from(0i32);
 
                 for  (index,order) in orders.into_iter().enumerate() {
                     let mut db_order = OrderInfo::new(order.id.clone(),"BTC-USDT".to_string(),order.account.clone(),order.side.clone(),order.price.clone(),order.amount.clone());
                     let matched_amount = match_order(order, &mut db_trades, &mut add_depth,&mut db_marker_orders_reduce);
 
                     error!("index={},taker_amount={},matched_amount={}",index,db_order.amount,matched_amount);
-                    db_order.status = if narrow(matched_amount) == db_order.amount {
+                    db_order.status = if matched_amount == db_order.amount {
                         OrderStatus::FullFilled
-                    }else if  matched_amount != 0 && narrow(matched_amount) < db_order.amount{
+                    }else if  matched_amount != u256_zero && matched_amount < db_order.amount{
                         OrderStatus::PartialFilled
-                    }else if matched_amount == 0{
+                    }else if matched_amount == u256_zero{
                         OrderStatus::Pending
                     }else {
-                        error!("assert: taker_amount={},matched_amount={},matched_amount less than order amount {}",db_order.amount,narrow(matched_amount),narrow(matched_amount) < db_order.amount);
+                        error!("assert: taker_amount={},matched_amount={},__{}",db_order.amount,matched_amount,matched_amount < db_order.amount);
                         assert!(false);
                         OrderStatus::Pending
                     };
-                    db_order.matched_amount = narrow(matched_amount);
-                    db_order.available_amount = db_order.amount - narrow(matched_amount);
+                    db_order.matched_amount = matched_amount;
+                    db_order.available_amount = db_order.amount.sub(matched_amount);
                     db_orders.push(db_order);
                     info!("finished match_order index {}",index);
                 }
                 error!("db_trades = {:?}",db_trades);
+
 
                 let agg_trades = db_trades.iter().map(|x|
                     LastTrade2 {
@@ -369,13 +370,14 @@ async fn listen_blocks() -> anyhow::Result<()> {
                 //todo： 异步发送bsc交易
                 insert_order(db_orders);
                 //update marker orders
+                let u256_zero = U256::from(0i32);
                 for orders in db_marker_orders_reduce {
                     let marker_order_ori = get_order(orders.0.as_str()).unwrap();
 
                     let new_matched_amount = marker_order_ori.matched_amount + orders.1;
                     let new_available_amount = marker_order_ori.available_amount - orders.1;
 
-                    let new_status = if new_available_amount == 0.0 {
+                    let new_status = if new_available_amount == u256_zero {
                         "full_filled".to_string()
                     }else{
                         "partial_filled".to_string()
@@ -398,12 +400,12 @@ async fn listen_blocks() -> anyhow::Result<()> {
                 info!("finished compute  agg_trades {:?},add_depth {:?}",agg_trades,add_depth);
 
                 let asks2 = add_depth.asks.iter().map(|(x,y)| {
-                    (narrow(x.to_owned()),narrow(y.to_owned()))
-                }).collect::<Vec<(f64,f64)>>();
+                    (x.to_owned(),y.to_owned())
+                }).collect::<Vec<(U256,U256)>>();
 
                 let bids2 = add_depth.bids.iter().map(|(x,y)| {
-                    (narrow(x.to_owned()),narrow(y.to_owned()))
-                }).collect::<Vec<(f64,f64)>>();
+                        (x.to_owned(),y.to_owned())
+                }).collect::<Vec<(U256,U256)>>();
 
                 let book2 = AddBook {
                     asks:asks2,

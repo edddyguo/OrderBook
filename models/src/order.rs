@@ -1,15 +1,17 @@
 extern crate rustc_serialize;
 
+use std::str::FromStr;
+use ethers_core::types::U256;
 use jsonrpc_http_server::tokio::prelude::future::Ok;
 use serde::Deserialize;
 
 //#[derive(Serialize)]
 use serde::Serialize;
-
 use crate::struct2array;
 use crate::Side::{Buy, Sell};
 use chemix_utils::math::narrow;
 use chemix_utils::time::get_current_time;
+
 
 #[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
 pub enum Status {
@@ -54,18 +56,18 @@ impl From<&str> for Status {
 pub struct UpdateOrder {
     pub id: String,
     pub status: String,
-    pub available_amount: f64,
-    pub canceled_amount: f64,
-    pub matched_amount: f64,
+    pub available_amount: U256,
+    pub canceled_amount: U256,
+    pub matched_amount: U256,
     pub updated_at: String,
 }
 
-#[derive(Deserialize, RustcEncodable, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct EngineOrder {
     pub id: String,
     pub account: String,
-    pub price: f64,
-    pub amount: f64,
+    pub price: U256,
+    pub amount: U256,
     pub side: Side,
     pub created_at: String,
 }
@@ -107,12 +109,12 @@ pub struct OrderInfo {
     pub market_id: String,
     pub account: String,
     pub side: String,
-    pub price: f64,
-    pub amount: f64,
+    pub price: U256,
+    pub amount: U256,
     pub status: Status,
-    pub available_amount: f64,
-    pub matched_amount: f64,
-    pub canceled_amount: f64,
+    pub available_amount: U256,
+    pub matched_amount: U256,
+    pub canceled_amount: U256,
     pub updated_at: String,
     pub created_at: String,
 }
@@ -129,8 +131,8 @@ impl OrderInfo {
         market_id: String,
         account: String,
         side: Side,
-        price: u64,
-        amount: u64,
+        price: U256,
+        amount: U256,
     ) -> OrderInfo {
         let side = match side {
             Side::Buy => "buy",
@@ -141,12 +143,12 @@ impl OrderInfo {
             market_id,
             account,
             side: side.to_string(),
-            price: narrow(price),
-            amount: narrow(amount),
+            price,
+            amount,
             status: Status::Pending,
-            available_amount: narrow(amount),
-            matched_amount: 0.0,
-            canceled_amount: 0.0,
+            available_amount: amount,
+            matched_amount: U256::from(0),
+            canceled_amount:  U256::from(0),
             updated_at: get_current_time(),
             created_at: get_current_time(),
         }
@@ -166,7 +168,7 @@ pub fn insert_order(orders: Vec<OrderInfo>) {
                 query = format!("{}{})", query, order_info[i]);
             }
         }
-        // info!("insert order successful insert,sql={}", query);
+        info!("insert order successful insert,sql={}", query);
         let mut result = crate::CLIENTDB.lock().unwrap().execute(&*query, &[]);
         // let mut result = crate::CLIENTDB.lock().unwrap().execute(&*query, &tradesArr[0..tradesArr.len()]);
         if let Err(_err) = result {
@@ -205,16 +207,14 @@ pub fn update_order(order: &UpdateOrder) {
     return;
 }
 
-pub fn list_available_orders(market_id: &str, side: &str) -> Vec<EngineOrder> {
-    let sort_by = if side == "buy" { "DESC" } else { "ASC" };
-
+pub fn list_available_orders(market_id: &str, side: Side) -> Vec<EngineOrder> {
     let sql = format!("select id,\
     account,
-    cast(price as float8),\
-    cast(available_amount as float8),\
+    price,\
+    available_amount,\
     side,\
     cast(created_at as text) from chemix_orders \
-    where market_id='{}' and available_amount>0 and side='{}' order by price {} ,created_at ASC", market_id, side, sort_by);
+    where market_id='{}' and available_amount!=\'0\' and side='{}' order by created_at ASC", market_id, side.as_str());
     let mut orders: Vec<EngineOrder> = Vec::new();
     let mut result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[]);
     if let Err(_err) = result {
@@ -237,25 +237,33 @@ pub fn list_available_orders(market_id: &str, side: &str) -> Vec<EngineOrder> {
         let info = EngineOrder {
             id: row.get(0),
             account: row.get(1),
-            price: row.get(2),
-            amount: row.get(3),
+            price: U256::from_str(row.get::<usize,&str>(2)).unwrap(),
+            amount: U256::from_str(row.get::<usize,&str>(3)).unwrap(),
             side,
             created_at: row.get(5),
         };
         orders.push(info);
     }
+    orders.sort_by(|a,b|{
+        a.price.partial_cmp(&b.price).unwrap()
+    });
+    //let sort_by = if side == "buy" { "DESC" } else { "ASC" };
+    match side {
+        Buy => {orders.reverse()}
+        Sell => {}
+    };
     orders
 }
 
 pub fn get_order(id: &str) -> Result<OrderInfo,String> {
     let sql = format!(
         "select id,market_id,account,side,
-         cast(amount as float8),\
-         cast(price as float8),\
+         amount,\
+         price,\
          status,\
-         cast(available_amount as float8),\
-         cast(matched_amount as float8),\
-         cast(canceled_amount as float8),\
+         available_amount,\
+         matched_amount,\
+         canceled_amount,\
          cast(updated_at as text) ,\
          cast(created_at as text) \
          from chemix_orders where id=$1"
@@ -269,18 +277,19 @@ pub fn get_order(id: &str) -> Result<OrderInfo,String> {
         result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[&id]);
     }
 
+
     let rows = result.unwrap();
     let order = OrderInfo {
         id: rows[0].get(0),
         market_id: rows[0].get(1),
         account: rows[0].get(2),
         side: rows[0].get(3),
-        price: rows[0].get(4),
-        amount: rows[0].get(5),
+        price: U256::from_str(rows[0].get::<usize,&str>(4usize)).unwrap(),
+        amount: U256::from_str(rows[0].get::<usize,&str>(5usize)).unwrap(),
         status: Status::from(rows[0].get::<usize,&str>(6usize)),
-        available_amount: rows[0].get(7),
-        matched_amount: rows[0].get(8),
-        canceled_amount: rows[0].get(9),
+        available_amount: U256::from_str(rows[0].get::<usize,&str>(7usize)).unwrap(),
+        matched_amount: U256::from_str(rows[0].get::<usize,&str>(8usize)).unwrap(),
+        canceled_amount: U256::from_str(rows[0].get::<usize,&str>(9usize)).unwrap(),
         updated_at: rows[0].get(10),
         created_at: rows[0].get(11),
     };

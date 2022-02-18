@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::ops::{Add, Sub};
+use ethers_core::types::U256;
 
 use serde::Serialize;
 
@@ -24,8 +26,8 @@ pub struct BookOrder {
     pub id: String,
     pub account: String,
     pub side: Side,
-    pub price: u64,
-    pub amount: u64,
+    pub price: U256,
+    pub amount: U256,
     pub created_at: u64,
 }
 
@@ -44,10 +46,11 @@ pub fn match_order(
     mut taker_order: BookOrder,
     trades: &mut Vec<TradeInfo>,
     orders: &mut AddBook2,
-    marker_reduced_orders: &mut HashMap<String, f64>,
-) -> u64 {
+    marker_reduced_orders: &mut HashMap<String, U256>,
+) -> U256 {
+    let u256_zero = U256::from(0i32);
     let book = &mut crate::BOOK.lock().unwrap();
-    let mut total_matched_amount: u64 = 0;
+    let mut total_matched_amount = U256::from(0i32);
     'marker_orders: loop {
         match &taker_order.side {
             Side::Buy => {
@@ -58,7 +61,7 @@ pub fn match_order(
                         .bids
                         .entry(taker_order.price.clone())
                         .or_insert(taker_order.amount);
-                    *stat += taker_order.amount;
+                    *stat = stat.add(taker_order.amount);
 
                     //insert this order by compare price and created_at
                     //fixme:tmpcode,优化，还有时间排序的问题
@@ -74,8 +77,8 @@ pub fn match_order(
                     trades.push(TradeInfo::new(
                         taker_order.account.clone(),
                         marker_order.account.clone(),
-                        narrow(marker_order.price.clone()),
-                        narrow(matched_amount),
+                        marker_order.price.clone(),
+                        matched_amount.clone(),
                         taker_order.side.clone(),
                         marker_order.id.clone(),
                         taker_order.id.clone(),
@@ -86,22 +89,22 @@ pub fn match_order(
                         .asks
                         .entry(marker_order.price.clone())
                         .or_insert(matched_amount);
-                    *stat += matched_amount;
+                    *stat = stat.add(matched_amount);
 
                     //get marker_order change value
                     marker_reduced_orders
-                        .insert(marker_order.id.clone(), narrow(matched_amount));
+                        .insert(marker_order.id.clone(), matched_amount);
 
-                    marker_order.amount -= matched_amount;
+                    marker_order.amount = marker_order.amount.sub(matched_amount);
                     //todo: 不在去减，用total_matched_amount 判断
-                    taker_order.amount -= matched_amount;
-                    total_matched_amount += matched_amount;
-                    if marker_order.amount != 0 && taker_order.amount == 0 {
+                    taker_order.amount = taker_order.amount.sub(matched_amount);
+                    total_matched_amount = total_matched_amount.add(matched_amount);
+                    if marker_order.amount != u256_zero && taker_order.amount == u256_zero {
                         book.sell[0] = marker_order;
                         break 'marker_orders;
-                    } else if marker_order.amount == 0 && taker_order.amount != 0 {
+                    } else if marker_order.amount == u256_zero && taker_order.amount != u256_zero {
                         book.sell.remove(0);
-                    } else if marker_order.amount != 0 && taker_order.amount == 0 {
+                    } else if marker_order.amount != u256_zero && taker_order.amount == u256_zero {
                         book.sell.remove(0);
                         break 'marker_orders;
                     } else {
@@ -116,7 +119,7 @@ pub fn match_order(
                         .asks
                         .entry(taker_order.price.clone())
                         .or_insert(taker_order.amount);
-                    *stat += taker_order.amount;
+                    *stat = stat.add(taker_order.amount);
 
                     //insert this order by compare price and created_at
                     //fixme:tmpcode,优化，还有时间的问题
@@ -131,8 +134,8 @@ pub fn match_order(
                     trades.push(TradeInfo::new(
                         taker_order.account.clone(),
                         marker_order.account.clone(),
-                        narrow(marker_order.price.clone()),
-                        narrow(matched_amount),
+                        marker_order.price.clone(),
+                        matched_amount,
                         taker_order.side.clone(),
                         marker_order.id.clone(),
                         taker_order.id.clone(),
@@ -144,21 +147,21 @@ pub fn match_order(
                         .bids
                         .entry(marker_order.price.clone())
                         .or_insert(matched_amount);
-                    *stat += matched_amount;
+                    *stat = stat.add(matched_amount);
 
                     //get change marker order
                     marker_reduced_orders
-                        .insert(marker_order.id.clone(), narrow(matched_amount));
+                        .insert(marker_order.id.clone(), matched_amount);
 
-                    marker_order.amount -= matched_amount;
-                    taker_order.amount -= matched_amount;
-                    total_matched_amount += matched_amount;
-                    if marker_order.amount != 0 && taker_order.amount == 0 {
+                    marker_order.amount =  marker_order.amount.sub(matched_amount);
+                    taker_order.amount = taker_order.amount.sub(matched_amount);
+                    total_matched_amount = total_matched_amount.add(matched_amount);
+                    if marker_order.amount != u256_zero && taker_order.amount == u256_zero {
                         book.buy[0] = marker_order;
                         break 'marker_orders;
-                    } else if marker_order.amount == 0 && taker_order.amount != 0 {
+                    } else if marker_order.amount == u256_zero && taker_order.amount != u256_zero {
                         book.buy.remove(0);
-                    } else if marker_order.amount != 0 && taker_order.amount == 0 {
+                    } else if marker_order.amount != u256_zero && taker_order.amount == u256_zero {
                         book.buy.remove(0);
                         break 'marker_orders;
                     } else {
