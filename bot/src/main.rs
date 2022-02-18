@@ -22,46 +22,60 @@ use log::info;
 use tokio::time;
 
 use rand::Rng;
-use util::MathOperation;
 use crate::abi::Abi;
 use std::{convert::TryFrom, path::Path, sync::Arc, time::Duration};
+use chemix_utils::math::MathOperation;
 
 abigen!(
     SimpleContract,
-    "../contract/chemix_trade_abi.json",
+    "../contract/ChemixMain.json",
+    //"../contract/chemix_trade_abi.json",
     event_derives(serde::Deserialize, serde::Serialize)
 );
 
+static TokenADecimal : u8 = 3; //11 - 8
+static TokenBDecimal : u8 = 13; //22 - 8
 
-async fn get_dex_name () -> String {
+
+
+
+async fn new_order2 (side: &str, price: f64, amount: f64) -> String {
     //let host = "https://data-seed-prebsc-2-s3.binance.org:8545";
     let host = "http://192.168.1.158:8548";
 
     let provider_http = Provider::<Http>::try_from(host).unwrap();
-    let wallet = "1b03a06c4a89d570a8f1d39e9ff0be8891f7657898675f11585aa7ec94fe2d12"
+    let wallet = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882"
         .parse::<LocalWallet>()
         .unwrap().with_chain_id(15u64);
     let client = SignerMiddleware::new(provider_http.clone(), wallet.clone());
     let client = Arc::new(client);
     //let contract_addr = Address::from_str("E41d6cA6Ffe32eC8Ceb927c549dFc36dbefe2c0C").unwrap();
-    let contract_addr = Address::from_str("AB1415967609bE6654a8e1FEDa209275DB1f5B9c").unwrap();
-
+    let contract_addr = Address::from_str("4CF5bd7EB82130763F8EdD0B8Ec44DFa21a5993e").unwrap();
     let contract = SimpleContract::new(contract_addr, client.clone());
-    let name = contract.dex_name().call().await.unwrap();
-    info!("dex name {}",name);
 
-    let amount = U256::from(3u64);
-    let price = U256::from(4u64);
-    let id = U256::from(5u64);
-    let result = contract.new_order(id,"BTC".to_owned(),"USDT".to_owned(),"buy".to_owned(),amount,price)
-        .legacy().send().await.unwrap().await.unwrap();
+    let amount = U256::from(TokenADecimal as u64 * amount.to_nano());
+    let price = U256::from(TokenADecimal as u64 * price.to_nano());
+    let quoteToken = Address::from_str("F20e4447DF5D02A9717a1c9a25B8d2FBF973bE56").unwrap();
+    let baseToken = Address::from_str("A7A2a6A3D399e5AD69431aFB95dc86aff3BF871d").unwrap();
 
-    info!("new order result  {:?}",result);
-
-    name
+    match side {
+        "buy" => {
+            let result = contract.new_limit_buy_order(quoteToken,baseToken,price,amount)
+                .legacy().send().await.unwrap().await.unwrap();
+            info!("new buy order result  {:?}",result);
+        },
+        "sell" =>{
+            let result = contract.new_limit_sell_order(quoteToken,baseToken,price,amount)
+                .legacy().send().await.unwrap().await.unwrap();
+            info!("new sell order result  {:?}",result);
+        }
+        _ => {}
+    }
+    "".to_string()
 }
 
 async fn new_order(side: String, price: f64, amount: f64) {
+    /***
     let mut rsmq = Rsmq::new(Default::default())
         .await
         .expect("connection failed");
@@ -89,6 +103,7 @@ async fn new_order(side: String, price: f64, amount: f64) {
     rsmq.send_message(channel_name.as_str(), json_str, None)
         .await
         .expect("failed to send message");
+    */
 }
 
 //fn cancle_order() {}
@@ -100,17 +115,16 @@ async fn main() -> anyhow::Result<()> {
     env_logger::init();
     let base_price = 40000.0f64;
     let base_amount = 1.0f64;
-    get_dex_name().await;
+    //get_dex_name().await;
 
     loop {
-        break;
         let mut rng = rand::thread_rng();
         let price_add: f64 = rng.gen_range(-1000.0..1000.0);
         let amount_add: f64 = rng.gen_range(-1.0..1.0);
         let side_random: u8 = rng.gen_range(0..=1);
         let side = match side_random {
-            0 => "buy".to_string(),
-            _ => "sell".to_string(),
+            0 => "buy",
+            _ => "sell",
         };
 
         let price = (base_price + price_add).to_fix(8);
@@ -119,7 +133,7 @@ async fn main() -> anyhow::Result<()> {
             "[newOrder]: side {} price {},amount {}",
             side, price, amount
         );
-        new_order(side, price, amount).await;
+        new_order2(side, price, amount).await;
         tokio::time::sleep(time::Duration::from_millis(10000)).await;
     }
 
