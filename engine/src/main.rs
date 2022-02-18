@@ -14,6 +14,7 @@ use serde::Serialize;
 use std::convert::TryFrom;
 use std::env;
 use std::fmt::Debug;
+use std::ops::{Add, Div};
 
 use crate::order::{match_order, BookOrder};
 use std::sync::Mutex;
@@ -39,6 +40,11 @@ extern crate lazy_static;
 
 #[macro_use]
 extern crate log;
+
+
+
+static QuoteTokenDecimal : u8 = 11; //11 - 8
+static BaseTokenDecimal : u8 = 22; //22 - 8
 
 #[derive(Clone, Serialize, Debug)]
 struct EngineBook {
@@ -81,6 +87,9 @@ lazy_static! {
         }
     });
 }
+
+
+
 
 /***
 #[derive(Debug, PartialEq, EthEvent)]
@@ -144,7 +153,8 @@ struct NewOrderFilter2 {
 
 abigen!(
     SimpleContract,
-    "../contract/chemix_trade_abi.json",
+    //"../contract/chemix_trade_abi.json",
+    "../contract/ChemixStorage.json",
     event_derives(serde::Deserialize, serde::Serialize)
 );
 
@@ -186,10 +196,11 @@ async fn check_queue(name: &str) {
 
 async fn listen_blocks() -> anyhow::Result<()> {
     //let host = "https://bsc-dataseed4.ninicoin.io";
-    //testnet
-    let host = "https://data-seed-prebsc-2-s3.binance.org:8545";
+    //let host = "https://data-seed-prebsc-2-s3.binance.org:8545";
+    let host = "http://58.33.12.252:8548";
 
-    let _provider_http = Provider::<Http>::try_from(host).unwrap();
+
+    let provider_http = Provider::<Http>::try_from(host).unwrap();
 
     let rsmq = Rsmq::new(Default::default())
         .await
@@ -209,12 +220,14 @@ async fn listen_blocks() -> anyhow::Result<()> {
         }
     };
 
+    info!("__0007");
     check_queue(channel_update_book.as_str()).await;
     check_queue(channel_new_trade.as_str()).await;
-
+    info!("__0008");
     //todo: wss://bsc-ws-node.nariox.org:443
     /***
-    let ws = Ws::connect("wss://bsc-ws-node.nariox.org:443/").await.unwrap();
+    //let ws = Ws::connect("wss://bsc-ws-node.nariox.org:443/").await.unwrap();
+    let ws = Ws::connect("ws://192.168.1.158:7548/").await.unwrap();
     let provider = Provider::new(ws).interval(Duration::from_millis(2000));
     let mut stream = provider.watch_blocks().await?;
     while let Some(block) = stream.next().await {
@@ -222,109 +235,77 @@ async fn listen_blocks() -> anyhow::Result<()> {
         println!("block content {:?}",block_content);
     }
      */
-    let wallet = "1b03a06c4a89d570a8f1d39e9ff0be8891f7657898675f11585aa7ec94fe2d12"
+    //test2
+    let wallet = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43"
         .parse::<LocalWallet>()
         .unwrap();
-    let address = wallet.address();
-    println!("wallet address {:?}", address);
-    //let mut height = provider_http.get_block_number().await.unwrap();
-    //166475590u64
-    //16477780u64
-    let _height: U64 = U64::from(16647865u64);
-    //let client = SignerMiddleware::new(provider_http.clone(), wallet.clone());
-    //let client = Arc::new(client);
+    //private network start
+    let mut height: U64 = U64::from(24100u64);
+    let client = SignerMiddleware::new(provider_http.clone(), wallet.clone());
+    let client = Arc::new(client);
 
     let (event_sender, event_receiver) = mpsc::sync_channel(0);
     let arc_rsmq = Arc::new(RwLock::new(rsmq));
     let arc_rsmq2 = arc_rsmq.clone();
+    info!("__0004");
     rayon::scope(|s| {
         //send event in new block
         s.spawn(move |_| {
             let rt = Runtime::new().unwrap();
+            info!("__0005");
             rt.block_on(async move {
                 loop {
-                    //let block_content = provider_http.get_block(height).await.unwrap();
-                    //if block_content.is_none() {
-                    if false {
+                    let block_content = provider_http.get_block(height).await.unwrap();
+                    if block_content.is_none() {
                         tokio::time::sleep(time::Duration::from_secs(2)).await;
-                        println!("block not found,and wait a moment");
+                        info!("block not found at heigh {},and wait a moment",height);
                     } else {
-                        let _addr = parse_address("0xE41d6cA6Ffe32eC8Ceb927c549dFc36dbefe2c0C")
+                        info!("find a new order at height{}",height);
+                        height = height.add(1u64);
+                        let addr = parse_address("0xFFc6817E1c8960b278CCb5e47c2e6D3ae9Fed620")
                             .unwrap();
-                        //let contract = SimpleContract::new(addr, client.clone());
-                        /**
-                        let logs: Vec<NewOrderFilter> = contract
-                            .new_order_filter()
+                        let contract = SimpleContract::new(addr, client.clone());
+                        let new_orders: Vec<NewOrderCreatedFilter> = contract
+                            .new_order_created_filter()
                             .from_block(height.as_u64())
                             .query()
                             .await
                             .unwrap();
-                        event_sender.send(logs).expect("failed to send orders");
-                         */
-                        //tmp code, 压力测试也可以在这里,链上tps受限
-                        let channel_bot = match env::var_os("CHEMIX_MODE") {
-                            None => "bot_local".to_string(),
-                            Some(mist_mode) => {
-                                format!("bot_{}", mist_mode.into_string().unwrap())
-                            }
-                        };
-                        check_queue(channel_bot.as_str()).await;
-                        let rsmq = arc_rsmq2.clone();
-                        'listen_new_order: loop {
-                            let message = rsmq
-                                .write()
-                                .unwrap()
-                                .receive_message::<String>(channel_bot.as_str(), None)
-                                .await
-                                .expect("cannot receive message");
-                            if let Some(message) = message {
-                                println!("receive new message {:?}", message.message);
-                                let new_orders: Vec<NewOrderFilter> =
-                                    serde_json::from_str(&message.message).unwrap();
-                                println!(
-                                    "receive new order {:?} at {}",
-                                    new_orders,
-                                    chemix_time::get_current_time()
+                        let new_orders2 = new_orders
+                            .iter()
+                            .map(|x| {
+                                let now = Local::now().timestamp_millis() as u64;
+                                let order_json = format!(
+                                    "{}{}",
+                                    serde_json::to_string(&x).unwrap(),
+                                    now
                                 );
-                                //    event NewOrder(address user, string baseToken, string quoteToken ,string side, uint amount, uint price);
-                                let new_orders = new_orders
-                                    .iter()
-                                    .map(|x| {
-                                        let now = Local::now().timestamp_millis() as u64;
-                                        let order_json = format!(
-                                            "{}{}",
-                                            serde_json::to_string(&x).unwrap(),
-                                            now
-                                        );
-                                        let order_id = sha256(order_json);
-                                        let side = Side::from(x.side.as_str());
-                                        BookOrder {
-                                            id: order_id,
-                                            account: x.user.to_string(),
-                                            side,
-                                            price: x.price.as_u64(),
-                                            amount: x.amount.as_u64(),
-                                            created_at: now,
-                                        }
-                                    })
-                                    .collect::<Vec<BookOrder>>();
-                                event_sender
-                                    .send(new_orders)
-                                    .expect("failed to send orders");
-                                rsmq.write()
-                                    .unwrap()
-                                    .delete_message(channel_bot.as_str(), &message.id)
-                                    .await;
-                            } else {
-                                //let test1 = Address::from_str("1").unwrap();
-                                //let test2 = test1.to_string()
-                                //let test2 = String::from_utf8(test1).unwrap()
-                                tokio::time::sleep(time::Duration::from_millis(10)).await;
-                            }
+                                let order_id = sha256(order_json);
+                                let side = match x.order_type {
+                                    true => Buy,
+                                    false => Sell,
+                                };
+                                info!("__0001_{:#?}",x);
+                                let price =  x.limit_price.div(U256::from(10i32).pow(U256::from(BaseTokenDecimal - QuoteTokenDecimal))).as_u64();
+                                let amount = x.order_amount.div(U256::from(10i32).pow(U256::from(QuoteTokenDecimal))).as_u64();
+                                info!("__0002_{}_{}",price,amount);
+                                BookOrder {
+                                    id: order_id,
+                                    account: x.order_user.to_string(),
+                                    side,
+                                    price,
+                                    amount,
+                                    created_at: now,
+                                }
+                            })
+                            .collect::<Vec<BookOrder>>();
+                        if new_orders2.is_empty() {
+                            info!("Not found new order created at height {}",height);
+                        }else {
+                            event_sender
+                                .send(new_orders2)
+                                .expect("failed to send orders");
                         }
-                        //tmp code
-
-                        //block content logs [NewOrderFilter { user: 0xfaa56b120b8de4597cf20eff21045a9883e82aad, base_token: "BTC", quote_token: "USDT", amount: 3, price: 4 }]
                     }
                 }
             });
@@ -462,6 +443,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
+
     info!("initial book {:#?}", crate::BOOK.lock().unwrap());
     listen_blocks().await;
     Ok(())

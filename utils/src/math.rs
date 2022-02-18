@@ -19,9 +19,11 @@ impl MathOperation for f64 {
         scaled
     }
 
+    //fixme： 失效了
     fn to_nano(&self) -> u64 {
         let test1 = *self * 100_000_000.00f64;
-        test1.to_fix(8) as u64
+        //test1.to_fix(8) as u64
+        test1.floor() as u64
     }
 }
 

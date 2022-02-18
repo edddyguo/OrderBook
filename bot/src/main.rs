@@ -20,10 +20,12 @@ use std::str::FromStr;
 use log::info;
 
 use tokio::time;
+use crate::num::ToPrimitive;
 
 use rand::Rng;
 use crate::abi::Abi;
 use std::{convert::TryFrom, path::Path, sync::Arc, time::Duration};
+use std::ops::Mul;
 use chemix_utils::math::MathOperation;
 
 abigen!(
@@ -33,15 +35,17 @@ abigen!(
     event_derives(serde::Deserialize, serde::Serialize)
 );
 
-static TokenADecimal : u8 = 3; //11 - 8
-static TokenBDecimal : u8 = 13; //22 - 8
+
 
 
 
 
 async fn new_order2 (side: &str, price: f64, amount: f64) -> String {
     //let host = "https://data-seed-prebsc-2-s3.binance.org:8545";
-    let host = "http://192.168.1.158:8548";
+    let host = "http://58.33.12.252:8548";
+
+    let  tokenADecimal  = U256::from(10u128).pow(U256::from(3u32)); //11 -8
+    let  tokenBDecimal  = U256::from(10u128).pow(U256::from(14u32)); //22 -8
 
     let provider_http = Provider::<Http>::try_from(host).unwrap();
     let wallet = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882"
@@ -49,14 +53,16 @@ async fn new_order2 (side: &str, price: f64, amount: f64) -> String {
         .unwrap().with_chain_id(15u64);
     let client = SignerMiddleware::new(provider_http.clone(), wallet.clone());
     let client = Arc::new(client);
-    //let contract_addr = Address::from_str("E41d6cA6Ffe32eC8Ceb927c549dFc36dbefe2c0C").unwrap();
+
     let contract_addr = Address::from_str("4CF5bd7EB82130763F8EdD0B8Ec44DFa21a5993e").unwrap();
     let contract = SimpleContract::new(contract_addr, client.clone());
 
-    let amount = U256::from(TokenADecimal as u64 * amount.to_nano());
-    let price = U256::from(TokenADecimal as u64 * price.to_nano());
+
+    let amount = U256::from(amount.to_nano()).mul(tokenADecimal);
+    let price = U256::from(price.to_nano()).mul(tokenBDecimal);
     let quoteToken = Address::from_str("F20e4447DF5D02A9717a1c9a25B8d2FBF973bE56").unwrap();
     let baseToken = Address::from_str("A7A2a6A3D399e5AD69431aFB95dc86aff3BF871d").unwrap();
+    info!("price={},amount={}",price,amount);
 
     match side {
         "buy" => {
@@ -134,7 +140,7 @@ async fn main() -> anyhow::Result<()> {
             side, price, amount
         );
         new_order2(side, price, amount).await;
-        tokio::time::sleep(time::Duration::from_millis(10000)).await;
+        tokio::time::sleep(time::Duration::from_millis(1000)).await;
     }
 
     //[newOrder]: side buy price 40503.19859207,amount 0.36172409
