@@ -25,7 +25,7 @@ use crate::num::ToPrimitive;
 use rand::Rng;
 use crate::abi::Abi;
 use std::{convert::TryFrom, path::Path, sync::Arc, time::Duration};
-use std::ops::Mul;
+use std::ops::{Div, Mul};
 use chemix_utils::math::MathOperation;
 
 abigen!(
@@ -43,9 +43,13 @@ abigen!(
 async fn new_order2 (side: &str, price: f64, amount: f64) -> String {
     //let host = "https://data-seed-prebsc-2-s3.binance.org:8545";
     let host = "http://58.33.12.252:8548";
+    //let host = "http://192.168.1.158:8548";
 
     let  tokenADecimal  = U256::from(10u128).pow(U256::from(3u32)); //11 -8
     let  tokenBDecimal  = U256::from(10u128).pow(U256::from(14u32)); //22 -8
+
+    let  tmpDecimal  = U256::from(10u128).pow(U256::from(11u32)); //11 -8
+
 
     let provider_http = Provider::<Http>::try_from(host).unwrap();
     let wallet = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882"
@@ -59,7 +63,9 @@ async fn new_order2 (side: &str, price: f64, amount: f64) -> String {
 
 
     let amount = U256::from(amount.to_nano()).mul(tokenADecimal);
-    let price = U256::from(price.to_nano()).mul(tokenBDecimal);
+    //let price = U256::from(price.to_nano()).mul(tokenBDecimal);
+    let price = U256::from(price.to_nano()).mul(tokenBDecimal).div(tmpDecimal);
+
     let quoteToken = Address::from_str("F20e4447DF5D02A9717a1c9a25B8d2FBF973bE56").unwrap();
     let baseToken = Address::from_str("A7A2a6A3D399e5AD69431aFB95dc86aff3BF871d").unwrap();
     info!("price={},amount={}",price,amount);
@@ -119,7 +125,7 @@ async fn new_order(side: String, price: f64, amount: f64) {
 async fn main() -> anyhow::Result<()> {
     println!("Hello, world!");
     env_logger::init();
-    let base_price = 1000.0f64;
+    let base_price = 1001.0f64;
     let base_amount = 1.0f64;
     //get_dex_name().await;
 
