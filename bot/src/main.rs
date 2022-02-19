@@ -27,6 +27,7 @@ use crate::abi::Abi;
 use std::{convert::TryFrom, path::Path, sync::Arc, time::Duration};
 use std::ops::{Div, Mul};
 use chemix_utils::math::MathOperation;
+use chemix_chain::chemix::ChemixMainClient;
 
 abigen!(
     SimpleContract,
@@ -39,52 +40,6 @@ abigen!(
 
 
 
-
-async fn new_order2 (side: &str, price: f64, amount: f64) -> String {
-    //let host = "https://data-seed-prebsc-2-s3.binance.org:8545";
-    let host = "http://58.33.12.252:8548";
-    //let host = "http://192.168.1.158:8548";
-
-    let  tokenADecimal  = U256::from(10u128).pow(U256::from(3u32)); //11 -8
-    let  tokenBDecimal  = U256::from(10u128).pow(U256::from(14u32)); //22 -8
-
-    let  tmpDecimal  = U256::from(10u128).pow(U256::from(11u32)); //11 -8
-
-
-    let provider_http = Provider::<Http>::try_from(host).unwrap();
-    let wallet = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882"
-        .parse::<LocalWallet>()
-        .unwrap().with_chain_id(15u64);
-    let client = SignerMiddleware::new(provider_http.clone(), wallet.clone());
-    let client = Arc::new(client);
-
-    let contract_addr = Address::from_str("4CF5bd7EB82130763F8EdD0B8Ec44DFa21a5993e").unwrap();
-    let contract = SimpleContract::new(contract_addr, client.clone());
-
-
-    let amount = U256::from(amount.to_nano()).mul(tokenADecimal);
-    //let price = U256::from(price.to_nano()).mul(tokenBDecimal);
-    let price = U256::from(price.to_nano()).mul(tokenBDecimal).div(tmpDecimal);
-
-    let quoteToken = Address::from_str("F20e4447DF5D02A9717a1c9a25B8d2FBF973bE56").unwrap();
-    let baseToken = Address::from_str("A7A2a6A3D399e5AD69431aFB95dc86aff3BF871d").unwrap();
-    info!("price={},amount={}",price,amount);
-
-    match side {
-        "buy" => {
-            let result = contract.new_limit_buy_order(quoteToken,baseToken,price,amount)
-                .legacy().send().await.unwrap().await.unwrap();
-            info!("new buy order result  {:?}",result);
-        },
-        "sell" =>{
-            let result = contract.new_limit_sell_order(quoteToken,baseToken,price,amount)
-                .legacy().send().await.unwrap().await.unwrap();
-            info!("new sell order result  {:?}",result);
-        }
-        _ => {}
-    }
-    "".to_string()
-}
 
 async fn new_order(side: String, price: f64, amount: f64) {
     /***
@@ -128,7 +83,10 @@ async fn main() -> anyhow::Result<()> {
     let base_price = 1001.0f64;
     let base_amount = 1.0f64;
     //get_dex_name().await;
-
+    let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
+    let chemix_main_addr = "4CF5bd7EB82130763F8EdD0B8Ec44DFa21a5993e";
+    let quote_token = "F20e4447DF5D02A9717a1c9a25B8d2FBF973bE56";
+    let base_token = "A7A2a6A3D399e5AD69431aFB95dc86aff3BF871d";
     loop {
         let mut rng = rand::thread_rng();
         let price_add: f64 = rng.gen_range(-1000.0..1000.0);
@@ -145,15 +103,8 @@ async fn main() -> anyhow::Result<()> {
             "[newOrder]: side {} price {},amount {}",
             side, price, amount
         );
-        new_order2(side, price, amount).await;
+        let client = ChemixMainClient::new(pri_key,chemix_main_addr);
+        client.new_order(side,quote_token,base_token,price,amount).await.unwrap();
         tokio::time::sleep(time::Duration::from_millis(1000)).await;
     }
-
-    //[newOrder]: side buy price 40503.19859207,amount 0.36172409
-    // [newOrder]: side sell price 39036.04489557,amount 1.91700874
-    //new_order("buy".to_string(),40503.19859207,0.36172409).await;
-    //tokio::time::sleep(time::Duration::from_millis(5000)).await;
-    //new_order("sell".to_string(),39036.04489557,1.91700874).await;
-
-    Ok(())
 }

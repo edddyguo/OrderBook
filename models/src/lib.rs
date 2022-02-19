@@ -15,13 +15,15 @@ use std::fmt::Debug;
 
 use std::sync::Mutex;
 
-#[macro_use]
-extern crate lazy_static;
+
 extern crate chrono;
 extern crate postgres;
 
 #[macro_use]
 extern crate log;
+
+#[macro_use]
+extern crate lazy_static;
 
 use chrono::Local;
 
