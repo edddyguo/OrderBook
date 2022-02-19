@@ -11,6 +11,7 @@ use crate::struct2array;
 use crate::Side::{Buy, Sell};
 use chemix_utils::math::narrow;
 use chemix_utils::time::get_current_time;
+use std::fmt::Display;
 
 
 #[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
@@ -27,14 +28,25 @@ pub enum Status {
     Abandoned,
 }
 
+/***
+
+impl Side {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Buy => "buy",
+            Sell => "sell",
+        }
+    }
+}
+*/
 impl Status {
     pub fn as_str(&self) -> &'static str {
         match self {
-            FullFilled => "full_filled",
-            PartialFilled => "partial_filled",
-            Pending => "pending",
-            Canceled => "canceled",
-            Abandoned => "abandoned",
+            Self::FullFilled => "full_filled",
+            Self::Abandoned => "abandoned",
+            Self::PartialFilled => "partial_filled",
+            Self::Pending => "pending",
+            Self::Canceled => "canceled",
         }
     }
 }
@@ -196,14 +208,14 @@ pub fn update_order(order: &UpdateOrder) {
         order.id
     );
     let mut result = crate::CLIENTDB.lock().unwrap().execute(&*sql, &[]);
-    if let Err(_err) = result {
-        //info!("update order failed {:?},sql={}", err, sql);
+    if let Err(err) = result {
+        info!("update order failed {:?},sql={}", err, sql);
         if !crate::restartDB() {
             return;
         }
         result = crate::CLIENTDB.lock().unwrap().execute(&*sql, &[]);
     }
-    // info!("success update {} rows", result.unwrap());
+    info!("success update {} rows", result.unwrap());
     return;
 }
 

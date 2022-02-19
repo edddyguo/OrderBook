@@ -240,7 +240,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
         .parse::<LocalWallet>()
         .unwrap();
     //private network start
-    let mut height: U64 = U64::from(25515u64);
+    let mut height: U64 = U64::from(33992u64);
     let client = SignerMiddleware::new(provider_http.clone(), wallet.clone());
     let client = Arc::new(client);
 
@@ -265,12 +265,15 @@ async fn listen_blocks() -> anyhow::Result<()> {
                         let addr = parse_address("0xFFc6817E1c8960b278CCb5e47c2e6D3ae9Fed620")
                             .unwrap();
                         let contract = SimpleContract::new(addr, client.clone());
+                        info!("test_filter_time_0006");
                         let new_orders: Vec<NewOrderCreatedFilter> = contract
                             .new_order_created_filter()
                             .from_block(height.as_u64())
                             .query()
                             .await
                             .unwrap();
+                        info!("test_filter_time_0007");
+
                         let new_orders2 = new_orders
                             .iter()
                             .map(|x| {
@@ -337,20 +340,19 @@ async fn listen_blocks() -> anyhow::Result<()> {
 
                     error!("index={},taker_amount={},matched_amount={}",index,db_order.amount,matched_amount);
                     db_order.status = if matched_amount == db_order.amount {
+                        info!("0001");
                         OrderStatus::FullFilled
                     }else if  matched_amount != u256_zero && matched_amount < db_order.amount{
                         OrderStatus::PartialFilled
                     }else if matched_amount == u256_zero{
                         OrderStatus::Pending
                     }else {
-                        error!("assert: taker_amount={},matched_amount={},__{}",db_order.amount,matched_amount,matched_amount < db_order.amount);
-                        assert!(false);
-                        OrderStatus::Pending
+                        unreachable!()
                     };
                     db_order.matched_amount = matched_amount;
                     db_order.available_amount = db_order.amount.sub(matched_amount);
+                    info!("finished match_order index {},and status {:?},status_str={},",index,db_order.status,db_order.status.as_str());
                     db_orders.push(db_order);
-                    info!("finished match_order index {}",index);
                 }
                 error!("db_trades = {:?}",db_trades);
 
@@ -367,7 +369,7 @@ async fn listen_blocks() -> anyhow::Result<()> {
                 //------------------
                 //todo: marker orders的状态也要更新掉
                 //todo: 异步落表
-                //todo： 异步发送bsc交易
+                //todo： 等待清算
                 insert_order(db_orders);
                 //update marker orders
                 let u256_zero = U256::from(0i32);
