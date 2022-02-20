@@ -92,6 +92,16 @@ pub enum Side {
     Sell,
 }
 
+#[derive(Clone, Serialize, Debug)]
+pub struct BookOrder {
+    pub id: String,
+    pub account: String,
+    pub side: Side,
+    pub price: U256,
+    pub amount: U256,
+    pub created_at: u64,
+}
+
 impl Side {
     pub fn as_str(&self) -> &'static str {
         match self {

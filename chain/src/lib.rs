@@ -1,4 +1,4 @@
-mod bsc;
+pub mod bsc;
 pub mod chemix;
 
 use std::convert::TryFrom;
@@ -14,10 +14,6 @@ extern crate log;
 #[macro_use]
 extern crate lazy_static;
 use std::sync::Mutex;
-
-
-
-
 
 
 lazy_static! {

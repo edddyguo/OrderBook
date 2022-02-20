@@ -6,7 +6,10 @@ use std::sync::Arc;
 use chemix_utils::math::MathOperation;
 use crate::k256::ecdsa::SigningKey;
 use anyhow::Result;
-
+use chrono::Local;
+use chemix_utils::algorithm::sha256;
+use chemix_models::order::Side::*;
+use chemix_models::order::BookOrder;
 
 abigen!(
     ChemixMain,
@@ -20,13 +23,13 @@ abigen!(
     event_derives(serde::Deserialize, serde::Serialize)
 );
 
-pub struct ChemixMainClient{
+pub struct ChemixContractClient {
     client: Arc<SignerMiddleware<Provider<Http>,Wallet<SigningKey>>>,
     contract_addr: H160
 }
 
-impl ChemixMainClient {
-    pub fn new(pri_key:&str,contract_address:&str) -> ChemixMainClient{
+impl ChemixContractClient {
+    pub fn new(pri_key:&str,contract_address:&str) -> ChemixContractClient {
         let host = "http://58.33.12.252:8548";
         let provider_http = Provider::<Http>::try_from(host).unwrap();
         let wallet = pri_key
@@ -36,7 +39,7 @@ impl ChemixMainClient {
         let client = Arc::new(client);
         let contract_addr = Address::from_str(contract_address).unwrap();
         //let test1 : chemixmain_mod::ChemixMain<SignerMiddleware<Middleware, Signer>>= ChemixMain::new(contract_addr, client.clone());
-        ChemixMainClient {
+        ChemixContractClient {
             client,
             contract_addr
         }
@@ -65,25 +68,51 @@ impl ChemixMainClient {
                     .legacy().send().await?.await?;
                 info!("new sell order result  {:?}",result);
             }
-            _ => {}
+            _ => {
+                unreachable!()
+            }
         }
         Ok(())
     }
-}
-
-/***
-struct ChemixStorageClient{
-    client:
-}
-
-impl ChemixStorageClient {
-    fn new(){
+    pub async fn cancel_order(){
         todo!()
     }
 
-    fn filter_new_order_event(&self){
-        todo!()
+    //fixme:更合适的区分两份合约
+    pub async fn filter_new_order_event(&self,height: U64) -> Result<Vec<BookOrder>>{
+        let contract = ChemixStorage::new(self.contract_addr, self.client.clone());
+        let new_orders: Vec<NewOrderCreatedFilter> = contract
+            .new_order_created_filter()
+            .from_block(height)
+            .query()
+            .await
+            .unwrap();
+        info!(" new_order_created_filter len {} at height {}",new_orders.len(),height);
+
+        let new_orders2 = new_orders
+            .iter()
+            .map(|x| {
+                let now = Local::now().timestamp_millis() as u64;
+                let order_json = format!(
+                    "{}{}",
+                    serde_json::to_string(&x).unwrap(),
+                    now
+                );
+                let order_id = sha256(order_json);
+                let side = match x.order_type {
+                    true => Buy,
+                    false => Sell,
+                };
+                BookOrder {
+                    id: order_id,
+                    account: x.order_user.to_string(),
+                    side,
+                    price: x.limit_price,
+                    amount: x.order_amount,
+                    created_at: now,
+                }
+            })
+            .collect::<Vec<BookOrder>>();
+        Ok(new_orders2)
     }
 }
-
- */

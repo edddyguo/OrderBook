@@ -27,7 +27,7 @@ use crate::abi::Abi;
 use std::{convert::TryFrom, path::Path, sync::Arc, time::Duration};
 use std::ops::{Div, Mul};
 use chemix_utils::math::MathOperation;
-use chemix_chain::chemix::ChemixMainClient;
+use chemix_chain::chemix::ChemixContractClient;
 
 abigen!(
     SimpleContract,
@@ -103,7 +103,7 @@ async fn main() -> anyhow::Result<()> {
             "[newOrder]: side {} price {},amount {}",
             side, price, amount
         );
-        let client = ChemixMainClient::new(pri_key,chemix_main_addr);
+        let client = ChemixContractClient::new(pri_key, chemix_main_addr);
         client.new_order(side,quote_token,base_token,price,amount).await.unwrap();
         tokio::time::sleep(time::Duration::from_millis(1000)).await;
     }

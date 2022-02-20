@@ -10,8 +10,9 @@ use serde::Deserialize;
 
 use chemix_utils::math::narrow;
 
-use chemix_models::order::Side;
-use chemix_models::trade::TradeInfo;
+use chemix_models::order::{Side,BookOrder};
+use chemix_models::trade::{TradeInfo};
+
 
 #[derive(RustcEncodable, Clone, Serialize)]
 pub struct EventOrder {
@@ -19,16 +20,6 @@ pub struct EventOrder {
     pub side: Side,
     pub price: f64,
     pub amount: f64,
-}
-
-#[derive(Clone, Serialize, Debug)]
-pub struct BookOrder {
-    pub id: String,
-    pub account: String,
-    pub side: Side,
-    pub price: U256,
-    pub amount: U256,
-    pub created_at: u64,
 }
 
 /***
