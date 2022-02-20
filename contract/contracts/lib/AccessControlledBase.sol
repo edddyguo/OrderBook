@@ -14,6 +14,8 @@ contract AccessControlledBase {
     // ============ State Variables ============
 
     mapping (address => bool) public authorized;
+    mapping (address => bool) public authorizeCreatePair;
+    mapping (address => bool) public authorizeSettle;
 
     // ============ Events ============
 
@@ -25,12 +27,45 @@ contract AccessControlledBase {
         address who
     );
 
+    event SetCreatePairAddr(
+        address who
+    );
+
+    event SetSettleAddr(
+        address who
+    );
+
+    event RevokeCreatePair(
+        address who
+    );
+
+    event RevokeSettle(
+        address who
+    );
+
+
     // ============ Modifiers ============
 
     modifier requiresAuthorization() {
         require(
             authorized[msg.sender],
             "AccessControlledBase#requiresAuthorization: Sender not authorized"
+        );
+        _;
+    }
+
+    modifier onlyCreatePairAddr() {
+        require(
+            authorizeCreatePair[msg.sender],
+            "AccessControlledBase#onlyCreatePairAddr: Sender not authorized"
+        );
+        _;
+    }
+
+    modifier onlySettleAddr() {
+        require(
+            authorizeSettle[msg.sender],
+            "AccessControlledBase#onlySettleAddr: Sender not authorized"
         );
         _;
     }

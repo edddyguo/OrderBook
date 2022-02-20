@@ -18,20 +18,41 @@ async function main() {
     const issueAmountDefault = BigInt(100_000_000_000_000_000_000_000_000_000) //100_000_000_000
     var options = { gasPrice: 10000000000, gasLimit: 850000, value: 0 };
 
+    /***
+     * deployTokenA:   0x18D5034280703EA96e36a50f6178E43565eaDc67
+     * deployTokenB:   0x7E62F80cA349DB398983E2Ee1434425f5B888f42
+     * deployStorage:   0x048fe1e93A7063c8Ada5a4EbFDa746f19181fd27
+     * deployTokenProxy:   0xe22735c806FAF830947e10383194e9cFB535a85c
+     * deployVault:   0x4312e54480D2895c84aB9967CCbA0D87c5Ab2f02
+     * deployChemiMain:   0x6a73e6c0a232C763dDe909bA6a92C92ed26B6ffa
+     *
+     * */
 
 
+    const contractTokenA = await ethers.getContractAt("TokenA",'0x18D5034280703EA96e36a50f6178E43565eaDc67')
+    const contractTokenB = await ethers.getContractAt("TokenB",'0x7E62F80cA349DB398983E2Ee1434425f5B888f42')
+    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0x048fe1e93A7063c8Ada5a4EbFDa746f19181fd27')
+    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0xe22735c806FAF830947e10383194e9cFB535a85c')
+    const contractVault = await ethers.getContractAt("Vault",'0x4312e54480D2895c84aB9967CCbA0D87c5Ab2f02')
+    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0x6a73e6c0a232C763dDe909bA6a92C92ed26B6ffa')
 
-    const contractTokenA = await ethers.getContractAt("TokenA",'0xF20e4447DF5D02A9717a1c9a25B8d2FBF973bE56')
-    const contractTokenB = await ethers.getContractAt("TokenB",'0xA7A2a6A3D399e5AD69431aFB95dc86aff3BF871d')
-    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0xFFc6817E1c8960b278CCb5e47c2e6D3ae9Fed620')
-    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0x357Eb6B854fE982fea32d91340BbdbE5bE7DBCFC')
-    const contractVault = await ethers.getContractAt("Vault",'0x0563fbAdb1F8bDa9B2E2365826599A26D9f0cb89')
-    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0x4CF5bd7EB82130763F8EdD0B8Ec44DFa21a5993e')
+    //check pair
+    let check_pair_result = await contractChemixStorage.checkPairExist("0x18D5034280703EA96e36a50f6178E43565eaDc67","0x7E62F80cA349DB398983E2Ee1434425f5B888f42",options);
+    console.log('check_pair result ',check_pair_result);
+    //grantCreatePairAddr
+    let grantCreatePairAddr_result = await contractChemixMain.grantCreatePairAddr("0x613548d151E096131ece320542d19893C4B8c901",options);
+    console.log('grantCreatePairAddr result ',grantCreatePairAddr_result);
 
+    //grantSettleAddr
+    let grantSettleAddr_result = await contractChemixMain.grantSettleAddr("0x613548d151E096131ece320542d19893C4B8c901",options);
+    console.log('grantCreatePairAddr result ',grantSettleAddr_result);
 
     console.log('start create pair TokenA-TokenB');
-    let create_result = await contractChemixMain.createPair("0xF20e4447DF5D02A9717a1c9a25B8d2FBF973bE56","0xA7A2a6A3D399e5AD69431aFB95dc86aff3BF871d",options);
+    let create_result = await contractChemixMain.createPair("0x18D5034280703EA96e36a50f6178E43565eaDc67","0x7E62F80cA349DB398983E2Ee1434425f5B888f42",options);
     console.log('create pair result ',create_result);
+
+
+    return;
 
     //issue tokenA to account1
     //issue tokenB to account1

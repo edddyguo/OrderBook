@@ -2,14 +2,14 @@
 
 pragma solidity ^0.8.0;
 
-import { SafeMath } from "./SafeMath.sol";
-import { Ownable } from "../utils/Ownable.sol";
+import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { AccessControlledBase } from "./AccessControlledBase.sol";
 
 
 /**
  * @title StaticAccessControlled
- * @author dYdX
+ * @author hellman
  *
  * Allows for functions to be access controled
  * Permissions cannot be changed after a grace period
@@ -45,5 +45,45 @@ contract StaticAccessControlled is AccessControlledBase, Ownable {
     {
         emit RevokeGranted(who);
         authorized[who] = false;
+    }
+
+    function grantCreatePairAddr(
+        address who
+    )
+        external
+        onlyOwner
+    {
+        emit SetCreatePairAddr(who);
+        authorizeCreatePair[who] = true;
+    }
+
+    function grantSettleAddr(
+        address who
+    )
+        external
+        onlyOwner
+    {
+        emit SetSettleAddr(who);
+        authorizeSettle[who] = true;
+    }
+
+    function revokeCreatePairAddr(
+        address who
+    )
+        external
+        onlyOwner
+    {
+        emit RevokeCreatePair(who);
+        authorizeCreatePair[who] = false;
+    }
+
+    function revokeSettleAddr(
+        address who
+    )
+        external
+        onlyOwner
+    {
+        emit RevokeSettle(who);
+        authorizeSettle[who] = false;
     }
 }

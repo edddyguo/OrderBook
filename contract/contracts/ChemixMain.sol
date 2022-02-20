@@ -2,17 +2,16 @@
 
 pragma solidity ^0.8.0;
 
+import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { IChemixFactory } from "./interface/IChemixFactory.sol";
-import { Ownable } from "./utils/Ownable.sol";
-import { ReentrancyGuard } from "./utils/ReentrancyGuard.sol";
 import { ChemixStorage } from "./impl/ChemixStorage.sol";
-import { TokenProxy } from "./TokenProxy.sol";
 import { Vault } from "./Vault.sol";
-import { SafeMath } from "./lib/SafeMath.sol";
+import { StaticAccessControlled } from "./lib/StaticAccessControlled.sol";
 
 contract ChemixMain is 
     IChemixFactory,
-    Ownable,
+    StaticAccessControlled,
     ReentrancyGuard
 {
     using SafeMath for uint256;
@@ -31,7 +30,7 @@ contract ChemixMain is
         address feeTo,
         uint256 minFee
     )  
-        Ownable() 
+        StaticAccessControlled() 
     {
         env = Env({
             VAULT: vault,
@@ -46,7 +45,7 @@ contract ChemixMain is
         address baseToken
     ) 
         external 
-        onlyOwner
+        onlyCreatePairAddr
         nonReentrant
         override
         returns (bool successd) 
@@ -61,8 +60,9 @@ contract ChemixMain is
     function newLimitBuyOrder(
         address   quoteToken,
         address   baseToken,
-        uint256   limitPrice,
-        uint256   orderAmount
+        uint256   limitPrice, //user price ** base_token_decimal
+        uint256   orderAmount, // user amount ** quote_token_decimal
+        uint256   numPower // should be quote_token_decimal
     )
         external
         nonReentrant
@@ -71,7 +71,7 @@ contract ChemixMain is
     {
         require(msg.value >= env.MINFEE, 'Chemix: msg.value less than MINFEE');
         require(ChemixStorage(env.STORAGE).checkPairExist(quoteToken,baseToken), 'Chemix: PAIR_NOTEXISTS');
-        uint256 totalAmount = orderAmount.mul(limitPrice);
+        uint256 totalAmount = orderAmount.mul(limitPrice).div(10 ** numPower);
         Vault(env.VAULT).depositToVault(
             baseToken,
             msg.sender,
@@ -85,8 +85,10 @@ contract ChemixMain is
             msg.sender,
             true,
             limitPrice,
-            totalAmount
+            orderAmount
         );
+        address payable addr = payable(env.FEETO);
+        addr.transfer(msg.value);
 
         return true;
     }
@@ -120,6 +122,8 @@ contract ChemixMain is
             limitPrice,
             orderAmount
         );
+        address payable addr = payable(env.FEETO);
+        addr.transfer(msg.value);
 
         return true;
     }
@@ -148,18 +152,6 @@ contract ChemixMain is
         return true;
     }
 
-    function withdraw(
-        uint256 amount,
-        address to
-    ) 
-        external
-        onlyOwner
-    {
-        require(address(this).balance >= amount, 'Chemix: withdraw amount larger than balance');
-        address payable addr = payable(to);
-        addr.transfer(amount);
-    }
-
     function setFeeTo(
         address _feeTo
     ) 
@@ -172,9 +164,5 @@ contract ChemixMain is
 
     function setMinFee(uint256 _minFee) external onlyOwner {
         env.MINFEE = _minFee;
-    }
-
-    function totalBNB() public view returns (uint) {
-        return address(this).balance;
     }
 }

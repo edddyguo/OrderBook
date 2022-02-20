@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.0;
 
-import { Math } from "./lib/Math.sol";
-import { SafeMath } from "./lib/SafeMath.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { StaticAccessControlled } from "./lib/StaticAccessControlled.sol";
 import { TokenInteract } from "./lib/TokenInteract.sol";
 

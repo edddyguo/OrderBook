@@ -2,11 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import { SafeMath } from "./lib/SafeMath.sol";
+import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { TokenProxy } from "./TokenProxy.sol";
 import { StaticAccessControlled } from "./lib/StaticAccessControlled.sol";
 import { TokenInteract } from "./lib/TokenInteract.sol";
-import { ReentrancyGuard } from "./utils/ReentrancyGuard.sol";
 import { ChemixStorage } from "./impl/ChemixStorage.sol";
 
 /**
@@ -234,7 +234,7 @@ contract Vault is
         settleValues[] calldata settleInfo
     )
         external
-        requiresAuthorization
+        onlySettleAddr
         nonReentrant
     {
         require(ChemixStorage(STORAGE).checkHashData(largestIndex,hashData), 'Chemix: PAIR_NOTEXISTS');

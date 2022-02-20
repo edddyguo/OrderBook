@@ -17,7 +17,7 @@ contract ChemixEvents {
 
     event PairCreated(address indexed quoteToken, address indexed baseToken);
     event NewOrderCreated(address indexed quoteToken, address indexed baseToken,
-                            bytes32 indexed hashData, address orderUser, bool orderType, uint256 orderIndex,
+                            bytes32 indexed hashData, address orderUser, bool side, uint256 orderIndex,
                             uint256 limitPrice, uint256 orderAmount);
     event NewCancelOrderCreated(address indexed quoteToken, address indexed baseToken,
                                 bytes32 indexed hashData, address cancelUser, uint256 mCancelIndex, uint256 orderIndex);

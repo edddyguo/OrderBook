@@ -56,10 +56,10 @@ impl ChemixContractClient {
         let baseToken = Address::from_str(baseToken).unwrap();
 
         let amount = U256::from(amount.to_nano()).mul(tokenADecimal);
-        let price = U256::from(price.to_nano()).mul(tokenBDecimal).div(tmpDecimal);
+        let price = U256::from(price.to_nano()).mul(tokenBDecimal);
         match side {
             "buy" => {
-                let result = contract.new_limit_buy_order(quoteToken,baseToken,price,amount)
+                let result = contract.new_limit_buy_order(quoteToken,baseToken,price,amount,U256::from(11u32))
                     .legacy().send().await?.await?;
                 info!("new buy order result  {:?}",result);
             },

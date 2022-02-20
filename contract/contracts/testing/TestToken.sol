@@ -18,10 +18,8 @@
 */
 
 pragma solidity ^0.8.0;
-pragma experimental ABIEncoderV2;
 
-import { SafeMath } from "../lib/SafeMath.sol";
-
+import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract TestToken {
     using SafeMath for uint256;
@@ -65,41 +63,36 @@ contract TestToken {
         return "Test Token";
     }
 
-    function decimals() public pure virtual returns (uint8) {
+    function decimals() public virtual pure returns (uint8) {
         return 18;
     }
 
     function transfer(address to, uint256 value) public returns (bool) {
-        if (balances[msg.sender] >= value) {
-            balances[msg.sender] -= value;
-            balances[to] = balances[to].add(value);
-            emit Transfer(
-                address(this),
-                msg.sender,
-                to,
-                value
-            );
-            return true;
-        } else {
-            return false;
-        }
+        require(balances[msg.sender] >= value, "Insuffcient Balance");
+        balances[msg.sender] = balances[msg.sender].sub(value);
+        balances[to] = balances[to].add(value);
+        emit Transfer(
+            address(this),
+            msg.sender,
+            to,
+            value
+        );
+        return true;
     }
 
     function transferFrom(address from, address to, uint256 value) public returns (bool) {
-        if (balances[from] >= value && allowed[from][msg.sender] >= value) {
-            balances[to] = balances[to].add(value);
-            balances[from] = balances[from].sub(value);
-            allowed[from][msg.sender] = allowed[from][msg.sender].sub(value);
-            emit Transfer(
-                address(this),
-                from,
-                to,
-                value
-            );
-            return true;
-        } else {
-            return false;
-        }
+        require(balances[from] >= value && allowed[from][msg.sender] >= value, "Insuffcient Balance");
+       
+        balances[to] = balances[to].add(value);
+        balances[from] = balances[from].sub(value);
+        allowed[from][msg.sender] = allowed[from][msg.sender].sub(value);
+        emit Transfer(
+            address(this),
+            from,
+            to,
+            value
+        );
+        return true;
     }
 
     function approve(address spender, uint256 value) public returns (bool) {

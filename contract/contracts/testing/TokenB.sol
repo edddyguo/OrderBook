@@ -18,7 +18,6 @@
 */
 
 pragma solidity ^0.8.0;
-pragma experimental ABIEncoderV2;
 
 import { TestToken } from "./TestToken.sol";
 
@@ -26,7 +25,7 @@ import { TestToken } from "./TestToken.sol";
 /* solium-disable-next-line */
 contract TokenB is TestToken {
     function decimals() public pure override returns (uint8) {
-        return 22;
+        return 15;
     }
     function symbol() public pure override returns (string memory) {
         return "BBB";
