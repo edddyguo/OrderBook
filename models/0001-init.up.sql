@@ -4,8 +4,7 @@ create table chemix_tokens(
  name text,
  address text ,
  decimals integer ,
- bsc_assetID text ,
- bsc_address text ,
+ front_decimals integer,
  created_at timestamp
 );
 create unique index idx_local_chemix_tokens_address on chemix_tokens (address);
@@ -15,9 +14,12 @@ create table chemix_markets(
  id text primary key,
  base_token_address text ,
  base_token_symbol text ,
+ base_front_decimals integer,
+ base_contract_decimals integer,
  quote_token_address text ,
  quote_token_symbol text ,
- matched_address text ,
+ quote_front_decimals integer,
+ quote_contract_decimals integer,
  online  boolean ,
  up_at  timestamp ,
  down_at  timestamp ,

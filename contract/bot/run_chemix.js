@@ -37,20 +37,19 @@ async function main() {
     const contractChemixMain = await ethers.getContractAt("ChemixMain",'0x6a73e6c0a232C763dDe909bA6a92C92ed26B6ffa')
 
     //check pair
-    let check_pair_result = await contractChemixStorage.checkPairExist("0x18D5034280703EA96e36a50f6178E43565eaDc67","0x7E62F80cA349DB398983E2Ee1434425f5B888f42",options);
+    let check_pair_result = await contractChemixStorage.checkPairExist(contractTokenB.address,contractTokenA.address,options);
     console.log('check_pair result ',check_pair_result);
     //grantCreatePairAddr
-    let grantCreatePairAddr_result = await contractChemixMain.grantCreatePairAddr("0x613548d151E096131ece320542d19893C4B8c901",options);
+    let grantCreatePairAddr_result = await contractChemixMain.grantCreatePairAddr(account1,options);
     console.log('grantCreatePairAddr result ',grantCreatePairAddr_result);
 
     //grantSettleAddr
-    let grantSettleAddr_result = await contractChemixMain.grantSettleAddr("0x613548d151E096131ece320542d19893C4B8c901",options);
+    let grantSettleAddr_result = await contractChemixMain.grantSettleAddr(account1,options);
     console.log('grantCreatePairAddr result ',grantSettleAddr_result);
 
     console.log('start create pair TokenA-TokenB');
-    let create_result = await contractChemixMain.createPair("0x18D5034280703EA96e36a50f6178E43565eaDc67","0x7E62F80cA349DB398983E2Ee1434425f5B888f42",options);
+    let create_result = await contractChemixMain.createPair(contractTokenB.address,contractTokenA.address,options);
     console.log('create pair result ',create_result);
-
 
     return;
 

@@ -86,8 +86,8 @@ async fn main() -> anyhow::Result<()> {
 
     let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
     let chemix_main_addr = "6a73e6c0a232C763dDe909bA6a92C92ed26B6ffa";
-    let quote_token = "18D5034280703EA96e36a50f6178E43565eaDc67";
-    let base_token = "7E62F80cA349DB398983E2Ee1434425f5B888f42";
+    let base_token = "18D5034280703EA96e36a50f6178E43565eaDc67";
+    let quote_token = "7E62F80cA349DB398983E2Ee1434425f5B888f42";
     loop {
         let mut rng = rand::thread_rng();
         let price_add: f64 = rng.gen_range(-1000.0..1000.0);

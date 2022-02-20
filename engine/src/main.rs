@@ -196,7 +196,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
 
 
     //set network
-    let chemix_main_addr = "FFc6817E1c8960b278CCb5e47c2e6D3ae9Fed620";
+    let chemix_main_addr = "048fe1e93A7063c8Ada5a4EbFDa746f19181fd27";
     let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
     let chemix_main_client = ChemixContractClient::new(pri_key, chemix_main_addr);
     let watcher = Node::<Ws>::new("ws://58.33.12.252:7548/").await;
