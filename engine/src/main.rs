@@ -37,7 +37,7 @@ use chemix_models::order::{
 };
 use chemix_models::trade::{insert_trades, TradeInfo};
 use chemix_utils::algorithm::sha256;
-use chemix_utils::math::{narrow, MathOperation};
+use chemix_utils::math::{narrow, MathOperation, u256_to_f64};
 use chemix_utils::time::get_current_time;
 use chemix_utils::time::time2unix;
 use ethers_core::abi::ethereum_types::U64;
@@ -52,9 +52,8 @@ extern crate lazy_static;
 extern crate log;
 
 
-static QuoteTokenDecimal: u8 = 11;
-//11 - 8
-static BaseTokenDecimal: u8 = 22; //22 - 8
+static BaseTokenDecimal: u32 = 11;
+static QuoteTokenDecimal: u32 = 22;
 
 #[derive(Clone, Serialize, Debug)]
 struct EngineBook {
@@ -114,8 +113,8 @@ pub struct NewOrderEvent {
 
 #[derive(Clone, Serialize)]
 pub struct AddBook {
-    pub asks: Vec<(U256, U256)>,
-    pub bids: Vec<(U256, U256)>,
+    pub asks: Vec<(f64, f64)>,
+    pub bids: Vec<(f64, f64)>,
 }
 
 #[derive(Clone, Serialize, Debug)]
@@ -143,8 +142,8 @@ pub struct LastTrade {
 
 #[derive(Clone, Serialize, Debug)]
 pub struct LastTrade2 {
-    price: U256,
-    amount: U256,
+    price: f64,
+    amount: f64,
     taker_side: Side,
 }
 
@@ -275,15 +274,6 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 error!("db_trades = {:?}",db_trades);
 
 
-                let agg_trades = db_trades.iter().map(|x|
-                    LastTrade2 {
-                        price: x.price,
-                        amount: x.amount,
-                        taker_side: x.taker_side.clone(),
-                    }
-                ).collect::<Vec<LastTrade2>>();
-
-
                 //------------------
                 //todo: marker orders的状态也要更新掉
                 //todo: 异步落表
@@ -316,15 +306,36 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 insert_trades(&mut db_trades);
                 //----------------------
 
+                let agg_trades = db_trades.iter().map(|x| {
+                    let user_price = u256_to_f64(x.price, QuoteTokenDecimal);
+                    let user_amount = u256_to_f64(x.amount, BaseTokenDecimal);
+                    LastTrade2 {
+                        price: user_price,
+                        amount: user_amount,
+                        taker_side: x.taker_side.clone(),
+                    }
+                }
+                ).filter(|x| {
+                    x.price != 0.0 && x.amount != 0.0
+                }).collect::<Vec<LastTrade2>>();
+
                 info!("finished compute  agg_trades {:?},add_depth {:?}",agg_trades,add_depth);
 
                 let asks2 = add_depth.asks.iter().map(|(x, y)| {
-                    (x.to_owned(), y.to_owned())
-                }).collect::<Vec<(U256, U256)>>();
+                    let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
+                    let user_volume = u256_to_f64(y.to_owned(), BaseTokenDecimal);
+                    (user_price, user_volume)
+                }).filter(|(p, v)| {
+                    p != &0.0 && v != &0.0
+                }).collect::<Vec<(f64, f64)>>();
 
                 let bids2 = add_depth.bids.iter().map(|(x, y)| {
-                    (x.to_owned(), y.to_owned())
-                }).collect::<Vec<(U256, U256)>>();
+                    let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
+                    let user_volume = u256_to_f64(y.to_owned(), BaseTokenDecimal);
+                    (user_price, user_volume)
+                }).filter(|(p, v)| {
+                    p != &0.0 && v != &0.0
+                }).collect::<Vec<(f64, f64)>>();
 
                 let book2 = AddBook {
                     asks: asks2,
