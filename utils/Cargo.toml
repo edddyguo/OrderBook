@@ -28,4 +28,6 @@ rust_decimal = { version = "1.0.3", features = ["postgres"] }
 rustc-serialize = "0.3.18"
 chrono = { version = "0.4", features = ["serde"] }
 ring = "0.16.2"
+ethers-core = "0.6.0"
+
 

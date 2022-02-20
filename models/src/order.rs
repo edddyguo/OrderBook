@@ -259,8 +259,8 @@ pub fn list_available_orders(market_id: &str, side: Side) -> Vec<EngineOrder> {
         let info = EngineOrder {
             id: row.get(0),
             account: row.get(1),
-            price: U256::from_str(row.get::<usize,&str>(2)).unwrap(),
-            amount: U256::from_str(row.get::<usize,&str>(3)).unwrap(),
+            price: U256::from_str_radix(row.get::<usize,&str>(2),10).unwrap(),
+            amount: U256::from_str_radix(row.get::<usize,&str>(3),10).unwrap(),
             side,
             created_at: row.get(5),
         };
@@ -306,12 +306,12 @@ pub fn get_order(id: &str) -> Result<OrderInfo,String> {
         market_id: rows[0].get(1),
         account: rows[0].get(2),
         side: rows[0].get(3),
-        price: U256::from_str(rows[0].get::<usize,&str>(4usize)).unwrap(),
-        amount: U256::from_str(rows[0].get::<usize,&str>(5usize)).unwrap(),
+        price: U256::from_str_radix(rows[0].get::<usize,&str>(4usize),10).unwrap(),
+        amount: U256::from_str_radix(rows[0].get::<usize,&str>(5usize),10).unwrap(),
         status: Status::from(rows[0].get::<usize,&str>(6usize)),
-        available_amount: U256::from_str(rows[0].get::<usize,&str>(7usize)).unwrap(),
-        matched_amount: U256::from_str(rows[0].get::<usize,&str>(8usize)).unwrap(),
-        canceled_amount: U256::from_str(rows[0].get::<usize,&str>(9usize)).unwrap(),
+        available_amount: U256::from_str_radix(rows[0].get::<usize,&str>(7usize),10).unwrap(),
+        matched_amount: U256::from_str_radix(rows[0].get::<usize,&str>(8usize),10).unwrap(),
+        canceled_amount: U256::from_str_radix(rows[0].get::<usize,&str>(9usize),10).unwrap(),
         updated_at: rows[0].get(10),
         created_at: rows[0].get(11),
     };

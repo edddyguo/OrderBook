@@ -1,7 +1,11 @@
 use rust_decimal::Decimal;
 
 use rust_decimal::prelude::ToPrimitive;
-use std::ops::Deref;
+use std::ops::{Add, Deref, Div, DivAssign};
+use std::str::FromStr;
+use ethers_core::types::U256;
+use log::info;
+use num::pow::Pow;
 
 pub trait MathOperation {
     fn to_fix(&self, precision: u32) -> f64;
@@ -30,4 +34,32 @@ impl MathOperation for f64 {
 pub fn narrow(ori: u64) -> f64 {
     let decimal_number = Decimal::new(ori as i64, 8);
     decimal_number.to_f64().unwrap()
+}
+
+//todo:考虑用其他库,硬编码精度为8位，decimal超过37的话仍溢出，目前业务不会触发
+pub fn u256_to_f64(ori: U256,decimal: u32) -> f64 {
+    println!("_0001_ori {}",ori);
+    let decimal_value = U256::from(10u32).pow(U256::from(decimal - 8));
+    let dist_int = ori.div(decimal_value);
+    let mut dist = Decimal::from(dist_int.as_u128());
+    dist.set_scale(8);
+    dist.to_f64().unwrap()
+}
+
+#[cfg(test)]
+mod tests {
+    use ethers_core::types::U256;
+    use crate::math::u256_to_f64;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_u256_to_f64() {
+        //let a = U256::from_str_radix("123456789012345178901234567890012345678901234567890",10).unwrap();
+        let a = U256::from_str_radix("1234567890123451789012345678912",10).unwrap();
+        let res1 = u256_to_f64(a,22);
+        assert_eq!(res1,123456789.01234517);
+        let a = U256::from_str_radix("1",10).unwrap();
+        let res2 = u256_to_f64(a,22);
+        assert_eq!(res2,0.0);
+    }
 }

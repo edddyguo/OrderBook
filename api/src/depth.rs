@@ -1,13 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Debug)]
-pub enum Side {
-    #[serde(rename = "buy")]
-    BUY,
-    #[serde(rename = "sell")]
-    SELL,
-}
-
 #[derive(Clone, Serialize)]
 pub struct Depth {
     pub asks: Vec<(f64, f64)>,

@@ -7,12 +7,15 @@ mod trade;
 use actix_cors::Cors;
 use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder};
 use std::env;
+use log::info;
 
 use chemix_models::api::list_markets as list_markets2;
 use chemix_models::order::list_available_orders;
 use chemix_models::trade::list_trades;
 use chemix_utils::time::time2unix;
 use serde::{Deserialize, Serialize};
+use chemix_models::order::Side::{Buy, Sell};
+use chemix_utils::math::u256_to_f64;
 
 
 #[get("/{id}/{name}/index.html")]
@@ -117,36 +120,40 @@ struct DepthRequest {
 #[get("/chemix/depth")]
 async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     format!("symbol222 {}, limit:{}", info.symbol, info.limit);
-    let available_buy_orders = list_available_orders("BTC-USDT", "buy");
-    let available_sell_orders = list_available_orders("BTC-USDT", "sell");
+    let base_decimal = 11u32;
+    let quote_decimal = 22u32;
+    let available_buy_orders = list_available_orders("BTC-USDT", Buy);
+    let available_sell_orders = list_available_orders("BTC-USDT", Sell);
 
+    info!("0001__{:?}",available_buy_orders);
+    info!("0002__{:?}",available_sell_orders);
     let mut asks = Vec::<(f64, f64)>::new();
     let mut bids = Vec::<(f64, f64)>::new();
 
     'buy_orders: for available_buy_order in available_buy_orders {
-        'asks: for mut ask in asks.clone() {
-            if available_buy_order.price == ask.0 {
-                ask.1 += available_buy_order.amount;
+        'asks: for mut bid in bids.clone() {
+            if u256_to_f64(available_buy_order.price,quote_decimal) == bid.0 {
+                bid.1 += u256_to_f64(available_buy_order.amount,base_decimal);
                 continue 'buy_orders;
             }
         }
-        if asks.len() as u32 == info.limit {
+        if bids.len() as u32 == info.limit {
             break 'buy_orders;
         }
-        asks.push((available_buy_order.price, available_buy_order.amount));
+        bids.push((u256_to_f64(available_buy_order.price,quote_decimal), u256_to_f64(available_buy_order.amount,base_decimal)));
     }
 
     'sell_orders: for available_sell_order in available_sell_orders {
-        'bids: for mut bid in bids.clone() {
-            if available_sell_order.price == bid.0 {
-                bid.1 += available_sell_order.amount;
+        'bids: for mut ask in asks.clone() {
+            if u256_to_f64(available_sell_order.price,quote_decimal) == ask.0 {
+                ask.1 += u256_to_f64(available_sell_order.amount,base_decimal);
                 continue 'sell_orders;
             }
         }
-        if bids.len() as u32 == info.limit {
+        if asks.len() as u32 == info.limit {
             break 'sell_orders;
         }
-        bids.push((available_sell_order.price, available_sell_order.amount));
+        asks.push((u256_to_f64(available_sell_order.price,quote_decimal), u256_to_f64(available_sell_order.amount,base_decimal)));
     }
 
     let mut depth_data = depth::Depth { asks, bids };
@@ -184,12 +191,14 @@ struct AggTradesRequest {
 
 #[get("/chemix/aggTrades")]
 async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Responder {
+    let base_decimal = 11u32;
+    let quote_decimal = 22u32;
     let trades = list_trades(info.limit)
         .iter()
         .map(|x| trade::Trade {
             id: x.id.clone(),
-            price: x.price,
-            amount: x.amount,
+            price: u256_to_f64(x.price,quote_decimal),
+            amount: u256_to_f64(x.amount,base_decimal),
             taker_side: x.taker_side.clone(),
             updated_at: time2unix(x.created_at.clone()),
         })
