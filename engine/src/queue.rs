@@ -66,8 +66,8 @@ impl Queue {
 
         Queue {
             client: rsmq,
-            NewTrade: channel_update_book,
-            UpdateBook: channel_new_trade,
+            NewTrade: channel_new_trade,
+            UpdateBook: channel_update_book,
         }
     }
 }

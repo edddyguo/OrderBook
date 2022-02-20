@@ -48,11 +48,14 @@ pub fn match_order(
                 if book.sell.is_empty() || taker_order.price < book.sell.first().unwrap().price
                 {
                     //此时一定是有吃单剩余
+                    info!("______0001__{:?}",orders.asks.get(&taker_order.price));
                     let stat = orders
                         .bids
                         .entry(taker_order.price.clone())
-                        .or_insert(taker_order.amount);
-                    *stat = stat.add(taker_order.amount);
+                        .or_insert(U256::from(0));
+                    *stat += taker_order.amount;
+
+                    info!("______0002__{:?}",orders.bids.get(&taker_order.price));
 
                     //insert this order by compare price and created_at
                     //fixme:tmpcode,优化，还有时间排序的问题
@@ -79,8 +82,8 @@ pub fn match_order(
                     let stat = orders
                         .asks
                         .entry(marker_order.price.clone())
-                        .or_insert(matched_amount);
-                    *stat = stat.add(matched_amount);
+                        .or_insert(U256::from(0));
+                    *stat += matched_amount;
 
                     //get marker_order change value
                     marker_reduced_orders
@@ -106,11 +109,15 @@ pub fn match_order(
             Side::Sell => {
                 if book.buy.is_empty() || taker_order.price > book.buy.first().unwrap().price {
                     //此时一定是有吃单剩余
+                    info!("______0003__{:?}",orders.asks.get(&taker_order.price));
                     let stat = orders
                         .asks
                         .entry(taker_order.price.clone())
-                        .or_insert(taker_order.amount);
-                    *stat = stat.add(taker_order.amount);
+                        .or_insert(U256::from(0));
+                    *stat += taker_order.amount;
+
+                    info!("______0004__{:?}",orders.asks.get(&taker_order.price));
+
 
                     //insert this order by compare price and created_at
                     //fixme:tmpcode,优化，还有时间的问题
@@ -137,8 +144,8 @@ pub fn match_order(
                     let stat = orders
                         .bids
                         .entry(marker_order.price.clone())
-                        .or_insert(matched_amount);
-                    *stat = stat.add(matched_amount);
+                        .or_insert(U256::from(0));
+                    *stat += matched_amount;
 
                     //get change marker order
                     marker_reduced_orders
