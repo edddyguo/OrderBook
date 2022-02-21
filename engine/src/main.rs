@@ -196,8 +196,12 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
 
     //set network
     let chemix_main_addr = "048fe1e93A7063c8Ada5a4EbFDa746f19181fd27";
+    //0xa26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882
     let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
-    let chemix_main_client = ChemixContractClient::new(pri_key, chemix_main_addr);
+    let mut chemix_main_client = ChemixContractClient::new(pri_key, chemix_main_addr);
+    let chemix_main_client_arc = Arc::new(RwLock::new(chemix_main_client));
+    let chemix_main_client_receiver = chemix_main_client_arc.clone();
+    let chemix_main_client_sender = chemix_main_client_arc.clone();
     let watcher = Node::<Ws>::new("ws://58.33.12.252:7548/").await;
     let provider_http = Node::<Http>::new("http://58.33.12.252:8548");
 
@@ -211,14 +215,12 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 let mut stream = watcher.gen_watcher().await.unwrap();
                 while let Some(block) = stream.next().await {
                     let current_height = provider_http.get_block(block).await.unwrap().unwrap();
-                    //todo: 处理块高异常的情况
+                    //todo: 处理块高异常的情况,get block from http
                     //assert_eq!(last_height.add(1u64), current_height);
-
                     //tokio::time::sleep(time::Duration::from_secs(2)).await;
-                    //tmp,不延时的话监听不到事件
-                    //todo: get block from http
+                    //tmp,不延时的话监听不到事件1
 
-                    let new_orders = chemix_main_client.filter_new_order_event(current_height).await.unwrap();
+                    let new_orders = chemix_main_client_sender.clone().write().unwrap().filter_new_order_event(current_height).await.unwrap();
                     if new_orders.is_empty() {
                         info!("Not found new order created at height {}",current_height);
                     } else {
@@ -274,6 +276,15 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 error!("db_trades = {:?}",db_trades);
 
                 error!("gen add depth = {:?}",add_depth);
+
+                //todo: settle traders
+                let rt = Runtime::new().unwrap();
+                let chemix_main_client2 = chemix_main_client_receiver.clone();
+                rt.block_on(async move {
+                    chemix_main_client2.read().unwrap().settlement_trades().await;
+                });
+
+
 
 
                 //------------------

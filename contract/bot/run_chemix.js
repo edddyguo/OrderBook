@@ -14,6 +14,8 @@ const { expect } = require('chai') //断言模块
 async function main() {
     let account1 = "0x613548d151E096131ece320542d19893C4B8c901"
     let account2 = "0x37BA121cdE7a0e24e483364185E80ceF655346DD"
+    let account3 = "0xca9B361934fc7A7b07814D34423d665268111726"
+
 
     const issueAmountDefault = BigInt(100_000_000_000_000_000_000_000_000_000) //100_000_000_000
     var options = { gasPrice: 10000000000, gasLimit: 850000, value: 0 };
@@ -40,18 +42,49 @@ async function main() {
     let check_pair_result = await contractChemixStorage.checkPairExist(contractTokenB.address,contractTokenA.address,options);
     console.log('check_pair result ',check_pair_result);
     //grantCreatePairAddr
+    /***
     let grantCreatePairAddr_result = await contractChemixMain.grantCreatePairAddr(account1,options);
     console.log('grantCreatePairAddr result ',grantCreatePairAddr_result);
 
     //grantSettleAddr
-    let grantSettleAddr_result = await contractChemixMain.grantSettleAddr(account1,options);
-    console.log('grantCreatePairAddr result ',grantSettleAddr_result);
+    let grantSettleAddr_result = await contractVault.grantSettleAddr(account2,options);
+    console.log('grantSettleAddr_result result ',grantSettleAddr_result);
+     ***/
+
+
+    let authorizeSettle_res = await contractVault.authorizeSettle(account2,options);
+    console.log('authorizeSettle_res result ',authorizeSettle_res);
+
+
+    let A_alanceOf = await contractVault.balanceOf(contractTokenA.address,account3,options);
+    console.log('balanceOfA result ',A_alanceOf);
+    let B_alanceOf = await contractVault.balanceOf(contractTokenB.address,account3,options);
+    console.log('balanceOfB result ',B_alanceOf);
+
+    let balanceAcc_erc20_A = await contractTokenA.balanceOf(account3,options);
+    console.log('balanceA ',balanceAcc_erc20_A);
+    let balanceAcc_erc20_B = await contractTokenB.balanceOf(account3,options);
+    console.log('balanceB ',balanceAcc_erc20_B);
+
+
+    //approve
+    let acc1ApproveTokenARes2 = await contractTokenA.approve(contractTokenProxy.address,balanceAcc_erc20_A,options);
+    //console.log('acc1ApproveTokenARes ',acc1ApproveTokenARes2);
+    let acc1ApproveTokenBRes2 = await contractTokenB.approve(contractTokenProxy.address,balanceAcc_erc20_B,options);
+   // console.log('acc1ApproveTokenBRes ',acc1ApproveTokenBRes2);
+
+    let allowanceA2 = await contractTokenA.allowance(account3,contractTokenProxy.address,options);
+    console.log('allowanceA ',allowanceA2);
+    let allowanceB2 = await contractTokenB.allowance(account3,contractTokenProxy.address,options);
+    console.log('allowanceB ',allowanceB2);
+
+    return;
+
 
     console.log('start create pair TokenA-TokenB');
     let create_result = await contractChemixMain.createPair(contractTokenB.address,contractTokenA.address,options);
     console.log('create pair result ',create_result);
 
-    return;
 
     //issue tokenA to account1
     //issue tokenB to account1
