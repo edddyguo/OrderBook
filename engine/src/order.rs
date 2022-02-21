@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::ops::{Add, Sub};
-use ethers_core::types::U256;
+use ethers_core::types::{I256, U256};
 
 use serde::Serialize;
 
@@ -52,8 +52,8 @@ pub fn match_order(
                     let stat = orders
                         .bids
                         .entry(taker_order.price.clone())
-                        .or_insert(U256::from(0));
-                    *stat += taker_order.amount;
+                        .or_insert(I256::from(0));
+                    *stat += I256::from_raw(taker_order.amount);
 
                     info!("______0002__{:?}",orders.bids.get(&taker_order.price));
 
@@ -82,8 +82,8 @@ pub fn match_order(
                     let stat = orders
                         .asks
                         .entry(marker_order.price.clone())
-                        .or_insert(U256::from(0));
-                    *stat += matched_amount;
+                        .or_insert(I256::from(0));
+                    *stat -= I256::from_raw(matched_amount);
 
                     //get marker_order change value
                     marker_reduced_orders
@@ -98,7 +98,7 @@ pub fn match_order(
                         break 'marker_orders;
                     } else if marker_order.amount == u256_zero && taker_order.amount != u256_zero {
                         book.sell.remove(0);
-                    } else if marker_order.amount != u256_zero && taker_order.amount == u256_zero {
+                    } else if marker_order.amount == u256_zero && taker_order.amount == u256_zero {
                         book.sell.remove(0);
                         break 'marker_orders;
                     } else {
@@ -113,8 +113,8 @@ pub fn match_order(
                     let stat = orders
                         .asks
                         .entry(taker_order.price.clone())
-                        .or_insert(U256::from(0));
-                    *stat += taker_order.amount;
+                        .or_insert(I256::from(0));
+                    *stat += I256::from_raw(taker_order.amount);
 
                     info!("______0004__{:?}",orders.asks.get(&taker_order.price));
 
@@ -144,8 +144,8 @@ pub fn match_order(
                     let stat = orders
                         .bids
                         .entry(marker_order.price.clone())
-                        .or_insert(U256::from(0));
-                    *stat += matched_amount;
+                        .or_insert(I256::from(0));
+                    *stat -= I256::from_raw(matched_amount);
 
                     //get change marker order
                     marker_reduced_orders
@@ -159,7 +159,7 @@ pub fn match_order(
                         break 'marker_orders;
                     } else if marker_order.amount == u256_zero && taker_order.amount != u256_zero {
                         book.buy.remove(0);
-                    } else if marker_order.amount != u256_zero && taker_order.amount == u256_zero {
+                    } else if marker_order.amount == u256_zero && taker_order.amount == u256_zero {
                         book.buy.remove(0);
                         break 'marker_orders;
                     } else {

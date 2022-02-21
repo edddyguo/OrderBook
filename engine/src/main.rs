@@ -119,8 +119,8 @@ pub struct AddBook {
 
 #[derive(Clone, Serialize, Debug)]
 pub struct AddBook2 {
-    pub asks: HashMap<U256, U256>,
-    pub bids: HashMap<U256, U256>,
+    pub asks: HashMap<U256, I256>,
+    pub bids: HashMap<U256, I256>,
 }
 
 /***
@@ -241,8 +241,8 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 //TODO: matched order
                 //update OrderBook
                 let mut add_depth = AddBook2 {
-                    asks: HashMap::<U256, U256>::new(),
-                    bids: HashMap::<U256, U256>::new(),
+                    asks: HashMap::<U256, I256>::new(),
+                    bids: HashMap::<U256, I256>::new(),
                 };
 
                 let mut db_trades = Vec::<TradeInfo>::new();
@@ -272,6 +272,8 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     db_orders.push(db_order);
                 }
                 error!("db_trades = {:?}",db_trades);
+
+                error!("gen add depth = {:?}",add_depth);
 
 
                 //------------------
@@ -323,15 +325,27 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
 
                 let asks2 = add_depth.asks.iter().map(|(x, y)| {
                     let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
-                    let user_volume = u256_to_f64(y.to_owned(), BaseTokenDecimal);
+                   // let user_volume = u256_to_f64(y.to_owned(), BaseTokenDecimal);
+                    info!("__test_decimal_0001_{}_{}_{}",y,y.into_raw(),y.abs().into_raw());
+                    let user_volume = if y < &I256::from(0u32) {
+                        u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
+                    }else {
+                        u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
+                    };
+
                     (user_price, user_volume)
                 }).filter(|(p, v)| {
                     p != &0.0 && v != &0.0
                 }).collect::<Vec<(f64, f64)>>();
 
                 let bids2 = add_depth.bids.iter().map(|(x, y)| {
+                    info!("__test_decimal_0002_{}_{}_{}",y,y.into_raw(),y.abs().into_raw());
                     let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
-                    let user_volume = u256_to_f64(y.to_owned(), BaseTokenDecimal);
+                    let user_volume = if y < &I256::from(0u32) {
+                        u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
+                    }else {
+                        u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
+                    };
                     (user_price, user_volume)
                 }).filter(|(p, v)| {
                     p != &0.0 && v != &0.0

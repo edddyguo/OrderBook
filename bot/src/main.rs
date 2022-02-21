@@ -105,7 +105,20 @@ async fn main() -> anyhow::Result<()> {
             side, price, amount
         );
         let client = ChemixContractClient::new(pri_key, chemix_main_addr);
-        client.new_order(side,quote_token,base_token,price,amount).await.unwrap();
-        tokio::time::sleep(time::Duration::from_millis(10000)).await;
+        //client.new_order(side,quote_token,base_token,price,amount).await.unwrap();
+        client.new_order("buy",quote_token,base_token,1.0,1.0).await.unwrap();
+        client.new_order("buy",quote_token,base_token,1.0,1.0).await.unwrap();
+        client.new_order("buy",quote_token,base_token,1.0,1.0).await.unwrap();
+        client.new_order("buy",quote_token,base_token,1.0,1.0).await.unwrap();
+        client.new_order("buy",quote_token,base_token,1.0,1.0).await.unwrap();
+
+
+        client.new_order("sell",quote_token,base_token,1.0,1.0).await.unwrap();
+        client.new_order("sell",quote_token,base_token,1.0,1.0).await.unwrap();
+        client.new_order("sell",quote_token,base_token,1.0,1.0).await.unwrap();
+        client.new_order("sell",quote_token,base_token,1.0,1.0).await.unwrap();
+        client.new_order("sell",quote_token,base_token,1.0,1.0).await.unwrap();
+
+        tokio::time::sleep(time::Duration::from_millis(1000000)).await;
     }
 }
