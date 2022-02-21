@@ -39,8 +39,8 @@ contract Vault is
     );
 
     event Settlement(
-        address indexed quoteToken,
         address indexed baseToken,
+        address indexed quoteToken,
         bytes32 indexed hashData
     );
 
@@ -52,9 +52,9 @@ contract Vault is
     struct settleValues {
         address  user;
         bool     positiveOrNegative1;
-        uint256  incomeQuoteToken;
-        bool     positiveOrNegative2;
         uint256  incomeBaseToken;
+        bool     positiveOrNegative2;
+        uint256  incomeQuoteToken;
     }
 
     // ============ State Variables ============
@@ -227,8 +227,8 @@ contract Vault is
     }
 
     function settlement(
-        address   quoteToken,
         address   baseToken,
+        address   quoteToken,
         uint256   largestIndex,
         bytes32   hashData,
         settleValues[] calldata settleInfo
@@ -237,20 +237,20 @@ contract Vault is
         onlySettleAddr
         nonReentrant
     {
-        require(ChemixStorage(STORAGE).checkHashData(largestIndex,hashData), 'Chemix: PAIR_NOTEXISTS');
+        require(ChemixStorage(STORAGE).checkHashData(largestIndex,hashData), 'Chemix: Wrong HashData');
         for(uint i = 0; i < settleInfo.length; i++){
             if(settleInfo[i].positiveOrNegative1){
-                balances[quoteToken][settleInfo[i].user].availableBalance = balances[quoteToken][settleInfo[i].user].availableBalance.add(settleInfo[i].incomeQuoteToken);
-            }else{
-                balances[quoteToken][settleInfo[i].user].availableBalance = balances[quoteToken][settleInfo[i].user].availableBalance.sub(settleInfo[i].incomeQuoteToken);
-            }
-            if(settleInfo[i].positiveOrNegative2){
                 balances[baseToken][settleInfo[i].user].availableBalance = balances[baseToken][settleInfo[i].user].availableBalance.add(settleInfo[i].incomeBaseToken);
             }else{
                 balances[baseToken][settleInfo[i].user].availableBalance = balances[baseToken][settleInfo[i].user].availableBalance.sub(settleInfo[i].incomeBaseToken);
             }
+            if(settleInfo[i].positiveOrNegative2){
+                balances[quoteToken][settleInfo[i].user].availableBalance = balances[quoteToken][settleInfo[i].user].availableBalance.add(settleInfo[i].incomeQuoteToken);
+            }else{
+                balances[quoteToken][settleInfo[i].user].availableBalance = balances[quoteToken][settleInfo[i].user].availableBalance.sub(settleInfo[i].incomeQuoteToken);
+            }
         }
-        emit Settlement(quoteToken, baseToken, hashData);
+        emit Settlement(baseToken, quoteToken, hashData);
     }
 
     // ============ Private Helper-Functions ============

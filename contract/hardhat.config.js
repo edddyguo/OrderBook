@@ -48,6 +48,7 @@ module.exports = {
       accounts: [
         // 0x613548d151E096131ece320542d19893C4B8c901 chemix-test1
         '0xa26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882',
+        //'0x1f3bc7d273c179f0b73745d0599a15ece081837a9aa4ccb6351842fcad19fb95',
         // 0x37BA121cdE7a0e24e483364185E80ceF655346DD chemix-test2
         '0xb89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43',
         // 0xca9B361934fc7A7b07814D34423d665268111726 chemix-test3

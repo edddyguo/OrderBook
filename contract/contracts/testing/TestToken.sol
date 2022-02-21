@@ -68,7 +68,7 @@ contract TestToken {
     }
 
     function transfer(address to, uint256 value) public returns (bool) {
-        require(balances[msg.sender] >= value, "Insuffcient Balance");
+        require(balances[msg.sender] >= value, "transfer: Insuffcient Balance");
         balances[msg.sender] = balances[msg.sender].sub(value);
         balances[to] = balances[to].add(value);
         emit Transfer(
@@ -81,7 +81,8 @@ contract TestToken {
     }
 
     function transferFrom(address from, address to, uint256 value) public returns (bool) {
-        require(balances[from] >= value && allowed[from][msg.sender] >= value, "Insuffcient Balance");
+        require(balances[from] >= value, "transferFrom: Insuffcient Balance");
+        require(allowed[from][msg.sender] >= value, "transferFrom: Allowed Insuffcient Balance");
        
         balances[to] = balances[to].add(value);
         balances[from] = balances[from].sub(value);

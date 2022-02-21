@@ -20,16 +20,16 @@ contract ChemixStorage is
         uint256   orderIndex;
         uint256   limitPrice;
         uint256   orderAmount;
-        address   quoteToken;
         address   baseToken;
+        address   quoteToken;
         address   orderUser;
         bytes32   hashData;
         bool      ordertype;
     }
 
     struct CancelOrderState {
-        address   quoteToken;
         address   baseToken;
+        address   quoteToken;
         address   orderUser;
         uint256   mCancelIndex;
         uint256   orderIndex;
@@ -99,14 +99,14 @@ contract ChemixStorage is
     }
 
     function checkPairExist(
-        address quoteToken,
-        address baseToken
+        address baseToken,
+        address quoteToken
     )
         external
         view
         returns (bool)
     {
-        return (getPair[quoteToken] == baseToken);
+        return (getPair[baseToken] == quoteToken);
     }
 
     function checkHashData(
@@ -121,36 +121,39 @@ contract ChemixStorage is
     }
 
     function createNewPair(
-        address quoteToken,
-        address baseToken
+        address baseToken,
+        address quoteToken
     )
         external
         requiresAuthorization
     {
-        getPair[quoteToken] = baseToken;
-        emit PairCreated(quoteToken, baseToken);
+        require(getPair[baseToken] != quoteToken, "Chemix: Pair already exit.");
+        getPair[baseToken] = quoteToken;
+        emit PairCreated(baseToken, quoteToken);
     }
 
     function createNewOrder(
-        address   quoteToken,
         address   baseToken,
+        address   quoteToken,
         address   orderUser,
         bool      orderType,
         uint256   limitPrice,
-        uint256   orderAmount
+        uint256   orderAmount,
+        uint256   numPower
     )
         external
         requiresAuthorization
     {
+        require(getPair[baseToken] == quoteToken, "Chemix: Pair not exit.");
         uint256 index = mOrderIndex;
         bytes32 preOrderHash = bytes32(0);
         if(mOrderIndex > 0){
             preOrderHash = allOrder[mOrderIndex - 1].hashData;
         }
-        bytes32 newHashData = keccak256(abi.encodePacked(preOrderHash, orderUser, orderType, limitPrice, orderAmount));
+        bytes32 newHashData = keccak256(abi.encodePacked(preOrderHash, orderUser, orderType, limitPrice, orderAmount,numPower));
         OrderState memory newOrder = OrderState({
-            quoteToken: quoteToken,
             baseToken: baseToken,
+            quoteToken: quoteToken,
             ordertype: orderType,
             orderIndex: index,
             limitPrice: limitPrice,
@@ -160,19 +163,20 @@ contract ChemixStorage is
         });
         allOrder[index] = newOrder;
         mOrderIndex += 1;
-        emit NewOrderCreated(quoteToken, baseToken, newHashData, orderUser, orderType,
-                index, limitPrice, orderAmount);
+        emit NewOrderCreated(baseToken, quoteToken, newHashData, orderUser, orderType,
+                index, limitPrice, orderAmount, numPower);
     }
 
     function createCancelOrder(
-        address   quoteToken,
         address   baseToken,
+        address   quoteToken,
         address   orderUser,
         uint256   orderIndex
     )
         external
         requiresAuthorization
     {
+        require(getPair[baseToken] == quoteToken, "Chemix: Pair not exit.");
         uint256 index = mCancelIndex;
         bytes32 preCancelHash = bytes32(0);
         if(mCancelIndex > 0){
@@ -180,8 +184,8 @@ contract ChemixStorage is
         }
         bytes32 newHashData = keccak256(abi.encodePacked(preCancelHash, orderUser, orderIndex));
         CancelOrderState memory newCancelOrder = CancelOrderState({
-            quoteToken: quoteToken,
             baseToken: baseToken,
+            quoteToken: quoteToken,
             mCancelIndex: index,
             orderIndex: orderIndex,
             orderUser:  orderUser,
@@ -189,7 +193,7 @@ contract ChemixStorage is
         });
         allCancelOrder[index] = newCancelOrder;
         mCancelIndex += 1;
-        emit NewCancelOrderCreated(quoteToken, baseToken, newHashData, orderUser,
+        emit NewCancelOrderCreated(baseToken, quoteToken, newHashData, orderUser,
                 index, orderIndex);
     }
 }

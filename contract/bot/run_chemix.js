@@ -16,31 +16,37 @@ async function main() {
     let account2 = "0x37BA121cdE7a0e24e483364185E80ceF655346DD"
     let account3 = "0xca9B361934fc7A7b07814D34423d665268111726"
 
+    let account_tj = "0x3bB395b668Ff9Cb84e55aadFC8e646Dd9184Da9d"
+
 
     const issueAmountDefault = BigInt(100_000_000_000_000_000_000_000_000_000) //100_000_000_000
     var options = { gasPrice: 10000000000, gasLimit: 850000, value: 0 };
 
     /***
-     * deployTokenA:   0x18D5034280703EA96e36a50f6178E43565eaDc67
-     * deployTokenB:   0x7E62F80cA349DB398983E2Ee1434425f5B888f42
-     * deployStorage:   0x048fe1e93A7063c8Ada5a4EbFDa746f19181fd27
-     * deployTokenProxy:   0xe22735c806FAF830947e10383194e9cFB535a85c
-     * deployVault:   0x4312e54480D2895c84aB9967CCbA0D87c5Ab2f02
-     * deployChemiMain:   0x6a73e6c0a232C763dDe909bA6a92C92ed26B6ffa
+     * deployTokenA:   0x02Bc6fC5f0775CA123014262135A69B36AfA8357
+     * deployTokenB:   0xBdab332df647C95477be0AC922C4A4176103C009
+     * deployStorage:   0xbCb402d02ED0E78Ab09302c2578CB9f59ebEa70C
+     * deployTokenProxy:   0xA1351C4e528c705e5817c0dd242C1b9dFccfD7d4
+     * deployVault:   0xC94393A080Df85190541D45d90769aB8D19f30cE
+     * deployChemiMain:   0xde49632Eb0416C5cC159d707B4DE0d4724427999
      *
      * */
 
 
-    const contractTokenA = await ethers.getContractAt("TokenA",'0x18D5034280703EA96e36a50f6178E43565eaDc67')
-    const contractTokenB = await ethers.getContractAt("TokenB",'0x7E62F80cA349DB398983E2Ee1434425f5B888f42')
-    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0x048fe1e93A7063c8Ada5a4EbFDa746f19181fd27')
-    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0xe22735c806FAF830947e10383194e9cFB535a85c')
-    const contractVault = await ethers.getContractAt("Vault",'0x4312e54480D2895c84aB9967CCbA0D87c5Ab2f02')
-    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0x6a73e6c0a232C763dDe909bA6a92C92ed26B6ffa')
+    const contractTokenA = await ethers.getContractAt("TokenA",'0x02Bc6fC5f0775CA123014262135A69B36AfA8357')
+    const contractTokenB = await ethers.getContractAt("TokenB",'0xBdab332df647C95477be0AC922C4A4176103C009')
+    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0xbCb402d02ED0E78Ab09302c2578CB9f59ebEa70C')
+    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0xA1351C4e528c705e5817c0dd242C1b9dFccfD7d4')
+    const contractVault = await ethers.getContractAt("Vault",'0xC94393A080Df85190541D45d90769aB8D19f30cE')
+    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0xde49632Eb0416C5cC159d707B4DE0d4724427999')
 
     //check pair
-    let check_pair_result = await contractChemixStorage.checkPairExist(contractTokenB.address,contractTokenA.address,options);
-    console.log('check_pair result ',check_pair_result);
+
+    let authorizeCreatePair = await contractChemixMain.authorizeCreatePair(account1,options);
+    console.log('check_pair1 result ',authorizeCreatePair);
+
+    let check_pair_result = await contractChemixStorage.checkPairExist(contractTokenA.address,contractTokenB.address,options);
+    console.log('check_pair2 result ',check_pair_result);
     //grantCreatePairAddr
     /***
     let grantCreatePairAddr_result = await contractChemixMain.grantCreatePairAddr(account1,options);
@@ -51,19 +57,19 @@ async function main() {
     console.log('grantSettleAddr_result result ',grantSettleAddr_result);
      ***/
 
-
+    /***
     let authorizeSettle_res = await contractVault.authorizeSettle(account2,options);
     console.log('authorizeSettle_res result ',authorizeSettle_res);
 
 
-    let A_alanceOf = await contractVault.balanceOf(contractTokenA.address,account3,options);
+    let A_alanceOf = await contractVault.balanceOf(contractTokenA.address,account_tj,options);
     console.log('balanceOfA result ',A_alanceOf);
-    let B_alanceOf = await contractVault.balanceOf(contractTokenB.address,account3,options);
+    let B_alanceOf = await contractVault.balanceOf(contractTokenB.address,account_tj,options);
     console.log('balanceOfB result ',B_alanceOf);
 
-    let balanceAcc_erc20_A = await contractTokenA.balanceOf(account3,options);
+    let balanceAcc_erc20_A = await contractTokenA.balanceOf(account_tj,options);
     console.log('balanceA ',balanceAcc_erc20_A);
-    let balanceAcc_erc20_B = await contractTokenB.balanceOf(account3,options);
+    let balanceAcc_erc20_B = await contractTokenB.balanceOf(account_tj,options);
     console.log('balanceB ',balanceAcc_erc20_B);
 
 
@@ -73,16 +79,21 @@ async function main() {
     let acc1ApproveTokenBRes2 = await contractTokenB.approve(contractTokenProxy.address,balanceAcc_erc20_B,options);
    // console.log('acc1ApproveTokenBRes ',acc1ApproveTokenBRes2);
 
-    let allowanceA2 = await contractTokenA.allowance(account3,contractTokenProxy.address,options);
+    let allowanceA2 = await contractTokenA.allowance(account_tj,contractTokenProxy.address,options);
     console.log('allowanceA ',allowanceA2);
-    let allowanceB2 = await contractTokenB.allowance(account3,contractTokenProxy.address,options);
+    let allowanceB2 = await contractTokenB.allowance(account_tj,contractTokenProxy.address,options);
     console.log('allowanceB ',allowanceB2);
+     ***/
+    let grantCreatePairAddr_result = await contractChemixMain.grantCreatePairAddr(account1,options);
+    console.log('grantCreatePairAddr result ',grantCreatePairAddr_result);
 
-    return;
+    //grantSettleAddr
+    let grantSettleAddr_result = await contractVault.grantSettleAddr(account1,options);
+    console.log('grantSettleAddr_result result ',grantSettleAddr_result);
 
 
     console.log('start create pair TokenA-TokenB');
-    let create_result = await contractChemixMain.createPair(contractTokenB.address,contractTokenA.address,options);
+    let create_result = await contractChemixMain.createPair(contractTokenA.address,contractTokenB.address,options);
     console.log('create pair result ',create_result);
 
 

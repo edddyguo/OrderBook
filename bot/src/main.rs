@@ -85,20 +85,17 @@ async fn main() -> anyhow::Result<()> {
     //get_dex_name().await;
 
     //test1
-    //let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
+    let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
     //test3
     //0xca9B361934fc7A7b07814D34423d665268111726
-    let pri_key = "b0a09e85dad814ccc7231982401cca5accc3a46bc68349b403a7a129517cc266";
+    //let pri_key = "b0a09e85dad814ccc7231982401cca5accc3a46bc68349b403a7a129517cc266";
+    //tj
+    //let pri_key = "1f3bc7d273c179f0b73745d0599a15ece081837a9aa4ccb6351842fcad19fb95";
 
 
-    let chemix_main_addr = "6a73e6c0a232C763dDe909bA6a92C92ed26B6ffa";
-
-    //let base_token = "18D5034280703EA96e36a50f6178E43565eaDc67"; //AAA
-    //let quote_token = "7E62F80cA349DB398983E2Ee1434425f5B888f42";//BBB
-
-
-    let base_token = "7E62F80cA349DB398983E2Ee1434425f5B888f42"; //BBB 15
-    let quote_token = "18D5034280703EA96e36a50f6178E43565eaDc67"; //AAA 18
+    let chemix_main_addr = "de49632Eb0416C5cC159d707B4DE0d4724427999";
+    let base_token = "02Bc6fC5f0775CA123014262135A69B36AfA8357"; //AAA 18
+    let quote_token = "Bdab332df647C95477be0AC922C4A4176103C009"; //BBB 15
 
     loop {
         let mut rng = rand::thread_rng();
@@ -118,21 +115,23 @@ async fn main() -> anyhow::Result<()> {
         );
         let client = ChemixContractClient::new(pri_key, chemix_main_addr);
         //client.new_order(side,quote_token,base_token,price,amount).await.unwrap();
-        client.new_order("buy",quote_token,base_token,1.0,1.0).await.unwrap();
+        client.new_order("sell",base_token,quote_token,1.0,1.0).await.unwrap();
+        client.new_order("buy",base_token,quote_token,1.0,1.0).await.unwrap();
+
         /***
         client.new_order("buy",quote_token,base_token,1.0,1.0).await.unwrap();
         client.new_order("buy",quote_token,base_token,1.0,1.0).await.unwrap();
         client.new_order("buy",quote_token,base_token,1.0,1.0).await.unwrap();
         client.new_order("buy",quote_token,base_token,1.0,1.0).await.unwrap();
+        client.new_order("buy",quote_token,base_token,1.0,1.0).await.unwrap();
 
+        client.new_order("sell",quote_token,base_token,1.0,1.0).await.unwrap();
+        client.new_order("sell",quote_token,base_token,1.0,1.0).await.unwrap();
+        client.new_order("sell",quote_token,base_token,1.0,1.0).await.unwrap();
+        client.new_order("sell",quote_token,base_token,1.0,1.0).await.unwrap();
+        client.new_order("sell",quote_token,base_token,1.0,1.0).await.unwrap();
 
-        client.new_order("sell",quote_token,base_token,1.0,1.0).await.unwrap();
-        client.new_order("sell",quote_token,base_token,1.0,1.0).await.unwrap();
-        client.new_order("sell",quote_token,base_token,1.0,1.0).await.unwrap();
-        client.new_order("sell",quote_token,base_token,1.0,1.0).await.unwrap();
-        client.new_order("sell",quote_token,base_token,1.0,1.0).await.unwrap();
-         */
-
-        tokio::time::sleep(time::Duration::from_millis(1000000)).await;
+        ***/
+        tokio::time::sleep(time::Duration::from_millis(1000)).await;
     }
 }

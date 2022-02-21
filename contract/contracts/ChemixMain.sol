@@ -41,8 +41,8 @@ contract ChemixMain is
     }
 
     function createPair(
-        address quoteToken, 
-        address baseToken
+        address baseToken, 
+        address quoteToken
     ) 
         external 
         onlyCreatePairAddr
@@ -50,19 +50,19 @@ contract ChemixMain is
         override
         returns (bool successd) 
     {
-        require(quoteToken != baseToken, 'Chemix: IDENTICAL_ADDRESSES');
+        require(baseToken != quoteToken, 'Chemix: IDENTICAL_ADDRESSES');
         require(quoteToken != address(0) && baseToken != address(0), 'Chemix: ZERO_ADDRESS');
-        require(!ChemixStorage(env.STORAGE).checkPairExist(quoteToken,baseToken), 'Chemix: PAIR_EXISTS');
-        ChemixStorage(env.STORAGE).createNewPair(quoteToken,baseToken);
+        require(!ChemixStorage(env.STORAGE).checkPairExist(baseToken,quoteToken), 'Chemix: PAIR_NOTEXISTS');
+        ChemixStorage(env.STORAGE).createNewPair(baseToken,quoteToken);
         return true;
     }
 
     function newLimitBuyOrder(
-        address   quoteToken,
         address   baseToken,
-        uint256   limitPrice, //user price ** base_token_decimal
-        uint256   orderAmount, // user amount ** quote_token_decimal
-        uint256   numPower // should be quote_token_decimal
+        address   quoteToken,
+        uint256   limitPrice,
+        uint256   orderAmount,
+        uint256   numPower
     )
         external
         nonReentrant
@@ -70,22 +70,23 @@ contract ChemixMain is
         returns (bool successed)
     {
         require(msg.value >= env.MINFEE, 'Chemix: msg.value less than MINFEE');
-        require(ChemixStorage(env.STORAGE).checkPairExist(quoteToken,baseToken), 'Chemix: PAIR_NOTEXISTS');
+        require(ChemixStorage(env.STORAGE).checkPairExist(baseToken,quoteToken), 'Chemix: PAIR_NOTEXISTS');
         uint256 totalAmount = orderAmount.mul(limitPrice).div(10 ** numPower);
         Vault(env.VAULT).depositToVault(
-            baseToken,
+            quoteToken,
             msg.sender,
             totalAmount
         );
 
-        Vault(env.VAULT).frozenBalance(baseToken, msg.sender, totalAmount);
+        Vault(env.VAULT).frozenBalance(quoteToken, msg.sender, totalAmount);
         ChemixStorage(env.STORAGE).createNewOrder(
-            quoteToken,
             baseToken,
+            quoteToken,
             msg.sender,
             true,
             limitPrice,
-            orderAmount
+            orderAmount,
+            numPower
         );
         address payable addr = payable(env.FEETO);
         addr.transfer(msg.value);
@@ -94,10 +95,11 @@ contract ChemixMain is
     }
 
     function newLimitSellOrder(
-        address   quoteToken,
         address   baseToken,
+        address   quoteToken,
         uint256   limitPrice,
-        uint256   orderAmount
+        uint256   orderAmount,
+        uint256   numPower
     )
         external
         nonReentrant
@@ -105,22 +107,23 @@ contract ChemixMain is
         returns (bool successed)
     {
         require(msg.value >= env.MINFEE, 'Chemix: msg.value less than MINFEE');
-        require(ChemixStorage(env.STORAGE).checkPairExist(quoteToken,baseToken), 'Chemix: PAIR_NOTEXISTS');
+        require(ChemixStorage(env.STORAGE).checkPairExist(baseToken,quoteToken), 'Chemix: PAIR_NOTEXISTS');
         
         Vault(env.VAULT).depositToVault(
-            quoteToken,
+            baseToken,
             msg.sender,
             orderAmount
         );
 
-        Vault(env.VAULT).frozenBalance(quoteToken, msg.sender, orderAmount);
+        Vault(env.VAULT).frozenBalance(baseToken, msg.sender, orderAmount);
         ChemixStorage(env.STORAGE).createNewOrder(
-            quoteToken,
             baseToken,
+            quoteToken,
             msg.sender,
             false,
             limitPrice,
-            orderAmount
+            orderAmount,
+            numPower
         );
         address payable addr = payable(env.FEETO);
         addr.transfer(msg.value);
@@ -129,8 +132,8 @@ contract ChemixMain is
     }
 
     function newCancelOrder(
-        address   quoteToken,
         address   baseToken,
+        address   quoteToken,
         uint256   orderIndex
     )
         external
@@ -143,8 +146,8 @@ contract ChemixMain is
         require(ChemixStorage(env.STORAGE).checkIfIndexBelongs(msg.sender, orderIndex),'Chemix: OrderIndex not bolongs msg.sender');
   
         ChemixStorage(env.STORAGE).createCancelOrder(
-            quoteToken,
             baseToken,
+            quoteToken,
             msg.sender,
             orderIndex
         );

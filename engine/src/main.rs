@@ -77,7 +77,7 @@ lazy_static! {
         let available_sell : Vec<EngineOrder> = list_available_orders("BTC-USDT",Side::Sell);
         let available_buy : Vec<EngineOrder> = list_available_orders("BTC-USDT",Side::Buy);
 
-        let available_sell2 = available_sell.iter().map(|x|{
+        let mut available_sell2 = available_sell.iter().map(|x|{
             BookOrder {
                 id: x.id.clone(),
                 account: x.account.clone(),
@@ -88,7 +88,11 @@ lazy_static! {
             }
          }).collect::<Vec<BookOrder>>();
 
-        let available_buy2 = available_buy.iter().map(|x|{
+        available_sell2.sort_by(|a,b|{
+            a.price.partial_cmp(&b.price).unwrap()
+        });
+
+        let mut available_buy2 = available_buy.iter().map(|x|{
             BookOrder {
                 id: x.id.clone(),
                 account: x.account.clone(),
@@ -98,6 +102,10 @@ lazy_static! {
                 created_at: time2unix(x.created_at.clone())
             }
         }).collect::<Vec<BookOrder>>();
+        available_buy2.sort_by(|a,b|{
+            a.price.partial_cmp(&b.price).unwrap()
+        });
+        available_buy2.reverse();
 
         //let available_sell = Vec::<BookOrder>::new();
         //let available_buy = Vec::<BookOrder>::new();
@@ -206,10 +214,10 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
 
 
     //set network
-    let chemix_main_addr = "048fe1e93A7063c8Ada5a4EbFDa746f19181fd27";
+    let chemix_main_addr = "0xbCb402d02ED0E78Ab09302c2578CB9f59ebEa70C";
     //test2
     //let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
-    //test3
+    //test1
     let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
     let mut chemix_main_client = ChemixContractClient::new(pri_key, chemix_main_addr);
     let chemix_main_client_arc = Arc::new(RwLock::new(chemix_main_client));
