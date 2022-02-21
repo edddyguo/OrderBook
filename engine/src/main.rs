@@ -10,15 +10,19 @@ use std::collections::HashMap;
 use ethers_contract_abigen::parse_address;
 use ethers_providers::{Http, Middleware, Provider, StreamExt};
 use rsmq_async::{Rsmq, RsmqConnection, RsmqError};
-use chemix_chain::chemix::ChemixContractClient;
+use chemix_chain::chemix::{ChemixContractClient, SettleValues2};
+use chemix_chain::chemix::SettleValues;
 use chemix_chain::bsc::Node;
-
+use std::string::String;
 
 use serde::Serialize;
 use std::convert::TryFrom;
 use std::env;
 use std::fmt::Debug;
 use std::ops::{Add, Div, Sub};
+use std::str::FromStr;
+use ethers::types::Address;
+
 
 use crate::order::{match_order};
 use std::sync::Mutex;
@@ -41,6 +45,7 @@ use chemix_utils::math::{narrow, MathOperation, u256_to_f64};
 use chemix_utils::time::get_current_time;
 use chemix_utils::time::time2unix;
 use ethers_core::abi::ethereum_types::U64;
+use ethers_core::types::BlockId::Hash;
 use crate::queue::Queue;
 
 use crate::Side::{Buy, Sell};
@@ -59,6 +64,12 @@ static QuoteTokenDecimal: u32 = 22;
 struct EngineBook {
     pub buy: Vec<BookOrder>,
     pub sell: Vec<BookOrder>,
+}
+
+#[derive(Clone, Serialize, Debug)]
+pub struct EnigneSettleValues {
+    pub incomeQuoteToken: I256,
+    pub incomeBaseToken: I256,
 }
 
 lazy_static! {
@@ -196,8 +207,10 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
 
     //set network
     let chemix_main_addr = "048fe1e93A7063c8Ada5a4EbFDa746f19181fd27";
-    //0xa26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882
-    let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
+    //test2
+    //let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
+    //test3
+    let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
     let mut chemix_main_client = ChemixContractClient::new(pri_key, chemix_main_addr);
     let chemix_main_client_arc = Arc::new(RwLock::new(chemix_main_client));
     let chemix_main_client_receiver = chemix_main_client_arc.clone();
@@ -221,6 +234,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     //tmp,不延时的话监听不到事件1
 
                     let new_orders = chemix_main_client_sender.clone().write().unwrap().filter_new_order_event(current_height).await.unwrap();
+                    info!("new_orders_event {:?}",new_orders);
                     if new_orders.is_empty() {
                         info!("Not found new order created at height {}",current_height);
                     } else {
@@ -278,11 +292,98 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 error!("gen add depth = {:?}",add_depth);
 
                 //todo: settle traders
+                let mut settle_values: HashMap<String, EnigneSettleValues> = HashMap::new();
+                let  token_base_decimal  = U256::from(10u128).pow(U256::from(18u32));
+                for trader in db_trades.clone() {
+                    match trader.taker_side {
+                        Buy => {
+                            let taker_base_amount = I256::from_raw(trader.amount);
+                            match  settle_values.get_mut(&trader.taker){
+                                None => {
+                                    settle_values.insert(trader.taker, EnigneSettleValues {
+                                        incomeQuoteToken: I256::from(0u32),
+                                        incomeBaseToken: taker_base_amount
+                                    });
+                                }
+                                Some(tmp1) => {
+                                    tmp1.incomeBaseToken += taker_base_amount;
+                                }
+                            }
+
+                            let maker_quote_amount = I256::from_raw(trader.amount * trader.price / token_base_decimal) * I256::from(-1i32);
+                            match  settle_values.get_mut(&trader.maker){
+                                None => {
+                                    settle_values.insert(trader.maker, EnigneSettleValues {
+                                        incomeQuoteToken: maker_quote_amount,
+                                        incomeBaseToken: I256::from(0i32)
+                                    });
+                                }
+                                Some(tmp1) => {
+                                    tmp1.incomeQuoteToken +=  maker_quote_amount
+                                }
+                            }
+
+                        }
+                        Sell => {
+                            let taker_base_amount = I256::from_raw(trader.amount) * I256::from(-1i32);
+                            match  settle_values.get_mut(&trader.taker){
+                                None => {
+                                    settle_values.insert(trader.taker, EnigneSettleValues {
+                                        incomeQuoteToken: I256::from(0u32),
+                                        incomeBaseToken: taker_base_amount
+                                    });
+                                }
+                                Some(tmp1) => {
+                                    tmp1.incomeBaseToken += taker_base_amount;
+                                }
+                            }
+
+                            let maker_quote_amount = I256::from_raw(trader.amount * trader.price / token_base_decimal);
+                            match  settle_values.get_mut(&trader.maker){
+                                None => {
+                                    settle_values.insert(trader.maker, EnigneSettleValues {
+                                        incomeQuoteToken: maker_quote_amount,
+                                        incomeBaseToken: I256::from(0i32)
+                                    });
+                                }
+                                Some(tmp1) => {
+                                    tmp1.incomeQuoteToken +=  maker_quote_amount
+                                }
+                            }
+                        }
+                    }
+
+            }
+
+
+                info!("_pre_settlement result {:#?}",settle_values);
+                /***
+                pub struct SettleValues {
+                    pub user : Address,
+                    pub positiveOrNegative1: bool,
+                    pub incomeQuoteToken: U256,
+                    pub positiveOrNegative2 : bool,
+                    pub incomeBaseToken: U256,
+                }
+                */
+                let settle_trades = settle_values.iter().map(|(address,settle_info)|{
+                    info!("_address {} ",address);
+                    SettleValues2 {
+                        user : Address::from_str(address).unwrap(),
+                        positiveOrNegative2 : settle_info.incomeBaseToken.is_positive(),
+                        incomeBaseToken : settle_info.incomeBaseToken.abs().into_raw(),
+                        positiveOrNegative1 : settle_info.incomeQuoteToken.is_positive(),
+                        incomeQuoteToken : settle_info.incomeQuoteToken.abs().into_raw()
+                    }
+                }).collect::<Vec<SettleValues2>>();
+
+
                 let rt = Runtime::new().unwrap();
                 let chemix_main_client2 = chemix_main_client_receiver.clone();
-                rt.block_on(async move {
-                    chemix_main_client2.read().unwrap().settlement_trades().await;
+                let  settlement_res = rt.block_on(async {
+                    chemix_main_client2.read().unwrap().settlement_trades(settle_trades).await
                 });
+
 
 
 

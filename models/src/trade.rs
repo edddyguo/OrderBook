@@ -33,7 +33,7 @@ impl Status {
     }
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug,Clone)]
 pub struct TradeInfo {
     pub id: String,
     pub transaction_id: i32,

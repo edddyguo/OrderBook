@@ -45,12 +45,13 @@ pub struct VaultClient {
     pub last_hash_data: Option<[u8; 32]>
 }
 
-struct SettleValues {
-    user : Address,
-    positiveOrNegative1: bool,
-    incomeQuoteToken: U256,
-    positiveOrNegative2 : bool,
-    incomeBaseToken: U256,
+#[derive(Clone)]
+pub struct SettleValues2 {
+    pub user : Address,
+    pub positiveOrNegative1: bool,
+    pub incomeQuoteToken: U256,
+    pub positiveOrNegative2 : bool,
+    pub incomeBaseToken: U256,
 }
 
 impl ChemixContractClient {
@@ -104,12 +105,13 @@ impl ChemixContractClient {
         todo!()
     }
 
-    pub async fn settlement_trades(&self,){
+    pub async fn settlement_trades(&self, trades : Vec<SettleValues2>) -> TransactionReceipt{
         info!("test1 {:?},{:?}",self.last_index,self.last_hash_data);
         let contract_addr = Address::from_str("0x4312e54480D2895c84aB9967CCbA0D87c5Ab2f02").unwrap();
         let contract = Vault::new(contract_addr, self.client.clone());
         let tokenA = Address::from_str("0x18D5034280703EA96e36a50f6178E43565eaDc67").unwrap();
         let tokenB = Address::from_str("0x7E62F80cA349DB398983E2Ee1434425f5B888f42").unwrap();
+        /***
         let mut trades  = Vec::new();
         trades.push(vault_mod::SettleValues {
             user: Address::from_str("0x613548d151E096131ece320542d19893C4B8c901").unwrap(),
@@ -118,8 +120,26 @@ impl ChemixContractClient {
             positive_or_negative_2: false,
             income_base_token: U256::from(1i32)
         });
-        let result = contract.settlement(tokenA,tokenB,self.last_index.unwrap(),self.last_hash_data.unwrap(),trades).legacy().send().await.unwrap().await.unwrap();
-        info!("settlement_trades res = {:?}",result);
+
+        ub user : Address,
+    pub positiveOrNegative1: bool,
+    pub incomeQuoteToken: U256,
+    pub positiveOrNegative2 : bool,
+    pub incomeBaseToken: U256,
+
+         */
+        let trades2 = trades.iter().map(|x|{
+            SettleValues {
+                user: x.user,
+                positive_or_negative_1: x.positiveOrNegative1,
+                income_quote_token: x.incomeQuoteToken,
+                positive_or_negative_2: x.positiveOrNegative2,
+                income_base_token:  x.incomeBaseToken
+            }
+        }).collect::<Vec<SettleValues>>();
+        let result : TransactionReceipt = contract.settlement(tokenA,tokenB,self.last_index.unwrap(),self.last_hash_data.unwrap(),trades2).legacy().send().await.unwrap().await.unwrap().unwrap();
+        info!("settlement_trades res = {:?},{:?}",result.transaction_hash,result.block_number);
+        result
         /***
          address   quoteToken,
         address   baseToken,
@@ -149,10 +169,10 @@ impl ChemixContractClient {
             .query()
             .await
             .unwrap();
-        info!(" new_order_created_filter len {} at height {}",new_orders.len(),height);
         // emit NewOrderCreated(quoteToken, baseToken, newHashData, orderUser, orderType,
         //                 index, limitPrice, orderAmount);
         if !new_orders.is_empty() {
+            info!(" new_order_created_filter len {:?} at height {},order_user={:?}",new_orders,height,new_orders[0].order_user);
             let last_order = &new_orders[new_orders.len()-1];
             self.last_index = Some(last_order.order_index);
             self.last_hash_data = Some(last_order.hash_data);
@@ -173,9 +193,12 @@ impl ChemixContractClient {
                     true => Buy,
                     false => Sell,
                 };
+                info!("___0001_{}",x.order_user);
+                let account = format!("{:?}",x.order_user);
+                info!("___0002_{}",account);
                 BookOrder {
                     id: order_id,
-                    account: x.order_user.to_string(),
+                    account,
                     side,
                     price: x.limit_price,
                     amount: x.order_amount,
