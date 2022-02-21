@@ -57,8 +57,8 @@ extern crate lazy_static;
 extern crate log;
 
 
-static BaseTokenDecimal: u32 = 11;
-static QuoteTokenDecimal: u32 = 22;
+static BaseTokenDecimal: u32 = 18;
+static QuoteTokenDecimal: u32 = 15;
 
 #[derive(Clone, Serialize, Debug)]
 struct EngineBook {
@@ -163,6 +163,7 @@ pub struct LastTrade {
 pub struct LastTrade2 {
     price: f64,
     amount: f64,
+    height: u32,
     taker_side: Side,
 }
 
@@ -375,7 +376,6 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 }
                 */
                 let settle_trades = settle_values.iter().map(|(address,settle_info)|{
-                    info!("_address {} ",address);
                     SettleValues2 {
                         user : Address::from_str(address).unwrap(),
                         positiveOrNegative2 : settle_info.incomeBaseToken.is_positive(),
@@ -385,17 +385,18 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     }
                 }).collect::<Vec<SettleValues2>>();
 
+                info!("settle_trades {:?} ",settle_trades);
 
+                /***
+               //有revert
                 let rt = Runtime::new().unwrap();
                 let chemix_main_client2 = chemix_main_client_receiver.clone();
                 let  settlement_res = rt.block_on(async {
                     chemix_main_client2.read().unwrap().settlement_trades(settle_trades).await
                 });
+                */
 
-
-
-
-
+                let height = 12345u32;
                 //------------------
                 //todo: marker orders的状态也要更新掉
                 //todo: 异步落表
@@ -434,6 +435,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     LastTrade2 {
                         price: user_price,
                         amount: user_amount,
+                        height,
                         taker_side: x.taker_side.clone(),
                     }
                 }

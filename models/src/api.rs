@@ -8,12 +8,12 @@ pub struct MarketInfo {
     pub id: String,
     base_token_address: String,
     base_token_symbol: String,
-    base_contract_decimal: u32,
-    base_front_decimal: u32,
+    base_contract_decimal: i32,
+    base_front_decimal: i32,
     quote_token_address: String,
     quote_token_symbol: String,
-    quote_contract_decimal: u32,
-    quote_front_decimal: u32,
+    quote_contract_decimal: i32,
+    quote_front_decimal: i32,
 }
 
 pub fn list_markets() -> Vec<MarketInfo> {

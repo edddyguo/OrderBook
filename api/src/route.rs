@@ -53,10 +53,47 @@ struct ChemixRespond {
     data: String,
 }
 
+
+#[derive(Deserialize, Serialize)]
+struct DexInfo {
+    engine_address : String,
+    vault_address : String,
+    proxy_address : String,
+}
+
 fn respond_json(code: u8, msg: String, data: String) -> String {
     let respond = ChemixRespond { code, msg, data };
     serde_json::to_string(&respond).unwrap()
 }
+
+
+/***
+* @api {get} /chemix/dexInfo dex_info
+* @apiName dex_info
+* @apiGroup Exchange
+*
+* @apiSuccess {json} data dex_info
+* @apiSuccessExample {json} Success-Response:
+*{
+*    "code": 200,
+*    "msg": "",
+*    "data": "{\"engine_address\":\"0xde49632Eb0416C5cC159d707B4DE0d4724427999\",\"vault_address\":\"0xC94393A080Df85190541D45d90769aB8D19f30cE\",\"proxy_address\":\"0xA1351C4e528c705e5817c0dd242C1b9dFccfD7d4\"}"
+*}
+*@apiSampleRequest http://139.196.155.96:7010/chemix/dexInfo
+ * */
+
+#[get("/chemix/dexInfo")]
+async fn dex_info(web::Path(()): web::Path<()>) -> impl Responder {
+    let dex_info = DexInfo {
+        engine_address: "0xde49632Eb0416C5cC159d707B4DE0d4724427999".to_string(),
+        vault_address: "0xC94393A080Df85190541D45d90769aB8D19f30cE".to_string(),
+        proxy_address: "0xA1351C4e528c705e5817c0dd242C1b9dFccfD7d4".to_string()
+    };
+    respond_json(200, "".to_string(), serde_json::to_string(&dex_info).unwrap())
+}
+
+
+
 
 /***
 * @api {get} /chemix/listMarkets list supported market
@@ -120,8 +157,8 @@ struct DepthRequest {
 #[get("/chemix/depth")]
 async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     format!("symbol222 {}, limit:{}", info.symbol, info.limit);
-    let base_decimal = 11u32;
-    let quote_decimal = 22u32;
+    let base_decimal = 18u32;
+    let quote_decimal = 15u32;
     let available_buy_orders = list_available_orders("BTC-USDT", Buy);
     let available_sell_orders = list_available_orders("BTC-USDT", Sell);
 
@@ -191,8 +228,8 @@ struct AggTradesRequest {
 
 #[get("/chemix/aggTrades")]
 async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Responder {
-    let base_decimal = 11u32;
-    let quote_decimal = 22u32;
+    let base_decimal = 18u32;
+    let quote_decimal = 15u32;
     let trades = list_trades(info.limit)
         .iter()
         .map(|x| trade::Trade {
@@ -350,6 +387,7 @@ async fn main() -> std::io::Result<()> {
             .service(klines)
             .service(agg_trades)
             .service(freeze_balance)
+            .service(dex_info)
             .service(
                 web::resource("/addMarket/{contract_address}")
                     .route(web::post().to(add_market)),
