@@ -135,6 +135,13 @@ impl Side {
             Sell => "sell",
         }
     }
+
+    pub fn contrary(&self) -> Side {
+        match self {
+            Buy => Sell,
+            Sell => Buy,
+        }
+    }
 }
 
 impl From<&str> for Side {
