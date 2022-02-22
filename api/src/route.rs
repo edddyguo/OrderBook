@@ -34,15 +34,15 @@ struct Markets {
 
 #[derive(Deserialize, Serialize)]
 struct DexProfile {
-    cumulativeTVL : f64,
-    cumulativeTransactions : u32,
-    cumulativeTraders : u32,
-    numberOfTraders : u32,
-    tradingVolume : f64,
-    numberOfTransactions : u32,
-    TVL : f64,
-    tradingPairs : u8,
-    price : f64,
+    cumulativeTVL: f64,
+    cumulativeTransactions: u32,
+    cumulativeTraders: u32,
+    numberOfTraders: u32,
+    tradingVolume: f64,
+    numberOfTransactions: u32,
+    TVL: f64,
+    tradingPairs: u8,
+    price: f64,
 }
 
 #[derive(Serialize)]
@@ -56,9 +56,9 @@ struct ChemixRespond {
 
 #[derive(Deserialize, Serialize)]
 struct DexInfo {
-    engine_address : String,
-    vault_address : String,
-    proxy_address : String,
+    engine_address: String,
+    vault_address: String,
+    proxy_address: String,
 }
 
 fn respond_json(code: u8, msg: String, data: String) -> String {
@@ -87,12 +87,10 @@ async fn dex_info(web::Path(()): web::Path<()>) -> impl Responder {
     let dex_info = DexInfo {
         engine_address: "0xde49632Eb0416C5cC159d707B4DE0d4724427999".to_string(),
         vault_address: "0xC94393A080Df85190541D45d90769aB8D19f30cE".to_string(),
-        proxy_address: "0xA1351C4e528c705e5817c0dd242C1b9dFccfD7d4".to_string()
+        proxy_address: "0xA1351C4e528c705e5817c0dd242C1b9dFccfD7d4".to_string(),
     };
     respond_json(200, "".to_string(), serde_json::to_string(&dex_info).unwrap())
 }
-
-
 
 
 /***
@@ -169,28 +167,28 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
 
     'buy_orders: for available_buy_order in available_buy_orders {
         'asks: for mut bid in bids.clone() {
-            if u256_to_f64(available_buy_order.price,quote_decimal) == bid.0 {
-                bid.1 += u256_to_f64(available_buy_order.amount,base_decimal);
+            if u256_to_f64(available_buy_order.price, quote_decimal) == bid.0 {
+                bid.1 += u256_to_f64(available_buy_order.amount, base_decimal);
                 continue 'buy_orders;
             }
         }
         if bids.len() as u32 == info.limit {
             break 'buy_orders;
         }
-        bids.push((u256_to_f64(available_buy_order.price,quote_decimal), u256_to_f64(available_buy_order.amount,base_decimal)));
+        bids.push((u256_to_f64(available_buy_order.price, quote_decimal), u256_to_f64(available_buy_order.amount, base_decimal)));
     }
 
     'sell_orders: for available_sell_order in available_sell_orders {
         'bids: for mut ask in asks.clone() {
-            if u256_to_f64(available_sell_order.price,quote_decimal) == ask.0 {
-                ask.1 += u256_to_f64(available_sell_order.amount,base_decimal);
+            if u256_to_f64(available_sell_order.price, quote_decimal) == ask.0 {
+                ask.1 += u256_to_f64(available_sell_order.amount, base_decimal);
                 continue 'sell_orders;
             }
         }
         if asks.len() as u32 == info.limit {
             break 'sell_orders;
         }
-        asks.push((u256_to_f64(available_sell_order.price,quote_decimal), u256_to_f64(available_sell_order.amount,base_decimal)));
+        asks.push((u256_to_f64(available_sell_order.price, quote_decimal), u256_to_f64(available_sell_order.amount, base_decimal)));
     }
 
     let mut depth_data = depth::Depth { asks, bids };
@@ -230,12 +228,12 @@ struct AggTradesRequest {
 async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Responder {
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
-    let trades = list_trades(None,info.limit)
+    let trades = list_trades(None, Some("BTC-USDT".to_string()), info.limit)
         .iter()
         .map(|x| trade::Trade {
             id: x.id.clone(),
-            price: u256_to_f64(x.price,quote_decimal),
-            amount: u256_to_f64(x.amount,base_decimal),
+            price: u256_to_f64(x.price, quote_decimal),
+            amount: u256_to_f64(x.amount, base_decimal),
             height: 12345u32,
             taker_side: x.taker_side.clone(),
             updated_at: time2unix(x.created_at.clone()),
@@ -334,7 +332,7 @@ async fn dex_profile() -> impl Responder {
         numberOfTransactions: 0,
         TVL: 0.0,
         tradingPairs: 0,
-        price: 0.0
+        price: 0.0,
     };
     respond_json(200, "".to_string(), serde_json::to_string(&profile).unwrap())
 }
@@ -352,7 +350,6 @@ async fn add_market(web::Path(contract_address): web::Path<String>) -> HttpRespo
 async fn echo(req_body: String) -> impl Responder {
     HttpResponse::Ok().body(req_body)
 }
-
 
 
 /***
@@ -373,42 +370,42 @@ async fn echo(req_body: String) -> impl Responder {
 * }
 *@apiSampleRequest http://139.196.155.96:7010/chemix/listOrders
  * */
-#[derive(Deserialize, Serialize,Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 struct ListOrdersRequest {
     account: String,
-    limit: u32
+    limit: u32,
 }
+
 //todo: 所有的数据库都加上numPows字段，在后models里处理
 #[get("/chemix/listOrders")]
 async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Responder {
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     let account = info.account.clone().to_lowercase();
-    let orders = list_users_orders(account.as_str(),Status::from("pending"),Status::from("partial_filled"),info.limit);
-    let orders = orders.iter().map(|x|{
-        EngineOrderTmp2{
+    let orders = list_users_orders(account.as_str(), Status::from("pending"), Status::from("partial_filled"), info.limit);
+    let orders = orders.iter().map(|x| {
+        EngineOrderTmp2 {
             id: "BTC-USDT".to_string(),
             index: x.index.to_string(),
             account: x.account.clone(),
-            price: u256_to_f64(x.price,quote_decimal),
-            amount: u256_to_f64(x.amount,base_decimal),
+            price: u256_to_f64(x.price, quote_decimal),
+            amount: u256_to_f64(x.amount, base_decimal),
             side: x.side.as_str().to_string(),
             status: x.status.as_str().to_string(),
-            created_at: "".to_string()
+            created_at: "".to_string(),
         }
     }).collect::<Vec<EngineOrderTmp2>>();
     respond_json(200, "".to_string(), serde_json::to_string(&orders).unwrap())
 }
 
 
-
 /***
-* @api {get} /chemix/recentTrades listOrders
+* @api {get} /chemix/recentTrades recentTrades
 * @apiName recentTrades
 * @apiGroup Exchange
 * @apiQuery {String} account user
 * @apiQuery {Number} limit  trade data size
-* @apiSuccess {json} data  current available orders
+* @apiSuccess {json} data  recentTrades
 * @apiSuccessExample {json} Success-Response:
 * {
 *   "msg": "",
@@ -418,12 +415,12 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
 *   ]
 *   "code": 200
 * }
-*@apiSampleRequest http://139.196.155.96:7010/chemix/listOrders
+*@apiSampleRequest http://139.196.155.96:7010/chemix/recentTrades
  * */
-#[derive(Deserialize, Serialize,Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 struct RecentTradesRequest {
     account: String,
-    limit: u32
+    limit: u32,
 }
 
 #[get("/chemix/recentTrades")]
@@ -431,20 +428,24 @@ async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> imp
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     let account = info.account.clone().to_lowercase();
-    let orders = list_users_orders(account.as_str(),Status::from("pending"),Status::from("partial_filled"),info.limit);
-    let orders = orders.iter().map(|x|{
-        EngineOrderTmp2{
-            id: "BTC-USDT".to_string(),
-            index: x.index.to_string(),
-            account: x.account.clone(),
-            price: u256_to_f64(x.price,quote_decimal),
-            amount: u256_to_f64(x.amount,base_decimal),
-            side: x.side.as_str().to_string(),
-            status: x.status.as_str().to_string(),
-            created_at: "".to_string()
+    let trades = list_trades(Some(account.clone()), None, info.limit);
+    let trades = trades.iter().map(|x| {
+        let side = if account == x.taker {
+            x.taker_side.clone()
+        }else {
+            x.taker_side.contrary()
+        };
+        trade::Trade {
+            id: x.id.clone(),
+            price: u256_to_f64(x.price, quote_decimal),
+            amount: u256_to_f64(x.amount, base_decimal),
+            height: 12345u32,
+            // fixme: maybe side?
+            taker_side: side,
+            updated_at: time2unix(x.created_at.clone()),
         }
-    }).collect::<Vec<EngineOrderTmp2>>();
-    respond_json(200, "".to_string(), serde_json::to_string(&orders).unwrap())
+    }).collect::<Vec<trade::Trade>>();
+    respond_json(200, "".to_string(), serde_json::to_string(&trades).unwrap())
 }
 
 
@@ -485,7 +486,7 @@ async fn main() -> std::io::Result<()> {
             .service(freeze_balance)
             .service(dex_info)
             .service(list_orders)
-
+            .service(recent_trades)
             .service(
                 web::resource("/addMarket/{contract_address}")
                     .route(web::post().to(add_market)),
@@ -493,7 +494,7 @@ async fn main() -> std::io::Result<()> {
             .service(echo)
         //.service(web::resource("/chemix/depth").route(web::get().to(depth)))
     })
-    .bind(service.as_str())?
-    .run()
-    .await
+        .bind(service.as_str())?
+        .run()
+        .await
 }

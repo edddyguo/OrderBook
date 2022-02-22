@@ -26,10 +26,10 @@ pub enum Status {
 impl Status {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Matched => "matched",
-            Launched => "launched",
-            Confirmed => "confirmed",
-            Abandoned => "abandoned",
+            Status::Matched => "matched",
+            Status::Launched => "launched",
+            Status::Confirmed => "confirmed",
+            Status::Abandoned => "abandoned",
         }
     }
 }
@@ -124,15 +124,22 @@ pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
     info!("success insert traders {} rows", execute_res);
 }
 
-pub fn list_trades(user: Option<String>,limit: u32) -> Vec<TradeInfo> {
-    let account_filter_str = match user {
-        None => {
+pub fn list_trades(user: Option<String>,market_id: Option<String>,limit: u32) -> Vec<TradeInfo> {
+    let filter_str = match (user,market_id) {
+        (None, None) => {
             format!("")
+        },
+        (Some(account), None) => {
+            format!(" taker='{}' or maker='{}' ",account,account)
         }
-        Some(account) => {
-            format!(" and account='{}'",account)
+        (None, Some(id)) => {
+            format!(" market_id='{}'",id)
+        }
+        (Some(account), Some(id)) => {
+            format!(" market_id='{}' and (taker='{}' or maker='{}') ",id,account,account)
         }
     };
+
     let sql = format!(
         "select \
     id,\
@@ -150,8 +157,8 @@ pub fn list_trades(user: Option<String>,limit: u32) -> Vec<TradeInfo> {
     cast(created_at as text), \
     cast(updated_at as text) \
     from chemix_trades \
-    where market_id='BTC-USDT' {} order by created_at ASC limit {}",
-        limit,account_filter_str
+    where {} order by created_at ASC limit {}",
+        filter_str,limit
     );
     let mut trades: Vec<TradeInfo> = Vec::new();
     let rows = crate::query(sql.as_str()).unwrap();

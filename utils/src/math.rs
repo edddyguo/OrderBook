@@ -38,7 +38,6 @@ pub fn narrow(ori: u64) -> f64 {
 
 //todo:考虑用其他库,硬编码精度为8位，decimal超过37的话仍溢出，目前业务不会触发
 pub fn u256_to_f64(ori: U256,decimal: u32) -> f64 {
-    println!("_0001_ori {}",ori);
     let decimal_value = U256::from(10u32).pow(U256::from(decimal - 8));
     let dist_int = ori.div(decimal_value);
     let mut dist = Decimal::from(dist_int.as_u128());
