@@ -7,13 +7,14 @@ pub mod trade;
 extern crate jsonrpc_client_core;
 extern crate jsonrpc_client_http;
 
-use postgres::{Client, NoTls};
+use postgres::{Client, Error, NoTls, Row};
 use std::any::Any;
 use std::env;
 
 use std::fmt::Debug;
 
 use std::sync::Mutex;
+use anyhow::{anyhow, Result};
 
 
 extern crate chrono;
@@ -26,6 +27,7 @@ extern crate log;
 extern crate lazy_static;
 
 use chrono::Local;
+use serde_json::error::Category::Data;
 
 use crate::order::{OrderInfo, Side};
 use crate::trade::TradeInfo;
@@ -70,6 +72,50 @@ fn connetDB() -> Option<postgres::Client> {
     }
 }
 
+
+pub fn query(raw_sql: &str) -> anyhow::Result<Vec<Row>>{
+    let mut try_times = 5;
+    loop {
+        match  crate::CLIENTDB.lock().unwrap().query(raw_sql, &[]) {
+            Ok(data) => {
+                return Ok(data);
+            }
+            Err(error) => {
+                if try_times == 0 {
+                    //Err(anyhow!("Missing attribute: {}", missing));
+                    return Err(anyhow!("retry query failed"));
+                }else {
+                    info!("error {:?}",error);
+                    crate::restartDB();
+                    try_times -= 1;
+                    continue;
+                }
+            }
+        }
+    }
+}
+
+pub fn execute(raw_sql: &str) -> anyhow::Result<u64>{
+    let mut try_times = 5;
+    loop {
+        match  crate::CLIENTDB.lock().unwrap().execute(raw_sql, &[]) {
+            Ok(data) => {
+                return Ok(data);
+            }
+            Err(_) => {
+                if try_times == 0 {
+                    //Err(anyhow!("Missing attribute: {}", missing));
+                    return Err(anyhow!("retry execute failed"));
+                }else {
+                    crate::restartDB();
+                    try_times -= 1;
+                    continue;
+                }
+            }
+        }
+    }
+}
+
 pub trait FormatSql {
     fn string4sql(&self) -> String;
 }
@@ -110,6 +156,7 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
     match value.downcast_ref::<OrderInfo>() {
         Some(trade) => {
             trade_vec.push(trade.id.string4sql());
+            trade_vec.push(trade.index.to_string());
             trade_vec.push(trade.market_id.string4sql());
             trade_vec.push(trade.account.string4sql());
             trade_vec.push(trade.side.string4sql());

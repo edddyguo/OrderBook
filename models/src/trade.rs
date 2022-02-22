@@ -1,3 +1,4 @@
+use std::fmt::format;
 use std::str::FromStr;
 use ethers_core::types::U256;
 use crate::order::Side;
@@ -52,7 +53,6 @@ pub struct TradeInfo {
 }
 
 impl TradeInfo {
-    //todo：side和status都改enum
     pub fn new(
         taker: String,
         maker: String,
@@ -88,7 +88,7 @@ pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
     if trades.is_empty() {
         return;
     }
-    let mut query = format!("insert into chemix_trades values(");
+    let mut sql = format!("insert into chemix_trades values(");
     let tradesArr: Vec<Vec<String>> = trades
         .into_iter()
         .map(|x| struct2array(x))
@@ -109,9 +109,9 @@ pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
             }
         }
         if index < trades_len - 1 {
-            query = format!("{}{}),(", query, temp_value);
+            sql = format!("{}{}),(", sql, temp_value);
         } else {
-            query = format!("{}{})", query, temp_value);
+            sql = format!("{}{})", sql, temp_value);
         }
         let mut str_trade: Vec<String> = Default::default();
         for item in trade {
@@ -120,22 +120,19 @@ pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
         tradesArr2.append(&mut str_trade);
         index += 1;
     }
-    println!("----query==={}", query);
-    let mut result = crate::CLIENTDB.lock().unwrap().execute(&*query, &[]);
-    // let mut result = crate::CLIENTDB.lock().unwrap().execute(&*query, &tradesArr[0..tradesArr.len()]);
-    if let Err(_err) = result {
-        //error!("insert trade sql={} failed {:?}", query, err);
-        if !crate::restartDB() {
-            return;
-        }
-        //&[&bar, &baz],
-        result = crate::CLIENTDB.lock().unwrap().execute(&*query, &[]);
-    }
-    let _rows = result.unwrap();
-    //info!("insert trade successful insert {:?} rows,sql={}",rows, query);
+    let execute_res = crate::execute(sql.as_str()).unwrap();
+    info!("success insert traders {} rows", execute_res);
 }
 
-pub fn list_trades(num: u32) -> Vec<TradeInfo> {
+pub fn list_trades(user: Option<String>,limit: u32) -> Vec<TradeInfo> {
+    let account_filter_str = match user {
+        None => {
+            format!("")
+        }
+        Some(account) => {
+            format!(" and account='{}'",account)
+        }
+    };
     let sql = format!(
         "select \
     id,\
@@ -153,30 +150,14 @@ pub fn list_trades(num: u32) -> Vec<TradeInfo> {
     cast(created_at as text), \
     cast(updated_at as text) \
     from chemix_trades \
-    where market_id='BTC-USDT' order by created_at ASC limit {}",
-        num
+    where market_id='BTC-USDT' {} order by created_at ASC limit {}",
+        limit,account_filter_str
     );
     let mut trades: Vec<TradeInfo> = Vec::new();
-    let mut result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[]);
-    if let Err(_err) = result {
-        //info!("list_available_orders failed {:?}", err);
-        if !crate::restartDB() {
-            return trades;
-        }
-        result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[]);
-    }
-    let rows = result.unwrap();
+    let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
-        let test1: String = row.get(9);
-        let side = match test1.as_str() {
-            "sell" => Sell,
-            "buy" => Buy,
-            _ => {
-                println!("side {}", test1.as_str());
-                assert!(false);
-                Buy
-            }
-        };
+        let side_str: String = row.get(9);
+        let side = Side::from(side_str.as_str());
         let info = TradeInfo {
             id: row.get(0),
             transaction_id: row.get(1), //todo: 待加逻辑

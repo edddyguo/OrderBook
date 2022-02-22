@@ -6,6 +6,7 @@ pub struct Trade {
     pub id: String,
     pub price: f64,
     pub amount: f64,
+    pub height: u32,
     pub taker_side: Side,
     pub updated_at: u64,
 }

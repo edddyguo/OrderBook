@@ -78,6 +78,7 @@ create index idx_local_chemix_trades_tmp_txhash on chemix_trades_tmp (transactio
 -- orders table
 create table chemix_orders(
   id text  primary key,
+  index integer,
   market_id text ,
   account text ,
   side text ,

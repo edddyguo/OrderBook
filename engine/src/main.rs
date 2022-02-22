@@ -80,6 +80,7 @@ lazy_static! {
         let mut available_sell2 = available_sell.iter().map(|x|{
             BookOrder {
                 id: x.id.clone(),
+                index: U256::from(0i8),
                 account: x.account.clone(),
                 side: x.side.clone(),
                 price: x.price,
@@ -95,6 +96,7 @@ lazy_static! {
         let mut available_buy2 = available_buy.iter().map(|x|{
             BookOrder {
                 id: x.id.clone(),
+                index: U256::from(0i8), //todo
                 account: x.account.clone(),
                 side: x.side.clone(),
                 price: x.price,
@@ -277,7 +279,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 let u256_zero = U256::from(0i32);
 
                 for (index, order) in orders.into_iter().enumerate() {
-                    let mut db_order = OrderInfo::new(order.id.clone(), "BTC-USDT".to_string(), order.account.clone(), order.side.clone(), order.price.clone(), order.amount.clone());
+                    let mut db_order = OrderInfo::new(order.id.clone(), order.index.clone(),"BTC-USDT".to_string(), order.account.clone(), order.side.clone(), order.price.clone(), order.amount.clone());
                     let matched_amount = match_order(order, &mut db_trades, &mut add_depth, &mut db_marker_orders_reduce);
 
                     error!("index={},taker_amount={},matched_amount={}",index,db_order.amount,matched_amount);
@@ -388,7 +390,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 info!("settle_trades {:?} ",settle_trades);
 
                 /***
-               //有revert
+               //fixme:有revert
                 let rt = Runtime::new().unwrap();
                 let chemix_main_client2 = chemix_main_client_receiver.clone();
                 let  settlement_res = rt.block_on(async {
@@ -424,6 +426,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                         matched_amount: new_matched_amount,
                         updated_at: get_current_time(),
                     };
+                    //todo: 批量更新
                     update_order(&update_info);
                 }
                 insert_trades(&mut db_trades);

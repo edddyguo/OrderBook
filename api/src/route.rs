@@ -10,7 +10,7 @@ use std::env;
 use log::info;
 
 use chemix_models::api::list_markets as list_markets2;
-use chemix_models::order::list_available_orders;
+use chemix_models::order::{EngineOrderTmp2, list_available_orders, list_users_orders, Status};
 use chemix_models::trade::list_trades;
 use chemix_utils::time::time2unix;
 use serde::{Deserialize, Serialize};
@@ -230,12 +230,13 @@ struct AggTradesRequest {
 async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Responder {
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
-    let trades = list_trades(info.limit)
+    let trades = list_trades(None,info.limit)
         .iter()
         .map(|x| trade::Trade {
             id: x.id.clone(),
             price: u256_to_f64(x.price,quote_decimal),
             amount: u256_to_f64(x.amount,base_decimal),
+            height: 12345u32,
             taker_side: x.taker_side.clone(),
             updated_at: time2unix(x.created_at.clone()),
         })
@@ -352,6 +353,101 @@ async fn echo(req_body: String) -> impl Responder {
     HttpResponse::Ok().body(req_body)
 }
 
+
+
+/***
+* @api {get} /chemix/listOrders listOrders
+* @apiName listOrders
+* @apiGroup Exchange
+* @apiQuery {String} account user
+* @apiQuery {Number} limit  trade data size
+* @apiSuccess {json} data  current available orders
+* @apiSuccessExample {json} Success-Response:
+* {
+*   "msg": "",
+*   "data":[
+*        {"id":"BTC-USDT","price":1000.0,"amount":10.1,"taker_side":"buy","updated_at":1644287259123},
+*        {"id":"BTC-USDT","price":1001.0,"amount":20.2,"taker_side":"sell","updated_at":1644287259123}
+*   ]
+*   "code": 200
+* }
+*@apiSampleRequest http://139.196.155.96:7010/chemix/listOrders
+ * */
+#[derive(Deserialize, Serialize,Debug)]
+struct ListOrdersRequest {
+    account: String,
+    limit: u32
+}
+//todo: 所有的数据库都加上numPows字段，在后models里处理
+#[get("/chemix/listOrders")]
+async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Responder {
+    let base_decimal = 18u32;
+    let quote_decimal = 15u32;
+    let account = info.account.clone().to_lowercase();
+    let orders = list_users_orders(account.as_str(),Status::from("pending"),Status::from("partial_filled"),info.limit);
+    let orders = orders.iter().map(|x|{
+        EngineOrderTmp2{
+            id: "BTC-USDT".to_string(),
+            index: x.index.to_string(),
+            account: x.account.clone(),
+            price: u256_to_f64(x.price,quote_decimal),
+            amount: u256_to_f64(x.amount,base_decimal),
+            side: x.side.as_str().to_string(),
+            status: x.status.as_str().to_string(),
+            created_at: "".to_string()
+        }
+    }).collect::<Vec<EngineOrderTmp2>>();
+    respond_json(200, "".to_string(), serde_json::to_string(&orders).unwrap())
+}
+
+
+
+/***
+* @api {get} /chemix/recentTrades listOrders
+* @apiName recentTrades
+* @apiGroup Exchange
+* @apiQuery {String} account user
+* @apiQuery {Number} limit  trade data size
+* @apiSuccess {json} data  current available orders
+* @apiSuccessExample {json} Success-Response:
+* {
+*   "msg": "",
+*   "data":[
+*        {"id":"BTC-USDT","price":1000.0,"amount":10.1,"taker_side":"buy","updated_at":1644287259123},
+*        {"id":"BTC-USDT","price":1001.0,"amount":20.2,"taker_side":"sell","updated_at":1644287259123}
+*   ]
+*   "code": 200
+* }
+*@apiSampleRequest http://139.196.155.96:7010/chemix/listOrders
+ * */
+#[derive(Deserialize, Serialize,Debug)]
+struct RecentTradesRequest {
+    account: String,
+    limit: u32
+}
+
+#[get("/chemix/recentTrades")]
+async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> impl Responder {
+    let base_decimal = 18u32;
+    let quote_decimal = 15u32;
+    let account = info.account.clone().to_lowercase();
+    let orders = list_users_orders(account.as_str(),Status::from("pending"),Status::from("partial_filled"),info.limit);
+    let orders = orders.iter().map(|x|{
+        EngineOrderTmp2{
+            id: "BTC-USDT".to_string(),
+            index: x.index.to_string(),
+            account: x.account.clone(),
+            price: u256_to_f64(x.price,quote_decimal),
+            amount: u256_to_f64(x.amount,base_decimal),
+            side: x.side.as_str().to_string(),
+            status: x.status.as_str().to_string(),
+            created_at: "".to_string()
+        }
+    }).collect::<Vec<EngineOrderTmp2>>();
+    respond_json(200, "".to_string(), serde_json::to_string(&orders).unwrap())
+}
+
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
@@ -388,6 +484,8 @@ async fn main() -> std::io::Result<()> {
             .service(agg_trades)
             .service(freeze_balance)
             .service(dex_info)
+            .service(list_orders)
+
             .service(
                 web::resource("/addMarket/{contract_address}")
                     .route(web::post().to(add_market)),

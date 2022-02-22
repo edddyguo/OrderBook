@@ -84,6 +84,31 @@ pub struct EngineOrder {
     pub created_at: String,
 }
 
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct EngineOrderTmp1 {
+    pub id: String,
+    pub index: U256,
+    pub account: String,
+    pub price: U256,
+    pub amount: U256,
+    pub side: Side,
+    pub status: Status,
+    pub created_at: String,
+}
+
+#[derive(Deserialize, Debug, Clone,Serialize)]
+pub struct EngineOrderTmp2 {
+    pub id: String,
+    pub index: String,
+    pub account: String,
+    pub price: f64,
+    pub amount: f64,
+    pub side: String,
+    pub status: String,
+    pub created_at: String,
+}
+
 #[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
 pub enum Side {
     #[serde(rename = "buy")]
@@ -96,6 +121,7 @@ pub enum Side {
 pub struct BookOrder {
     pub id: String,
     pub account: String,
+    pub index: U256,
     pub side: Side,
     pub price: U256,
     pub amount: U256,
@@ -128,6 +154,7 @@ amount = available_amount + matched_amount + canceled_amount
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct OrderInfo {
     pub id: String,
+    pub index: U256,
     pub market_id: String,
     pub account: String,
     pub side: String,
@@ -150,6 +177,7 @@ pub struct MarketVolume {
 impl OrderInfo {
     pub fn new(
         id: String,
+        index: U256,
         market_id: String,
         account: String,
         side: Side,
@@ -162,6 +190,7 @@ impl OrderInfo {
         };
         OrderInfo {
             id,
+            index,
             market_id,
             account,
             side: side.to_string(),
@@ -182,30 +211,22 @@ pub fn insert_order(orders: Vec<OrderInfo>) {
     for order in orders.into_iter() {
         let order_info = struct2array(&order);
 
-        let mut query = format!("insert into chemix_orders values(");
+        let mut sql = format!("insert into chemix_orders values(");
         for i in 0..order_info.len() {
             if i < order_info.len() - 1 {
-                query = format!("{}{},", query, order_info[i]);
+                sql = format!("{}{},", sql, order_info[i]);
             } else {
-                query = format!("{}{})", query, order_info[i]);
+                sql = format!("{}{})", sql, order_info[i]);
             }
         }
-        info!("insert order successful insert,sql={}", query);
-        let mut result = crate::CLIENTDB.lock().unwrap().execute(&*query, &[]);
-        // let mut result = crate::CLIENTDB.lock().unwrap().execute(&*query, &tradesArr[0..tradesArr.len()]);
-        if let Err(_err) = result {
-            //info!("insert order sql={} failed {:?}", query, err);
-            if !crate::restartDB() {
-                return;
-            }
-            result = crate::CLIENTDB.lock().unwrap().execute(&*query, &[]);
-        }
-        let _rows = result.unwrap();
+        info!("insert order successful insert,sql={}", sql);
+        let execute_res = crate::execute(sql.as_str()).unwrap();
+        info!("success insert {} rows", execute_res);
     }
 }
 
 pub fn update_order(order: &UpdateOrder) {
-    // fixme:考虑数据后期增加的问题，做每日的临时表
+    // todo:考虑数据后期增加的问题，做每日的临时表
     let sql = format!(
         "UPDATE chemix_orders SET (available_amount,\
          canceled_amount,matched_amount,status,updated_at)=\
@@ -217,16 +238,9 @@ pub fn update_order(order: &UpdateOrder) {
         order.updated_at,
         order.id
     );
-    let mut result = crate::CLIENTDB.lock().unwrap().execute(&*sql, &[]);
-    if let Err(err) = result {
-        info!("update order failed {:?},sql={}", err, sql);
-        if !crate::restartDB() {
-            return;
-        }
-        result = crate::CLIENTDB.lock().unwrap().execute(&*sql, &[]);
-    }
-    info!("success update {} rows", result.unwrap());
-    return;
+    info!("start update order {} ", sql);
+    let execute_res = crate::execute(sql.as_str()).unwrap();
+    info!("success update order {} rows", execute_res);
 }
 
 pub fn list_available_orders(market_id: &str, side: Side) -> Vec<EngineOrder> {
@@ -237,16 +251,8 @@ pub fn list_available_orders(market_id: &str, side: Side) -> Vec<EngineOrder> {
     side,\
     cast(created_at as text) from chemix_orders \
     where market_id='{}' and available_amount!=\'0\' and side='{}' order by created_at ASC", market_id, side.as_str());
-    let mut orders: Vec<EngineOrder> = Vec::new();
-    let mut result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[]);
-    if let Err(_err) = result {
-        //info!("list_available_orders failed {:?}", err);
-        if !crate::restartDB() {
-            return orders;
-        }
-        result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[]);
-    }
-    let rows = result.unwrap();
+    let mut orders = Vec::<EngineOrder>::new();
+    let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
         let side_str: String = row.get(4);
         let side = match side_str.as_str() {
@@ -279,7 +285,7 @@ pub fn list_available_orders(market_id: &str, side: Side) -> Vec<EngineOrder> {
 
 pub fn get_order(id: &str) -> Result<OrderInfo,String> {
     let sql = format!(
-        "select id,market_id,account,side,
+        "select id,index,market_id,account,side,
          amount,\
          price,\
          status,\
@@ -288,32 +294,62 @@ pub fn get_order(id: &str) -> Result<OrderInfo,String> {
          canceled_amount,\
          cast(updated_at as text) ,\
          cast(created_at as text) \
-         from chemix_orders where id=$1"
+         from chemix_orders where id=\'{}\'",id
     );
-    let mut result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[&id]);
-    if let Err(_err) = result {
-        //info!("get order failed {:?},sql={}", err, sql);
-        if !crate::restartDB() {
-            return Err("psql restart failed".to_string());
-        }
-        result = crate::CLIENTDB.lock().unwrap().query(&*sql, &[&id]);
-    }
-
-
-    let rows = result.unwrap();
+    let rows = crate::query(sql.as_str()).unwrap();
     let order = OrderInfo {
         id: rows[0].get(0),
-        market_id: rows[0].get(1),
-        account: rows[0].get(2),
-        side: rows[0].get(3),
-        price: U256::from_str_radix(rows[0].get::<usize,&str>(4usize),10).unwrap(),
-        amount: U256::from_str_radix(rows[0].get::<usize,&str>(5usize),10).unwrap(),
-        status: Status::from(rows[0].get::<usize,&str>(6usize)),
-        available_amount: U256::from_str_radix(rows[0].get::<usize,&str>(7usize),10).unwrap(),
-        matched_amount: U256::from_str_radix(rows[0].get::<usize,&str>(8usize),10).unwrap(),
-        canceled_amount: U256::from_str_radix(rows[0].get::<usize,&str>(9usize),10).unwrap(),
-        updated_at: rows[0].get(10),
-        created_at: rows[0].get(11),
+        index: U256::from(rows[0].get::<usize,i32>(1)),
+        market_id: rows[0].get(2),
+        account: rows[0].get(3),
+        side: rows[0].get(4),
+        price: U256::from_str_radix(rows[0].get::<usize,&str>(5usize),10).unwrap(),
+        amount: U256::from_str_radix(rows[0].get::<usize,&str>(6usize),10).unwrap(),
+        status: Status::from(rows[0].get::<usize,&str>(7usize)),
+        available_amount: U256::from_str_radix(rows[0].get::<usize,&str>(8usize),10).unwrap(),
+        matched_amount: U256::from_str_radix(rows[0].get::<usize,&str>(9usize),10).unwrap(),
+        canceled_amount: U256::from_str_radix(rows[0].get::<usize,&str>(10usize),10).unwrap(),
+        updated_at: rows[0].get(11),
+        created_at: rows[0].get(12),
     };
     Ok(order)
+}
+
+
+
+pub fn list_users_orders(account: &str, status1: Status,status2: Status,limit: u32) -> Vec<EngineOrderTmp1> {
+    let sql = format!("select id,index,\
+    account,\
+    price,\
+    available_amount,\
+    side,\
+    status,\
+    cast(created_at as text) from chemix_orders \
+    where account='{}' and (status=\'{}\' or status=\'{}\') order by created_at ASC limit {}", account, status1.as_str(),status2.as_str(),limit);
+    info!("list_users_orders raw sql {}",sql);
+    let mut orders = Vec::<EngineOrderTmp1>::new();
+    let rows = crate::query(sql.as_str()).unwrap();
+    for row in rows {
+        let side_str: String = row.get(5);
+        let side = Side::from(side_str.as_str());
+
+        let status_str: String = row.get(6);
+        let status = Status::from(status_str.as_str());
+
+        let info = EngineOrderTmp1 {
+            id: row.get(0),
+            index: U256::from(row.get::<usize,i32>(1)),
+            account: row.get(2),
+            price: U256::from_str_radix(row.get::<usize,&str>(3),10).unwrap(),
+            amount: U256::from_str_radix(row.get::<usize,&str>(4),10).unwrap(),
+            side,
+            status,
+            created_at: row.get(7),
+        };
+        orders.push(info);
+    }
+    orders.sort_by(|a,b|{
+        a.price.partial_cmp(&b.price).unwrap()
+    });
+    orders
 }

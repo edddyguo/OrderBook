@@ -45,7 +45,7 @@ pub struct VaultClient {
     pub last_hash_data: Option<[u8; 32]>
 }
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct SettleValues2 {
     pub user : Address,
     pub positiveOrNegative1: bool,
@@ -89,13 +89,13 @@ impl ChemixContractClient {
                 info!("new_limit_buy_order,quoteToken={},baseToken={},price={},amount={}",quoteToken,baseToken,price,amount);
                 let result = contract.new_limit_buy_order(baseToken,quoteToken,price,amount,U256::from(18u32))
                     .legacy().send().await?.await?;
-                info!("new buy order result  {:?}",result);
+               // info!("new buy order result  {:?}",result);
             },
             "sell" =>{
                 info!("new_limit_buy_order,quoteToken={},baseToken={},price={},amount={}",quoteToken,baseToken,price,amount);
                 let result = contract.new_limit_sell_order(baseToken,quoteToken,price,amount,U256::from(18u32))
                     .legacy().send().await?.await?;
-                info!("new sell order result  {:?}",result);
+                //info!("new sell order result  {:?}",result);
             }
             _ => {
                 unreachable!()
@@ -167,6 +167,7 @@ impl ChemixContractClient {
                 BookOrder {
                     id: order_id,
                     account,
+                    index: x.order_index,
                     side,
                     price: x.limit_price,
                     amount: x.order_amount,
