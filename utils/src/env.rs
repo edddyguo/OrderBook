@@ -1,19 +1,4 @@
 use std::env;
-/***
-export CHEMIX_MODE=dev
-export API_PORT=8010
-export WS_PORT=8020
-export PSQL=1
-export REDIS=2
-export CHAIN_RPC=2
-export CHAIN_WS=2
-export CHEMIX_MAIN=1
-export CHEMIX_STORAGE
-export CHEMIX_TOKEN_PROXY
-export CHEMIX_VAULT
-export CHEMIX_RELAYER_PRIKEY
-export CHEMIX_BOT
-*/
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::string::String;
@@ -34,6 +19,7 @@ pub struct EnvConf{
 }
 
 lazy_static! {
+    //业务模块具体处理是否必须从环境变量注入
     static ref Conf: EnvConf = {
         EnvConf {
             chemix_mode: env::var_os("CHEMIX_MODE"),
