@@ -7,7 +7,7 @@ module.exports = {
   solidity: "0.8.4",
   networks: {
     tbsc: {
-      url: 'https://data-seed-prebsc-2-s3.binance.org:8545', //bsc test net
+      url: 'https://data-seed-prebsc-1-s1.binance.org:8545', //bsc test net
       accounts: [
         // 0xfAA56B120b8de4597cF20EfF21045a9883e82aad (第14个账户地址及秘钥)
         '0x1b03a06c4a89d570a8f1d39e9ff0be8891f7657898675f11585aa7ec94fe2d12',

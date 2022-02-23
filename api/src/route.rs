@@ -85,9 +85,9 @@ fn respond_json(code: u8, msg: String, data: String) -> String {
 #[get("/chemix/dexInfo")]
 async fn dex_info(web::Path(()): web::Path<()>) -> impl Responder {
     let dex_info = DexInfo {
-        engine_address: "0xde49632Eb0416C5cC159d707B4DE0d4724427999".to_string(),
-        vault_address: "0xC94393A080Df85190541D45d90769aB8D19f30cE".to_string(),
-        proxy_address: "0xA1351C4e528c705e5817c0dd242C1b9dFccfD7d4".to_string(),
+        engine_address: "0x0f48DDFe03827cd5Efb23122B44955c222eCd720".to_string(),
+        vault_address: "0x003fDe97E3a0932B2Bc709e952C6C9D73E0E9aE4".to_string(),
+        proxy_address: "0x913e9d1a60bEb3312472A53CAe1fe64bC4df60e2".to_string(),
     };
     respond_json(200, "".to_string(), serde_json::to_string(&dex_info).unwrap())
 }

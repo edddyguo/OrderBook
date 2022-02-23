@@ -8,6 +8,7 @@ import { TokenProxy } from "./TokenProxy.sol";
 import { StaticAccessControlled } from "./lib/StaticAccessControlled.sol";
 import { TokenInteract } from "./lib/TokenInteract.sol";
 import { ChemixStorage } from "./impl/ChemixStorage.sol";
+import "hardhat/console.sol";
 
 /**
  * @title Vault
@@ -77,6 +78,7 @@ contract Vault is
     )
         StaticAccessControlled()
     {
+        console.log("--start deploy vault--");
         TOKEN_PROXY = proxyAddr;
         STORAGE = storageAddr;
     }
@@ -242,12 +244,16 @@ contract Vault is
             if(settleInfo[i].positiveOrNegative1){
                 balances[baseToken][settleInfo[i].user].availableBalance = balances[baseToken][settleInfo[i].user].availableBalance.add(settleInfo[i].incomeBaseToken);
             }else{
-                balances[baseToken][settleInfo[i].user].availableBalance = balances[baseToken][settleInfo[i].user].availableBalance.sub(settleInfo[i].incomeBaseToken);
+                console.log("[BaseToken]: start sub: %s - %s ", balances[baseToken][settleInfo[i].user].frozenBalace,settleInfo[i].incomeBaseToken);
+                balances[baseToken][settleInfo[i].user].frozenBalace = balances[baseToken][settleInfo[i].user].frozenBalace.sub(settleInfo[i].incomeBaseToken);
+                console.log("[BaseToken]: finished sub: result  ", balances[baseToken][settleInfo[i].user].frozenBalace);
             }
             if(settleInfo[i].positiveOrNegative2){
                 balances[quoteToken][settleInfo[i].user].availableBalance = balances[quoteToken][settleInfo[i].user].availableBalance.add(settleInfo[i].incomeQuoteToken);
             }else{
-                balances[quoteToken][settleInfo[i].user].availableBalance = balances[quoteToken][settleInfo[i].user].availableBalance.sub(settleInfo[i].incomeQuoteToken);
+                console.log("[QuoteToken]: start sub: %s - %s ", balances[quoteToken][settleInfo[i].user].frozenBalace,settleInfo[i].incomeQuoteToken);
+                balances[quoteToken][settleInfo[i].user].frozenBalace = balances[quoteToken][settleInfo[i].user].frozenBalace.sub(settleInfo[i].incomeQuoteToken);
+                console.log("[QuoteToken]: finished sub: result  ", balances[quoteToken][settleInfo[i].user].frozenBalace);
             }
         }
         emit Settlement(baseToken, quoteToken, hashData);

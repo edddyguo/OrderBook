@@ -105,9 +105,8 @@ lazy_static! {
             }
         }).collect::<Vec<BookOrder>>();
         available_buy2.sort_by(|a,b|{
-            a.price.partial_cmp(&b.price).unwrap()
+            a.price.partial_cmp(&b.price).unwrap().reverse()
         });
-        available_buy2.reverse();
 
         //let available_sell = Vec::<BookOrder>::new();
         //let available_buy = Vec::<BookOrder>::new();
@@ -210,18 +209,20 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
     //let host = "http://58.33.12.252:8548";
     //let host = "wss://bsc-ws-node.nariox.org:443"
 
-    let mut last_height: U64 = U64::from(34502u64);
+    let mut last_height: U64 = U64::from(200u64);
     let (event_sender, event_receiver) = mpsc::sync_channel(0);
     let arc_queue = Arc::new(RwLock::new(queue));
     let arc_queue = arc_queue.clone();
 
 
     //set network
-    let chemix_main_addr = "0xbCb402d02ED0E78Ab09302c2578CB9f59ebEa70C";
+    let chemix_main_addr = "0xAfC8a33002B274F43FC56D28D515406966354388";
     //test2
     //let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
     //test1
     let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
+    //local test1
+    //let pri_key = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
     let mut chemix_main_client = ChemixContractClient::new(pri_key, chemix_main_addr);
     let chemix_main_client_arc = Arc::new(RwLock::new(chemix_main_client));
     let chemix_main_client_receiver = chemix_main_client_arc.clone();
@@ -238,12 +239,11 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
             rt.block_on(async move {
                 let mut stream = watcher.gen_watcher().await.unwrap();
                 while let Some(block) = stream.next().await {
+                    info!("block {}",block);
+                    //last_height = last_height.add(1i32);
                     let current_height = provider_http.get_block(block).await.unwrap().unwrap();
                     //todo: 处理块高异常的情况,get block from http
                     //assert_eq!(last_height.add(1u64), current_height);
-                    //tokio::time::sleep(time::Duration::from_secs(2)).await;
-                    //tmp,不延时的话监听不到事件1
-
                     let new_orders = chemix_main_client_sender.clone().write().unwrap().filter_new_order_event(current_height).await.unwrap();
                     info!("new_orders_event {:?}",new_orders);
                     if new_orders.is_empty() {
@@ -389,16 +389,16 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
 
                 info!("settle_trades {:?} ",settle_trades);
 
-                /***
+
                //fixme:有revert
                 let rt = Runtime::new().unwrap();
                 let chemix_main_client2 = chemix_main_client_receiver.clone();
                 let  settlement_res = rt.block_on(async {
                     chemix_main_client2.read().unwrap().settlement_trades(settle_trades).await
                 });
-                */
 
-                let height = 12345u32;
+                //todo: 没有区块的情况？
+                let height = settlement_res.block_number.unwrap().to_string().parse::<u32>().unwrap();
                 //------------------
                 //todo: marker orders的状态也要更新掉
                 //todo: 异步落表
@@ -503,6 +503,8 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                             .expect("failed to send message");
                     }
                 });
+
+
             }
         });
     });

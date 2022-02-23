@@ -17,7 +17,7 @@ use std::fs::File;
 use std::io::BufReader;
 
 use std::str::FromStr;
-use log::info;
+use log::{error, info, warn};
 
 use tokio::time;
 use crate::num::ToPrimitive;
@@ -28,6 +28,7 @@ use std::{convert::TryFrom, path::Path, sync::Arc, time::Duration};
 use std::ops::{Div, Mul};
 use chemix_utils::math::MathOperation;
 use chemix_chain::chemix::ChemixContractClient;
+use chemix_models::order::Side::Sell;
 
 abigen!(
     SimpleContract,
@@ -35,43 +36,6 @@ abigen!(
     //"../contract/chemix_trade_abi.json",
     event_derives(serde::Deserialize, serde::Serialize)
 );
-
-
-
-
-
-
-async fn new_order(side: String, price: f64, amount: f64) {
-    /***
-    let mut rsmq = Rsmq::new(Default::default())
-        .await
-        .expect("connection failed");
-    let price_nano = (price * 100000000.0) as u64;
-    let amount_nano = (amount * 100000000.0) as u64;
-
-    let event = NewOrderFilter {
-        user: Address::from_str("0xbc1Bd19FD1b220e989F8bF75645b9B7028Fc255B").unwrap(),
-        base_token: "USDT".to_string(),
-        quote_token: "BTC".to_string(),
-        side,
-        amount: U256::from(amount_nano),
-        price: U256::from(price_nano),
-    };
-    let events = vec![event];
-
-    let json_str = serde_json::to_string(&events).unwrap();
-    let channel_name = match env::var_os("CHEMIX_MODE") {
-        None => "bot_local".to_string(),
-        Some(mist_mode) => {
-            format!("bot_{}", mist_mode.into_string().unwrap())
-        }
-    };
-
-    rsmq.send_message(channel_name.as_str(), json_str, None)
-        .await
-        .expect("failed to send message");
-    */
-}
 
 //fn cancle_order() {}
 
@@ -91,11 +55,21 @@ async fn main() -> anyhow::Result<()> {
     //let pri_key = "b0a09e85dad814ccc7231982401cca5accc3a46bc68349b403a7a129517cc266";
     //tj
     //let pri_key = "1f3bc7d273c179f0b73745d0599a15ece081837a9aa4ccb6351842fcad19fb95";
+    //local
+   // let pri_key = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+    /***
+deployTokenA:   0xc739cD8920C65d372a0561507930aB6993c33E30
+deployTokenB:   0x1982C0fC743078a7484bd82AC7A17BDab344308e
+deployStorage:   0xAfC8a33002B274F43FC56D28D515406966354388
+deployTokenProxy:   0x913e9d1a60bEb3312472A53CAe1fe64bC4df60e2
+deployVault:   0x003fDe97E3a0932B2Bc709e952C6C9D73E0E9aE4
+deployChemiMain:   0x0f48DDFe03827cd5Efb23122B44955c222eCd720
 
+    */
 
-    let chemix_main_addr = "de49632Eb0416C5cC159d707B4DE0d4724427999";
-    let base_token = "02Bc6fC5f0775CA123014262135A69B36AfA8357"; //AAA 18
-    let quote_token = "Bdab332df647C95477be0AC922C4A4176103C009"; //BBB 15
+    let chemix_main_addr = "0x0f48DDFe03827cd5Efb23122B44955c222eCd720";
+    let base_token = "0xc739cD8920C65d372a0561507930aB6993c33E30"; //AAA 18
+    let quote_token = "0x1982C0fC743078a7484bd82AC7A17BDab344308e"; //BBB 15
 
     loop {
         let mut rng = rand::thread_rng();
@@ -114,9 +88,31 @@ async fn main() -> anyhow::Result<()> {
             side, price, amount
         );
         let client = ChemixContractClient::new(pri_key, chemix_main_addr);
-        //client.new_order(side,quote_token,base_token,price,amount).await.unwrap();
-        client.new_order("sell",base_token,quote_token,1.0,1.0).await.unwrap();
-        client.new_order("buy",base_token,quote_token,1.0,1.0).await.unwrap();
+        //side sell price 142.21596998,amount 0.3266204
+        // let price = 142.21596998;
+        // let amount = 0.3266204;
+        // let side = "sell";
+        //todo: 手续费处理
+        loop {
+            match client.new_order(side,base_token,quote_token,price,amount).await {
+                Ok(_) => {
+                    break;
+                }
+                Err(error) => {
+                    if error.to_string().contains("underpriced") {
+                        warn!("gas too low and try again");
+                        tokio::time::sleep(time::Duration::from_millis(1000)).await;
+                    }else {
+                        //tmp code
+                        error!("{}",error);
+                        unreachable!()
+                    }
+                }
+            }
+        }
+
+        //client.new_order("sell",base_token,quote_token,1.0,1.0).await.unwrap();
+        //client.new_order("buy",base_token,quote_token,1.0,1.0).await.unwrap();
 
         /***
         client.new_order("buy",quote_token,base_token,1.0,1.0).await.unwrap();

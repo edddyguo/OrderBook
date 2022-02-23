@@ -8,6 +8,7 @@ import { IChemixFactory } from "./interface/IChemixFactory.sol";
 import { ChemixStorage } from "./impl/ChemixStorage.sol";
 import { Vault } from "./Vault.sol";
 import { StaticAccessControlled } from "./lib/StaticAccessControlled.sol";
+import "hardhat/console.sol";
 
 contract ChemixMain is 
     IChemixFactory,
@@ -142,7 +143,7 @@ contract ChemixMain is
         returns (bool successed)
     {
         require(msg.value >= env.MINFEE, 'Chemix: msg.value less than MINFEE');
-        require(ChemixStorage(env.STORAGE).checkPairExist(quoteToken,baseToken), 'Chemix: PAIR_NOTEXISTS');
+        require(ChemixStorage(env.STORAGE).checkPairExist(baseToken,quoteToken), 'Chemix: PAIR_NOTEXISTS');
         require(ChemixStorage(env.STORAGE).checkIfIndexBelongs(msg.sender, orderIndex),'Chemix: OrderIndex not bolongs msg.sender');
   
         ChemixStorage(env.STORAGE).createCancelOrder(

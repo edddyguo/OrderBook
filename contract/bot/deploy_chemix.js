@@ -27,8 +27,8 @@ async function main() {
 
     console.log("Greeter deployed to:", chemix.address);
      */
-    const tokenA = await hre.ethers.getContractFactory("TokenA");
-    const tokenB = await hre.ethers.getContractFactory("TokenB");
+    const tokenA = await hre.ethers.getContractFactory("BaseToken1");
+    const tokenB = await hre.ethers.getContractFactory("QuoteToken1");
     const deployTokenA = await tokenA.deploy();
     const deployTokenB = await tokenB.deploy();
     await deployTokenA.deployed();

@@ -3,16 +3,20 @@ const { expect } = require('chai') //断言模块
 
 /***
  *
- * deployTokenA:   0xF20e4447DF5D02A9717a1c9a25B8d2FBF973bE56
- * deployTokenB:   0xA7A2a6A3D399e5AD69431aFB95dc86aff3BF871d
- * deployStorage:   0xFFc6817E1c8960b278CCb5e47c2e6D3ae9Fed620
- * deployTokenProxy:   0x357Eb6B854fE982fea32d91340BbdbE5bE7DBCFC
- * deployVault:   0x0563fbAdb1F8bDa9B2E2365826599A26D9f0cb89
- * deployChemixMain:   0x4CF5bd7EB82130763F8EdD0B8Ec44DFa21a5993e
+ * deployTokenA:   0x5FbDB2315678afecb367f032d93F642f64180aa3
+ * deployTokenB:   0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+ * deployStorage:   0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
+ * deployTokenProxy:   0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+ * deployVault:   0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9
+ * deployChemiMain:   0x5FC8d32690cc91D4c39d9d3abcBD16989F875707
  * */
 
 async function main() {
+    //peth
     let account1 = "0x613548d151E096131ece320542d19893C4B8c901"
+    //local
+    //let account1 = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+
     let account2 = "0x37BA121cdE7a0e24e483364185E80ceF655346DD"
     let account3 = "0xca9B361934fc7A7b07814D34423d665268111726"
 
@@ -23,22 +27,24 @@ async function main() {
     var options = { gasPrice: 10000000000, gasLimit: 850000, value: 0 };
 
     /***
-     * deployTokenA:   0x02Bc6fC5f0775CA123014262135A69B36AfA8357
-     * deployTokenB:   0xBdab332df647C95477be0AC922C4A4176103C009
-     * deployStorage:   0xbCb402d02ED0E78Ab09302c2578CB9f59ebEa70C
-     * deployTokenProxy:   0xA1351C4e528c705e5817c0dd242C1b9dFccfD7d4
-     * deployVault:   0xC94393A080Df85190541D45d90769aB8D19f30cE
-     * deployChemiMain:   0xde49632Eb0416C5cC159d707B4DE0d4724427999
+     * 21:47
+     *
+     * deployTokenA:   0xc739cD8920C65d372a0561507930aB6993c33E30
+     * deployTokenB:   0x1982C0fC743078a7484bd82AC7A17BDab344308e
+     * deployStorage:   0xAfC8a33002B274F43FC56D28D515406966354388
+     * deployTokenProxy:   0x913e9d1a60bEb3312472A53CAe1fe64bC4df60e2
+     * deployVault:   0x003fDe97E3a0932B2Bc709e952C6C9D73E0E9aE4
+     * deployChemiMain:   0x0f48DDFe03827cd5Efb23122B44955c222eCd720
      *
      * */
 
 
-    const contractTokenA = await ethers.getContractAt("TokenA",'0x02Bc6fC5f0775CA123014262135A69B36AfA8357')
-    const contractTokenB = await ethers.getContractAt("TokenB",'0xBdab332df647C95477be0AC922C4A4176103C009')
-    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0xbCb402d02ED0E78Ab09302c2578CB9f59ebEa70C')
-    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0xA1351C4e528c705e5817c0dd242C1b9dFccfD7d4')
-    const contractVault = await ethers.getContractAt("Vault",'0xC94393A080Df85190541D45d90769aB8D19f30cE')
-    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0xde49632Eb0416C5cC159d707B4DE0d4724427999')
+    const contractTokenA = await ethers.getContractAt("BaseToken1",'0xc739cD8920C65d372a0561507930aB6993c33E30')
+    const contractTokenB = await ethers.getContractAt("QuoteToken1",'0x1982C0fC743078a7484bd82AC7A17BDab344308e')
+    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0xAfC8a33002B274F43FC56D28D515406966354388')
+    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0x913e9d1a60bEb3312472A53CAe1fe64bC4df60e2')
+    const contractVault = await ethers.getContractAt("Vault",'0x003fDe97E3a0932B2Bc709e952C6C9D73E0E9aE4')
+    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0x0f48DDFe03827cd5Efb23122B44955c222eCd720')
 
     //check pair
 
@@ -47,6 +53,18 @@ async function main() {
 
     let check_pair_result = await contractChemixStorage.checkPairExist(contractTokenA.address,contractTokenB.address,options);
     console.log('check_pair2 result ',check_pair_result);
+
+
+    let A_alanceOf = await contractVault.balanceOf(contractTokenA.address,account1,options);
+    console.log('balanceOfA result ',A_alanceOf);
+    let B_alanceOf = await contractVault.balanceOf(contractTokenB.address,account1,options);
+    console.log('balanceOfB result ',B_alanceOf);
+
+    let balanceAcc_erc20_A = await contractTokenA.balanceOf(account1,options);
+    console.log('balanceA ',balanceAcc_erc20_A);
+    let balanceAcc_erc20_B = await contractTokenB.balanceOf(account1,options);
+    console.log('balanceB ',balanceAcc_erc20_B);
+
     //grantCreatePairAddr
     /***
     let grantCreatePairAddr_result = await contractChemixMain.grantCreatePairAddr(account1,options);
@@ -62,15 +80,7 @@ async function main() {
     console.log('authorizeSettle_res result ',authorizeSettle_res);
 
 
-    let A_alanceOf = await contractVault.balanceOf(contractTokenA.address,account_tj,options);
-    console.log('balanceOfA result ',A_alanceOf);
-    let B_alanceOf = await contractVault.balanceOf(contractTokenB.address,account_tj,options);
-    console.log('balanceOfB result ',B_alanceOf);
 
-    let balanceAcc_erc20_A = await contractTokenA.balanceOf(account_tj,options);
-    console.log('balanceA ',balanceAcc_erc20_A);
-    let balanceAcc_erc20_B = await contractTokenB.balanceOf(account_tj,options);
-    console.log('balanceB ',balanceAcc_erc20_B);
 
 
     //approve
@@ -104,9 +114,9 @@ async function main() {
     let tokenBIssueAcc1Res = await contractTokenB.issue(issueAmountDefault,options);
     console.log('tokenAIssueAcc2Res ',tokenBIssueAcc1Res);
 
-    let balanceAcc1 = await contractTokenA.balanceOf("0x613548d151E096131ece320542d19893C4B8c901",options);
+    let balanceAcc1 = await contractTokenA.balanceOf(account1,options);
     console.log('balanceA ',balanceAcc1);
-    let balanceBcc1 = await contractTokenB.balanceOf("0x613548d151E096131ece320542d19893C4B8c901",options);
+    let balanceBcc1 = await contractTokenB.balanceOf(account1,options);
     console.log('balanceB ',balanceBcc1);
 
 
@@ -116,9 +126,9 @@ async function main() {
     let acc1ApproveTokenBRes = await contractTokenB.approve(contractTokenProxy.address,balanceBcc1,options);
     console.log('acc1ApproveTokenBRes ',acc1ApproveTokenBRes);
 
-    let allowanceA = await contractTokenA.allowance("0x613548d151E096131ece320542d19893C4B8c901",contractTokenProxy.address,options);
+    let allowanceA = await contractTokenA.allowance(account1,contractTokenProxy.address,options);
     console.log('allowanceA ',allowanceA);
-    let allowanceB = await contractTokenB.allowance("0x613548d151E096131ece320542d19893C4B8c901",contractTokenProxy.address,options);
+    let allowanceB = await contractTokenB.allowance(account1,contractTokenProxy.address,options);
     console.log('allowanceB ',allowanceB);
     //
 

@@ -89,13 +89,13 @@ impl ChemixContractClient {
                 info!("new_limit_buy_order,quoteToken={},baseToken={},price={},amount={}",quoteToken,baseToken,price,amount);
                 let result = contract.new_limit_buy_order(baseToken,quoteToken,price,amount,U256::from(18u32))
                     .legacy().send().await?.await?;
-               // info!("new buy order result  {:?}",result);
+               info!("new buy order result  {:?}",result);
             },
             "sell" =>{
                 info!("new_limit_buy_order,quoteToken={},baseToken={},price={},amount={}",quoteToken,baseToken,price,amount);
                 let result = contract.new_limit_sell_order(baseToken,quoteToken,price,amount,U256::from(18u32))
                     .legacy().send().await?.await?;
-                //info!("new sell order result  {:?}",result);
+                info!("new sell order result  {:?}",result);
             }
             _ => {
                 unreachable!()
@@ -110,10 +110,10 @@ impl ChemixContractClient {
 
     pub async fn settlement_trades(&self, trades : Vec<SettleValues2>) -> TransactionReceipt{
         info!("test1 {:?},{:?}",self.last_index,self.last_hash_data);
-        let contract_addr = Address::from_str("0xC94393A080Df85190541D45d90769aB8D19f30cE").unwrap();
+        let contract_addr = Address::from_str("0x003fDe97E3a0932B2Bc709e952C6C9D73E0E9aE4").unwrap();
         let contract = Vault::new(contract_addr, self.client.clone());
-        let tokenA = Address::from_str("0x02Bc6fC5f0775CA123014262135A69B36AfA8357").unwrap();
-        let tokenB = Address::from_str("0xBdab332df647C95477be0AC922C4A4176103C009").unwrap();
+        let tokenA = Address::from_str("0xc739cD8920C65d372a0561507930aB6993c33E30").unwrap();
+        let tokenB = Address::from_str("0x1982C0fC743078a7484bd82AC7A17BDab344308e").unwrap();
         let trades2 = trades.iter().map(|x|{
             SettleValues {
                 user: x.user,
