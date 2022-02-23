@@ -7,10 +7,14 @@ use chemix_utils::math::MathOperation;
 use crate::k256::ecdsa::SigningKey;
 use anyhow::Result;
 use chrono::Local;
-use chemix_utils::algorithm::sha256;
+use chemix_utils::algorithm::{sha256, sha2562};
 use chemix_models::order::Side::*;
 use chemix_models::order::BookOrder;
 use ethers::types::Address;
+use chemix_utils::env;
+use chemix_utils::env::CONF;
+use serde::Serialize;
+
 
 abigen!(
     ChemixMain,
@@ -54,10 +58,46 @@ pub struct SettleValues2 {
     pub incomeBaseToken: U256,
 }
 
+#[derive(Clone,Debug)]
+pub struct CancelOrderState2 {
+    pub base_token : Address,
+    pub quote_token: Address,
+    pub order_user: Address,
+    pub cancel_index : U256,
+    pub order_index: U256,
+    pub hash_data: [u8; 32],
+}
+
+#[derive(Clone,Debug,Serialize)]
+pub struct ThawBalances {
+    pub token : Address,
+    pub from: Address,
+    pub amount: U256,
+}
+
+/****
+
+        emit ThawBalance(token, from, amount);
+
+
+struct CancelOrderState {
+    address   baseToken;
+    address   quoteToken;
+    address   orderUser;
+    uint256   mCancelIndex;
+    uint256   orderIndex;
+    bytes32   hashData;
+}
+
+emit NewCancelOrderCreated(baseToken, quoteToken, newHashData, orderUser,
+index, orderIndex);
+
+ */
+
 impl ChemixContractClient {
     pub fn new(pri_key:&str,contract_address:&str) -> ChemixContractClient {
-        let host = "http://58.33.12.252:8548";
-        let provider_http = Provider::<Http>::try_from(host).unwrap();
+        let chain_rpc = env::CONF.chain_rpc.to_owned();
+        let provider_http = Provider::<Http>::try_from(chain_rpc.unwrap().to_str().unwrap()).unwrap();
         let wallet = pri_key
             .parse::<LocalWallet>()
             .unwrap().with_chain_id(15u64);
@@ -103,17 +143,120 @@ impl ChemixContractClient {
         }
         Ok(())
     }
-    pub async fn cancel_order(){
-        todo!()
+    /***
+       address   baseToken,
+        address   quoteToken,
+        uint256   orderIndex
+    */
+    //重复取消的在后台判断逻辑
+    pub async fn cancel_order(&self,baseToken: &str,quoteToken: &str,order_index: u32) -> Result<()>{
+        let contract = ChemixMain::new(self.contract_addr, self.client.clone());
+        let quoteToken = Address::from_str(quoteToken).unwrap();
+        let baseToken = Address::from_str(baseToken).unwrap();
+
+        info!("cancel_order market: {}-{} order_index: {}",baseToken,quoteToken,order_index);
+        let result = contract.new_cancel_order(baseToken,quoteToken,U256::from(order_index))
+            .legacy().send().await?.await?;
+        info!("new sell order result  {:?}",result);
+        Ok(())
+    }
+
+    /****
+    struct CancelOrderState {
+        address   baseToken;
+        address   quoteToken;
+        address   orderUser;
+        uint256   mCancelIndex;
+        uint256   orderIndex;
+        bytes32   hashData;
+    }
+
+    emit NewCancelOrderCreated(baseToken, quoteToken, newHashData, orderUser,
+                index, orderIndex);
+
+    */
+
+    pub async fn filter_new_cancel_order_created_event(&mut self,height: U64) -> Result<Vec<CancelOrderState2>>{
+        let contract = ChemixStorage::new(self.contract_addr, self.client.clone());
+        let canceled_orders: Vec<NewCancelOrderCreatedFilter> = contract
+            .new_cancel_order_created_filter()
+            .from_block(height)
+            .query()
+            .await
+            .unwrap();
+        let new_orders2 = canceled_orders
+            .iter()
+            .map(|x| {
+                CancelOrderState2 {
+                    base_token: x.base_token,
+                    quote_token: x.quote_token,
+                    order_user: x.cancel_user,
+                    cancel_index: x.m_cancel_index,
+                    order_index: x.order_index,
+                    hash_data: x.hash_data
+                }
+            })
+            .collect::<Vec<CancelOrderState2>>();
+        Ok(new_orders2)
+    }
+
+
+    /***
+    function thawBalance(
+        address token,
+        address from,
+        uint256 amount
+    )
+        external
+        requiresAuthorization
+        nonReentrant
+    {
+        // First send tokens to this contract
+        require(balances[token][from].frozenBalace >= amount, "Vault#thawBalance: InsufficientBalance");
+
+        // Then increment balances
+        balances[token][from].frozenBalace = balances[token][from].frozenBalace.sub(amount);
+        balances[token][from].availableBalance = balances[token][from].availableBalance.add(amount);
+
+        validateBalance(token);
+        emit ThawBalance(token, from, amount);
+    }
+    */
+
+    pub async fn thaw_balances(&self, users : Vec<ThawBalances>) -> Result<Option<TransactionReceipt>>{
+        info!("test1 {:?},{:?}",self.last_index,self.last_hash_data);
+        let chemix_vault = CONF.chemix_vault.to_owned();
+        let vault_address = Address::from_str(chemix_vault.unwrap().to_str().unwrap()).unwrap();
+        let contract = Vault::new(vault_address, self.client.clone());
+        let now = Local::now().timestamp_millis() as u64;
+        let order_json = format!(
+            "{}{}",
+            serde_json::to_string(&users).unwrap(),
+            now
+        );
+        let cancel_id = sha2562(order_json);
+
+        let users2 = users.iter().map(|x| {
+            ThawInfos {
+                token : x.token,
+                from: x.from,
+                amount: x.amount,
+            }
+        }).collect::<Vec<ThawInfos>>();
+
+        let result : Option<TransactionReceipt> = contract.thaw_balance(cancel_id,users2).legacy().send().await?.await?;
+        info!("thaw_balance res = {:?}",result);
+        Ok(result)
     }
 
 
     pub async fn settlement_trades(&self, trades : Vec<SettleValues2>) -> Result<Option<TransactionReceipt>>{
         info!("test1 {:?},{:?}",self.last_index,self.last_hash_data);
-        let contract_addr = Address::from_str("0x003fDe97E3a0932B2Bc709e952C6C9D73E0E9aE4").unwrap();
+        let chemix_vault = CONF.chemix_vault.to_owned();
+        let contract_addr = Address::from_str(chemix_vault.unwrap().to_str().unwrap()).unwrap();
         let contract = Vault::new(contract_addr, self.client.clone());
-        let tokenA = Address::from_str("0xc739cD8920C65d372a0561507930aB6993c33E30").unwrap();
-        let tokenB = Address::from_str("0x1982C0fC743078a7484bd82AC7A17BDab344308e").unwrap();
+        let tokenA = Address::from_str("0xb8a1255FB1d23EF1BEedf3c7024CfB178e7bA7B4").unwrap();
+        let tokenB = Address::from_str("0xCdE5A755aCdc7db470F206Ea98F802E42903C4f2").unwrap();
         let trades2 = trades.iter().map(|x|{
             SettleValues {
                 user: x.user,

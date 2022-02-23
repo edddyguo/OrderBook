@@ -282,7 +282,22 @@ pub fn list_available_orders(market_id: &str, side: Side) -> Vec<EngineOrder> {
     orders
 }
 
-pub fn get_order(id: &str) -> Result<OrderInfo,String> {
+#[derive(Clone, Debug, PartialEq)]
+/// A Block Hash or Block Number
+pub enum IdOrIndex {
+    Id(String),
+    Index(u32),
+}
+
+pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(id_or_index: T) -> Result<OrderInfo,String> {
+    let filter_str = match id_or_index.into() {
+        IdOrIndex::Id(id) => {
+            format!(" id=\'{}\'",id)
+        },
+        IdOrIndex::Index(index) => {
+            format!(" index=\'{}\'",index)
+        }
+    };
     let sql = format!(
         "select id,index,market_id,account,side,
          amount,\
@@ -293,7 +308,7 @@ pub fn get_order(id: &str) -> Result<OrderInfo,String> {
          canceled_amount,\
          cast(updated_at as text) ,\
          cast(created_at as text) \
-         from chemix_orders where id=\'{}\'",id
+         from chemix_orders where {} ",filter_str
     );
     let rows = crate::query(sql.as_str()).unwrap();
     let order = OrderInfo {

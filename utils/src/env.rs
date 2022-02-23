@@ -3,24 +3,24 @@ use std::collections::HashMap;
 use std::ffi::OsString;
 use std::string::String;
 pub struct EnvConf{
-    chemix_mode: Option<OsString>,
-    api_port: Option<OsString>,
-    ws_port: Option<OsString>,
-    psql: Option<OsString>,
-    redis: Option<OsString>,
-    chain_rpc: Option<OsString>,
-    chain_ws: Option<OsString>,
-    chemix_main: Option<OsString>,
-    chemix_storage: Option<OsString>,
-    chemix_token_proxy: Option<OsString>,
-    chemix_vault: Option<OsString>,
-    chemix_relayer_prikey: Option<OsString>,
-    chemix_bot_pri_key: Option<OsString>,
+    pub chemix_mode: Option<OsString>,
+    pub api_port: Option<OsString>,
+    pub ws_port: Option<OsString>,
+    pub psql: Option<OsString>,
+    pub redis: Option<OsString>,
+    pub chain_rpc: Option<OsString>,
+    pub chain_ws: Option<OsString>,
+    pub chemix_main: Option<OsString>,
+    pub chemix_storage: Option<OsString>,
+    pub chemix_token_proxy: Option<OsString>,
+    pub chemix_vault: Option<OsString>,
+    pub chemix_relayer_prikey: Option<OsString>,
+    pub chemix_bot_pri_key: Option<OsString>,
 }
 
 lazy_static! {
     //业务模块具体处理是否必须从环境变量注入
-    static ref Conf: EnvConf = {
+    pub static ref CONF: EnvConf = {
         EnvConf {
             chemix_mode: env::var_os("CHEMIX_MODE"),
             api_port: env::var_os("API_PORT"),

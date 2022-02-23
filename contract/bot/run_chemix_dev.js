@@ -1,22 +1,10 @@
 const { ethers, upgrades } = require("hardhat");
 const { expect } = require('chai') //断言模块
 
-/***
- *
- * deployTokenA:   0x5FbDB2315678afecb367f032d93F642f64180aa3
- * deployTokenB:   0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
- * deployStorage:   0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
- * deployTokenProxy:   0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
- * deployVault:   0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9
- * deployChemiMain:   0x5FC8d32690cc91D4c39d9d3abcBD16989F875707
- * */
+
 
 async function main() {
-    //peth
     let account1 = "0x613548d151E096131ece320542d19893C4B8c901"
-    //local
-    //let account1 = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-
     let account2 = "0x37BA121cdE7a0e24e483364185E80ceF655346DD"
     let account3 = "0xca9B361934fc7A7b07814D34423d665268111726"
 
@@ -25,26 +13,27 @@ async function main() {
 
     const issueAmountDefault = BigInt(100_000_000_000_000_000_000_000_000_000) //100_000_000_000
     var options = { gasPrice: 10000000000, gasLimit: 850000, value: 0 };
-
     /***
-     * 21:47
-     *
-     * deployTokenA:   0xb8a1255FB1d23EF1BEedf3c7024CfB178e7bA7B4
-     * deployTokenB:   0xCdE5A755aCdc7db470F206Ea98F802E42903C4f2
-     * deployStorage:   0x4911157A9Abb594C3c658777da77CAeC37a51b1b
-     * deployTokenProxy:   0x562a444f52E22f076B9007158D83451B31Ed9111
-     * deployVault:   0x46BBB85f6cF4DDC7c016e8A81ECA81D796b10fcD
-     * deployChemiMain:   0x9f0Ed9cc043c6c6f161E77fD6D8fc87FF9aD6d68
-     *
-     * */
+     deployTokenA:   0xC1A497a9eCCA18Fbb2Fa2F7ea5Ab4f563b784B86
+     deployTokenB:   0xf62822564565577d7bAf4bb56087f42F5d677A87
+     deployStorage:   0xeDE462491f759bcb631aD03DdE4c6aD1B5847DEb
+     deployTokenProxy:   0x55e44f9327a99F9Ff15C7234225b864466DC6a60
+     deployVault:   0x5ED7BA2da1229d43F1433bD8127Fb4B8960bccE2
+     deployChemiMain:   0x1D781d006e451C335Ee3053c390d1a7B6813a725
+    ***/
 
+    const contractTokenA = await ethers.getContractAt("TokenA",'0xC1A497a9eCCA18Fbb2Fa2F7ea5Ab4f563b784B86')
+    const contractTokenB = await ethers.getContractAt("TokenB",'0xf62822564565577d7bAf4bb56087f42F5d677A87')
+    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0xeDE462491f759bcb631aD03DdE4c6aD1B5847DEb')
+    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0x55e44f9327a99F9Ff15C7234225b864466DC6a60')
+    const contractVault = await ethers.getContractAt("Vault",'0x5ED7BA2da1229d43F1433bD8127Fb4B8960bccE2')
+    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0x1D781d006e451C335Ee3053c390d1a7B6813a725')
 
-    const contractTokenA = await ethers.getContractAt("BaseToken1",'0xb8a1255FB1d23EF1BEedf3c7024CfB178e7bA7B4')
-    const contractTokenB = await ethers.getContractAt("QuoteToken1",'0xCdE5A755aCdc7db470F206Ea98F802E42903C4f2')
-    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0x4911157A9Abb594C3c658777da77CAeC37a51b1b')
-    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0x562a444f52E22f076B9007158D83451B31Ed9111')
-    const contractVault = await ethers.getContractAt("Vault",'0x46BBB85f6cF4DDC7c016e8A81ECA81D796b10fcD')
-    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0x9f0Ed9cc043c6c6f161E77fD6D8fc87FF9aD6d68')
+    let tokenAIssueAcc1ResTmp1 = await contractTokenA.issue(issueAmountDefault,options);
+    console.log('tokenAIssueAcc1Res ',tokenAIssueAcc1ResTmp1);
+    let tokenAIssueAcc1ResTmp2 = await contractTokenB.issue(issueAmountDefault,options);
+    console.log('tokenAIssueAcc2Res ',tokenAIssueAcc1ResTmp2);
+    return;
 
     //check pair
 
@@ -53,7 +42,6 @@ async function main() {
 
     let check_pair_result = await contractChemixStorage.checkPairExist(contractTokenA.address,contractTokenB.address,options);
     console.log('check_pair2 result ',check_pair_result);
-
 
 
     let A_alanceOf = await contractVault.balanceOf(contractTokenA.address,account1,options);
@@ -66,6 +54,7 @@ async function main() {
     let balanceAcc_erc20_B = await contractTokenB.balanceOf(account1,options);
     console.log('balanceB ',balanceAcc_erc20_B);
 
+    return;
     //grantCreatePairAddr
     /***
     let grantCreatePairAddr_result = await contractChemixMain.grantCreatePairAddr(account1,options);
@@ -103,10 +92,6 @@ async function main() {
     console.log('grantSettleAddr_result result ',grantSettleAddr_result);
 
 
-    let grantFronzenAddr_result = await contractVault.grantFronzenAddr(account1,options);
-    console.log('grantSettleAddr_result result ',grantFronzenAddr_result);
-
-
     console.log('start create pair TokenA-TokenB');
     let create_result = await contractChemixMain.createPair(contractTokenA.address,contractTokenB.address,options);
     console.log('create pair result ',create_result);
@@ -119,9 +104,9 @@ async function main() {
     let tokenBIssueAcc1Res = await contractTokenB.issue(issueAmountDefault,options);
     console.log('tokenAIssueAcc2Res ',tokenBIssueAcc1Res);
 
-    let balanceAcc1 = await contractTokenA.balanceOf(account1,options);
+    let balanceAcc1 = await contractTokenA.balanceOf("0x613548d151E096131ece320542d19893C4B8c901",options);
     console.log('balanceA ',balanceAcc1);
-    let balanceBcc1 = await contractTokenB.balanceOf(account1,options);
+    let balanceBcc1 = await contractTokenB.balanceOf("0x613548d151E096131ece320542d19893C4B8c901",options);
     console.log('balanceB ',balanceBcc1);
 
 
@@ -131,9 +116,9 @@ async function main() {
     let acc1ApproveTokenBRes = await contractTokenB.approve(contractTokenProxy.address,balanceBcc1,options);
     console.log('acc1ApproveTokenBRes ',acc1ApproveTokenBRes);
 
-    let allowanceA = await contractTokenA.allowance(account1,contractTokenProxy.address,options);
+    let allowanceA = await contractTokenA.allowance("0x613548d151E096131ece320542d19893C4B8c901",contractTokenProxy.address,options);
     console.log('allowanceA ',allowanceA);
-    let allowanceB = await contractTokenB.allowance(account1,contractTokenProxy.address,options);
+    let allowanceB = await contractTokenB.allowance("0x613548d151E096131ece320542d19893C4B8c901",contractTokenProxy.address,options);
     console.log('allowanceB ',allowanceB);
     //
 

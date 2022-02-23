@@ -8,7 +8,6 @@ import { TokenProxy } from "./TokenProxy.sol";
 import { StaticAccessControlled } from "./lib/StaticAccessControlled.sol";
 import { TokenInteract } from "./lib/TokenInteract.sol";
 import { ChemixStorage } from "./impl/ChemixStorage.sol";
-import "hardhat/console.sol";
 
 /**
  * @title Vault
@@ -34,9 +33,7 @@ contract Vault is
     );
 
     event ThawBalance(
-        address indexed token,
-        address indexed from,
-        uint256 amount
+        bytes32 indexed flag
     );
 
     event Settlement(
@@ -56,6 +53,12 @@ contract Vault is
         uint256  incomeBaseToken;
         bool     positiveOrNegative2;
         uint256  incomeQuoteToken;
+    }
+
+    struct thawInfos {
+        address token;
+        address from;
+        uint256 amount;
     }
 
     // ============ State Variables ============
@@ -78,7 +81,6 @@ contract Vault is
     )
         StaticAccessControlled()
     {
-        console.log("--start deploy vault--");
         TOKEN_PROXY = proxyAddr;
         STORAGE = storageAddr;
     }
@@ -179,23 +181,21 @@ contract Vault is
     }
 
     function thawBalance(
-        address token,
-        address from,
-        uint256 amount
+        bytes32 flag,
+        thawInfos[] calldata thawBalances
+
     )
         external
-        requiresAuthorization
+        onlyFrozenAddr
         nonReentrant
     {
-        // First send tokens to this contract
-        require(balances[token][from].frozenBalace >= amount, "Vault#thawBalance: InsufficientBalance");
-
         // Then increment balances
-        balances[token][from].frozenBalace = balances[token][from].frozenBalace.sub(amount);
-        balances[token][from].availableBalance = balances[token][from].availableBalance.add(amount);
-
-        validateBalance(token);
-        emit ThawBalance(token, from, amount);
+        for(uint i = 0; i < thawBalances.length; i++){
+            balances[thawBalances[i].token][thawBalances[i].from].frozenBalace =  balances[thawBalances[i].token][thawBalances[i].from].frozenBalace.sub(thawBalances[i].amount);
+            balances[thawBalances[i].token][thawBalances[i].from].availableBalance = balances[thawBalances[i].token][thawBalances[i].from].availableBalance.add(thawBalances[i].amount);
+        }
+        //validateBalance(token);
+        emit ThawBalance(flag);
     }
 
     /**
@@ -244,16 +244,12 @@ contract Vault is
             if(settleInfo[i].positiveOrNegative1){
                 balances[baseToken][settleInfo[i].user].availableBalance = balances[baseToken][settleInfo[i].user].availableBalance.add(settleInfo[i].incomeBaseToken);
             }else{
-                console.log("[BaseToken]: start sub: %s - %s ", balances[baseToken][settleInfo[i].user].frozenBalace,settleInfo[i].incomeBaseToken);
                 balances[baseToken][settleInfo[i].user].frozenBalace = balances[baseToken][settleInfo[i].user].frozenBalace.sub(settleInfo[i].incomeBaseToken);
-                console.log("[BaseToken]: finished sub: result  ", balances[baseToken][settleInfo[i].user].frozenBalace);
             }
             if(settleInfo[i].positiveOrNegative2){
                 balances[quoteToken][settleInfo[i].user].availableBalance = balances[quoteToken][settleInfo[i].user].availableBalance.add(settleInfo[i].incomeQuoteToken);
             }else{
-                console.log("[QuoteToken]: start sub: %s - %s ", balances[quoteToken][settleInfo[i].user].frozenBalace,settleInfo[i].incomeQuoteToken);
                 balances[quoteToken][settleInfo[i].user].frozenBalace = balances[quoteToken][settleInfo[i].user].frozenBalace.sub(settleInfo[i].incomeQuoteToken);
-                console.log("[QuoteToken]: finished sub: result  ", balances[quoteToken][settleInfo[i].user].frozenBalace);
             }
         }
         emit Settlement(baseToken, quoteToken, hashData);

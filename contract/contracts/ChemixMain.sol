@@ -8,7 +8,6 @@ import { IChemixFactory } from "./interface/IChemixFactory.sol";
 import { ChemixStorage } from "./impl/ChemixStorage.sol";
 import { Vault } from "./Vault.sol";
 import { StaticAccessControlled } from "./lib/StaticAccessControlled.sol";
-import "hardhat/console.sol";
 
 contract ChemixMain is 
     IChemixFactory,

@@ -26,6 +26,8 @@ chemix-utils = { path = "../utils" }
 ethers-core = "0.6.0"
 chemix-models = { path = "../models" }
 chemix-chain = { path = "../chain" }
+clap = "3.0.0-beta.5"
+
 
 
 

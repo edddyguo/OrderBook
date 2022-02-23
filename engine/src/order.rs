@@ -7,10 +7,12 @@ use serde::Serialize;
 use crate::AddBook2;
 //use ethers::{prelude::*,types::{U256}};
 use serde::Deserialize;
+use chemix_chain::chemix::CancelOrderState2;
 
 use chemix_utils::math::narrow;
 
-use chemix_models::order::{Side,BookOrder};
+use chemix_models::order::{Side, BookOrder, get_order, Status};
+use chemix_models::order::IdOrIndex::Index;
 use chemix_models::trade::{TradeInfo};
 
 
@@ -181,8 +183,50 @@ pub fn match_order(
     total_matched_amount
 }
 
-pub fn cancel() {
-    todo!()
+pub fn cancel(new_cancel_orders : Vec<CancelOrderState2>) {
+    for new_cancel_order in new_cancel_orders {
+        //todo: 处理异常
+        let order = get_order(Index(new_cancel_order.order_index.as_u32())).unwrap();
+        match order.status {
+            Status::FullFilled => {
+                warn!("Have already matched");
+            }
+            Status::PartialFilled => {
+                //todo: side 处理
+                match order.side.as_str() {
+                    "buy" => {
+                        crate::BOOK.lock().unwrap().buy.retain(|x| x.id != order.id);
+                    },
+                    "sell" => {
+                        crate::BOOK.lock().unwrap().sell.retain(|x| x.id != order.id);
+                    }
+                    _ => {
+                        unreachable!()
+                    }
+                }
+            }
+            Status::Pending => {
+                match order.side.as_str() {
+                    "buy" => {
+                        crate::BOOK.lock().unwrap().buy.retain(|x| x.id != order.id);
+                    },
+                    "sell" => {
+                        crate::BOOK.lock().unwrap().sell.retain(|x| x.id != order.id);
+                    }
+                    _ => {
+                        unreachable!()
+                    }
+                }
+            }
+            Status::Canceled => {
+                warn!("Have already Canceled");
+            }
+            Status::Abandoned => {
+                todo!()
+            }
+        }
+
+    }
 }
 
 pub fn flush() {

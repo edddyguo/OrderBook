@@ -57,16 +57,6 @@ contract StaticAccessControlled is AccessControlledBase, Ownable {
         authorizeCreatePair[who] = true;
     }
 
-    function grantSettleAddr(
-        address who
-    )
-        external
-        onlyOwner
-    {
-        emit SetSettleAddr(who);
-        authorizeSettle[who] = true;
-    }
-
     function revokeCreatePairAddr(
         address who
     )
@@ -77,6 +67,16 @@ contract StaticAccessControlled is AccessControlledBase, Ownable {
         authorizeCreatePair[who] = false;
     }
 
+    function grantSettleAddr(
+        address who
+    )
+        external
+        onlyOwner
+    {
+        emit SetSettleAddr(who);
+        authorizeSettle[who] = true;
+    }
+
     function revokeSettleAddr(
         address who
     )
@@ -85,5 +85,25 @@ contract StaticAccessControlled is AccessControlledBase, Ownable {
     {
         emit RevokeSettle(who);
         authorizeSettle[who] = false;
+    }
+
+    function grantFronzenAddr(
+        address who
+    )
+        external
+        onlyOwner
+    {
+        emit SetFrozenAddr(who);
+        authorizeFronzen[who] = true;
+    }
+
+    function revokeFronzenAddr(
+        address who
+    )
+        external
+        onlyOwner
+    {
+        emit RevokeFrozen(who);
+        authorizeFronzen[who] = false;
     }
 }

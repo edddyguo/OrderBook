@@ -16,6 +16,7 @@ contract AccessControlledBase {
     mapping (address => bool) public authorized;
     mapping (address => bool) public authorizeCreatePair;
     mapping (address => bool) public authorizeSettle;
+    mapping (address => bool) public authorizeFronzen;
 
     // ============ Events ============
 
@@ -31,15 +32,23 @@ contract AccessControlledBase {
         address who
     );
 
-    event SetSettleAddr(
-        address who
-    );
-
     event RevokeCreatePair(
         address who
     );
 
+    event SetSettleAddr(
+        address who
+    );
+
     event RevokeSettle(
+        address who
+    );
+
+    event SetFrozenAddr(
+        address who
+    );
+
+    event RevokeFrozen(
         address who
     );
 
@@ -66,6 +75,14 @@ contract AccessControlledBase {
         require(
             authorizeSettle[msg.sender],
             "AccessControlledBase#onlySettleAddr: Sender not authorized"
+        );
+        _;
+    }
+
+    modifier onlyFrozenAddr() {
+        require(
+            authorizeFronzen[msg.sender],
+            "AccessControlledBase#onlyFrozenAddr: Sender not authorized"
         );
         _;
     }
