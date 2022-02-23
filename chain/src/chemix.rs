@@ -108,7 +108,7 @@ impl ChemixContractClient {
     }
 
 
-    pub async fn settlement_trades(&self, trades : Vec<SettleValues2>) -> TransactionReceipt{
+    pub async fn settlement_trades(&self, trades : Vec<SettleValues2>) -> Result<Option<TransactionReceipt>>{
         info!("test1 {:?},{:?}",self.last_index,self.last_hash_data);
         let contract_addr = Address::from_str("0x003fDe97E3a0932B2Bc709e952C6C9D73E0E9aE4").unwrap();
         let contract = Vault::new(contract_addr, self.client.clone());
@@ -123,9 +123,9 @@ impl ChemixContractClient {
                 income_base_token:  x.incomeBaseToken
             }
         }).collect::<Vec<SettleValues>>();
-        let result : TransactionReceipt = contract.settlement(tokenA,tokenB,self.last_index.unwrap(),self.last_hash_data.unwrap(),trades2).legacy().send().await.unwrap().await.unwrap().unwrap();
-        info!("settlement_trades res = {:?},{:?}",result.transaction_hash,result.block_number);
-        result
+        let result : Option<TransactionReceipt> = contract.settlement(tokenA,tokenB,self.last_index.unwrap(),self.last_hash_data.unwrap(),trades2).legacy().send().await?.await?;
+        info!("settlement_trades res = {:?}",result);
+        Ok(result)
     }
 
 

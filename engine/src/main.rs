@@ -394,7 +394,27 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 let rt = Runtime::new().unwrap();
                 let chemix_main_client2 = chemix_main_client_receiver.clone();
                 let  settlement_res = rt.block_on(async {
-                    chemix_main_client2.read().unwrap().settlement_trades(settle_trades).await
+                    let mut receipt = Default::default();
+                    loop {
+                        match chemix_main_client2.read().unwrap().settlement_trades(settle_trades.clone()).await {
+                            Ok(data) => {
+                                receipt = data.unwrap();
+                                break;
+                            }
+                            Err(error) => {
+                                if error.to_string().contains("underpriced") {
+                                    warn!("gas too low and try again");
+                                    tokio::time::sleep(time::Duration::from_millis(5000)).await;
+                                }else {
+                                    //tmp code
+                                    error!("{}",error);
+                                    unreachable!()
+                                }
+                            }
+                        }
+                    }
+                    receipt
+
                 });
 
                 //todo: 没有区块的情况？

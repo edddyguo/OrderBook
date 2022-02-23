@@ -101,7 +101,7 @@ deployChemiMain:   0x0f48DDFe03827cd5Efb23122B44955c222eCd720
                 Err(error) => {
                     if error.to_string().contains("underpriced") {
                         warn!("gas too low and try again");
-                        tokio::time::sleep(time::Duration::from_millis(1000)).await;
+                        tokio::time::sleep(time::Duration::from_millis(5000)).await;
                     }else {
                         //tmp code
                         error!("{}",error);
