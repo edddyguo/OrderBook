@@ -279,14 +279,6 @@ pub fn list_available_orders(market_id: &str, side: Side) -> Vec<EngineOrder> {
         };
         orders.push(info);
     }
-    orders.sort_by(|a,b|{
-        a.price.partial_cmp(&b.price).unwrap()
-    });
-    //let sort_by = if side == "buy" { "DESC" } else { "ASC" };
-    match side {
-        Buy => {orders.reverse()}
-        Sell => {}
-    };
     orders
 }
 
