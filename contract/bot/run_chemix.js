@@ -3,12 +3,12 @@ const { expect } = require('chai') //断言模块
 
 /***
  *
- * deployTokenA:   0x5FbDB2315678afecb367f032d93F642f64180aa3
- * deployTokenB:   0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
- * deployStorage:   0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
- * deployTokenProxy:   0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
- * deployVault:   0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9
- * deployChemiMain:   0x5FC8d32690cc91D4c39d9d3abcBD16989F875707
+ * deployTokenA:   0x3e1A99f4Ebdec4F6Da224D54a4a25b7B1445e1ea
+ * deployTokenB:   0x707c73B9425276c0c0adcdd0d1178bB541792049
+ * deployStorage:   0xdcac0cd7fC67873f9AfCbaC9e7C8F7A46F5443B8
+ * deployTokenProxy:   0xdf7eBFcAdE666c6C7167Ad39229918AD34585e1b
+ * deployVault:   0xa122d710C1a9c6b9C2908D25fbeD357144A45552
+ * deployChemiMain:   0xC8be8a025D17D21Da7c8533A34696251D4594257
  * */
 
 async function main() {
@@ -29,22 +29,22 @@ async function main() {
     /***
      * 21:47
      *
-     * deployTokenA:   0xb8a1255FB1d23EF1BEedf3c7024CfB178e7bA7B4
-     * deployTokenB:   0xCdE5A755aCdc7db470F206Ea98F802E42903C4f2
-     * deployStorage:   0x4911157A9Abb594C3c658777da77CAeC37a51b1b
-     * deployTokenProxy:   0x562a444f52E22f076B9007158D83451B31Ed9111
-     * deployVault:   0x46BBB85f6cF4DDC7c016e8A81ECA81D796b10fcD
-     * deployChemiMain:   0x9f0Ed9cc043c6c6f161E77fD6D8fc87FF9aD6d68
+     * deployTokenA:   0x3e1A99f4Ebdec4F6Da224D54a4a25b7B1445e1ea
+     * deployTokenB:   0x707c73B9425276c0c0adcdd0d1178bB541792049
+     * deployStorage:   0xdcac0cd7fC67873f9AfCbaC9e7C8F7A46F5443B8
+     * deployTokenProxy:   0xdf7eBFcAdE666c6C7167Ad39229918AD34585e1b
+     * deployVault:   0xa122d710C1a9c6b9C2908D25fbeD357144A45552
+     * deployChemiMain:   0xC8be8a025D17D21Da7c8533A34696251D4594257
      *
      * */
 
 
-    const contractTokenA = await ethers.getContractAt("BaseToken1",'0xb8a1255FB1d23EF1BEedf3c7024CfB178e7bA7B4')
-    const contractTokenB = await ethers.getContractAt("QuoteToken1",'0xCdE5A755aCdc7db470F206Ea98F802E42903C4f2')
-    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0x4911157A9Abb594C3c658777da77CAeC37a51b1b')
-    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0x562a444f52E22f076B9007158D83451B31Ed9111')
-    const contractVault = await ethers.getContractAt("Vault",'0x46BBB85f6cF4DDC7c016e8A81ECA81D796b10fcD')
-    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0x9f0Ed9cc043c6c6f161E77fD6D8fc87FF9aD6d68')
+    const contractTokenA = await ethers.getContractAt("BaseToken1",'0x3e1A99f4Ebdec4F6Da224D54a4a25b7B1445e1ea')
+    const contractTokenB = await ethers.getContractAt("QuoteToken1",'0x707c73B9425276c0c0adcdd0d1178bB541792049')
+    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0xdcac0cd7fC67873f9AfCbaC9e7C8F7A46F5443B8')
+    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0xdf7eBFcAdE666c6C7167Ad39229918AD34585e1b')
+    const contractVault = await ethers.getContractAt("Vault",'0xa122d710C1a9c6b9C2908D25fbeD357144A45552')
+    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0xC8be8a025D17D21Da7c8533A34696251D4594257')
 
     //check pair
 

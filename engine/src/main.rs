@@ -259,10 +259,10 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
 
                     let new_cancel_orders = chemix_main_client_sender.clone().write().unwrap().filter_new_cancel_order_created_event(current_height).await.unwrap();
                     info!("new_cancel_orders_event {:?}",new_cancel_orders);
-                    if new_cancel_orders.is_empty() {
-                        info!("Not found new_cancel_orders created at height {}",current_height);
+                    let legal_orders = cancel(new_cancel_orders.clone());
+                    if legal_orders.is_empty() {
+                        info!("Not found legal_cancel orders created at height {}",current_height);
                     } else {
-                        let legal_orders = cancel(new_cancel_orders.clone());
                         cancel_event_sender
                             .send(legal_orders)
                             .expect("failed to send orders");
@@ -285,57 +285,62 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
         });
         //execute thawbalance
         s.spawn(move |_| {
-            let rt = Runtime::new().unwrap();
-            rt.block_on(async move {
+            loop {
                 let cancel_orders: Vec<CancelOrderState2> = cancel_event_receiver.recv().expect("failed to send orders");
-                //todo: 1、计算amount，2、上链，3、更新db
-                let mut thaw_infos = Vec::new();
-                for cancel_order in cancel_orders.clone() {
-                    let order = get_order(Index(cancel_order.order_index.as_u32())).unwrap();
-                    let market = get_markets(order.market_id.as_str());
-                    let cancel_amount = order.available_amount;
-                    let token_base_decimal = U256::from(10u128).pow(U256::from(18u32));
-                    let (token_address,amount) = match order.side.as_str() {
-                        "sell" => {
-                            (market.base_token_address,order.available_amount)
-                        },
-                        "buy" => {
-                            (market.quote_token_address,order.available_amount * order.price / token_base_decimal)
-                        }
-                        _ => {
-                            unreachable!()
-                        }
-                    };
-                    thaw_infos.push(ThawBalances {
-                        token: Address::from_str(token_address.as_str()).unwrap(),
-                        from: cancel_order.order_user,
-                        amount
-                    });
-                }
-                info!("all thaw info {:?}",thaw_infos);
-                info!("start thaw balance");
                 let chemix_main_client2 = chemix_main_client_receiver2.clone();
+                let rt = Runtime::new().unwrap();
+                rt.block_on(async move {
+                    //todo: 1、计算amount，2、上链，3、更新db
+                    let mut thaw_infos = Vec::new();
+                    for cancel_order in cancel_orders.clone() {
+                        let order = get_order(Index(cancel_order.order_index.as_u32())).unwrap();
+                        let market = get_markets(order.market_id.as_str());
+                        let cancel_amount = order.available_amount;
+                        let token_base_decimal = U256::from(10u128).pow(U256::from(18u32));
+                        let (token_address,amount) = match order.side.as_str() {
+                            "sell" => {
+                                info!("available_amount {}",order.available_amount);
+                                (market.base_token_address,order.available_amount)
+                            },
+                            "buy" => {
+                                info!("available_amount {},price {},thaw_amount {}",order.available_amount,order.price,order.available_amount * order.price / token_base_decimal);
+                                (market.quote_token_address,order.available_amount * order.price / token_base_decimal)
+                            }
+                            _ => {
+                                unreachable!()
+                            }
+                        };
+                        thaw_infos.push(ThawBalances {
+                            token: Address::from_str(token_address.as_str()).unwrap(),
+                            from: cancel_order.order_user,
+                            amount
+                        });
+                    }
+                    info!("all thaw info {:?}",thaw_infos);
+                    info!("start thaw balance");
 
-                let thaw_res = chemix_main_client2.read().unwrap().thaw_balances(thaw_infos).await.unwrap().unwrap();
-                info!("finish thaw balance res:{:?}",thaw_res);
+                    let thaw_res = chemix_main_client2.read().unwrap().thaw_balances(thaw_infos).await.unwrap().unwrap();
+                    info!("finish thaw balance res:{:?}",thaw_res);
 
 
-                for cancel_order in cancel_orders {
-                    let order = get_order(Index(cancel_order.order_index.as_u32())).unwrap();
-                    let new_status = "canceled";
+                    for cancel_order in cancel_orders {
+                        let order = get_order(Index(cancel_order.order_index.as_u32())).unwrap();
+                        let new_status = "canceled";
 
-                    let update_info = UpdateOrder {
-                        id: order.id,
-                        status: new_status.to_string(),
-                        available_amount: U256::from(0i32),
-                        matched_amount: order.matched_amount,
-                        canceled_amount: order.available_amount,
-                        updated_at: get_current_time(),
-                    };
-                    //todo: 批量更新
-                    update_order(&update_info);
-                }
-            });
+                        let update_info = UpdateOrder {
+                            id: order.id,
+                            status: new_status.to_string(),
+                            available_amount: U256::from(0i32),
+                            matched_amount: order.matched_amount,
+                            canceled_amount: order.available_amount,
+                            updated_at: get_current_time(),
+                        };
+                        //todo: 批量更新
+                        update_order(&update_info);
+                    }
+                });
+            }
+
         });
 
         s.spawn(move |_| {
@@ -387,59 +392,62 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 let mut settle_values: HashMap<String, EnigneSettleValues> = HashMap::new();
                 let token_base_decimal = U256::from(10u128).pow(U256::from(18u32));
                 for trader in db_trades.clone() {
+                    let base_amount = I256::from_raw(trader.amount);
+                    let quote_amount = I256::from_raw(trader.amount * trader.price / token_base_decimal);
+                    let negative =  I256::from(-1i32);
+
                     match trader.taker_side {
                         Buy => {
-                            let taker_base_amount = I256::from_raw(trader.amount);
                             match settle_values.get_mut(&trader.taker) {
                                 None => {
                                     settle_values.insert(trader.taker, EnigneSettleValues {
-                                        incomeQuoteToken: I256::from(0u32),
-                                        incomeBaseToken: taker_base_amount,
+                                        incomeQuoteToken:  quote_amount * negative,
+                                        incomeBaseToken: base_amount,
                                     });
                                 }
                                 Some(tmp1) => {
-                                    tmp1.incomeBaseToken += taker_base_amount;
+                                    tmp1.incomeBaseToken += base_amount;
+                                    tmp1.incomeBaseToken -= quote_amount;
                                 }
                             }
 
-                            let maker_quote_amount = I256::from_raw(trader.amount * trader.price / token_base_decimal) * I256::from(-1i32);
                             match settle_values.get_mut(&trader.maker) {
                                 None => {
                                     settle_values.insert(trader.maker, EnigneSettleValues {
-                                        incomeQuoteToken: maker_quote_amount,
-                                        incomeBaseToken: I256::from(0i32),
+                                        incomeQuoteToken: quote_amount,
+                                        incomeBaseToken: base_amount * negative,
                                     });
                                 }
                                 Some(tmp1) => {
-                                    tmp1.incomeQuoteToken += maker_quote_amount
+                                    tmp1.incomeQuoteToken += quote_amount;
+                                    tmp1.incomeBaseToken -= base_amount;
                                 }
                             }
                         }
                         Sell => {
-                            let taker_base_amount = I256::from_raw(trader.amount) * I256::from(-1i32);
                             match settle_values.get_mut(&trader.taker) {
                                 None => {
                                     settle_values.insert(trader.taker, EnigneSettleValues {
-                                        incomeQuoteToken: I256::from(0u32),
-                                        incomeBaseToken: taker_base_amount,
+                                        incomeBaseToken: base_amount * negative,
+                                        incomeQuoteToken: quote_amount,
                                     });
                                 }
                                 Some(tmp1) => {
-                                    tmp1.incomeBaseToken += taker_base_amount;
+                                    tmp1.incomeBaseToken -= base_amount;
+                                    tmp1.incomeQuoteToken += quote_amount;
                                 }
                             }
 
-                            let maker_quote_amount = I256::from_raw(trader.amount * trader.price / token_base_decimal);
                             match settle_values.get_mut(&trader.maker) {
                                 None => {
                                     settle_values.insert(trader.maker, EnigneSettleValues {
-                                        incomeQuoteToken: maker_quote_amount,
-                                        incomeBaseToken: I256::from(0i32),
+                                        incomeBaseToken: base_amount,
+                                        incomeQuoteToken: quote_amount * negative,
                                     });
                                 }
                                 Some(tmp1) => {
-                                    tmp1.incomeQuoteToken += maker_quote_amount
-                                }
+                                    tmp1.incomeBaseToken += base_amount;
+                                    tmp1.incomeQuoteToken -= quote_amount;                                }
                             }
                         }
                     }

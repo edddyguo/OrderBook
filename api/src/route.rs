@@ -85,13 +85,12 @@ fn respond_json(code: u8, msg: String, data: String) -> String {
 #[get("/chemix/dexInfo")]
 async fn dex_info(web::Path(()): web::Path<()>) -> impl Responder {
     let dex_info = DexInfo {
-        engine_address: "0x0f48DDFe03827cd5Efb23122B44955c222eCd720".to_string(),
-        vault_address: "0x003fDe97E3a0932B2Bc709e952C6C9D73E0E9aE4".to_string(),
-        proxy_address: "0x913e9d1a60bEb3312472A53CAe1fe64bC4df60e2".to_string(),
+        engine_address: "0xC8be8a025D17D21Da7c8533A34696251D4594257".to_string(),
+        vault_address: "0xa122d710C1a9c6b9C2908D25fbeD357144A45552".to_string(),
+        proxy_address: "0xdf7eBFcAdE666c6C7167Ad39229918AD34585e1b".to_string(),
     };
     respond_json(200, "".to_string(), serde_json::to_string(&dex_info).unwrap())
 }
-
 
 /***
 * @api {get} /chemix/listMarkets list supported market

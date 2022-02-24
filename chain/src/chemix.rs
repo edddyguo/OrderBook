@@ -255,8 +255,12 @@ impl ChemixContractClient {
         let chemix_vault = CONF.chemix_vault.to_owned();
         let contract_addr = Address::from_str(chemix_vault.unwrap().to_str().unwrap()).unwrap();
         let contract = Vault::new(contract_addr, self.client.clone());
-        let tokenA = Address::from_str("0xb8a1255FB1d23EF1BEedf3c7024CfB178e7bA7B4").unwrap();
-        let tokenB = Address::from_str("0xCdE5A755aCdc7db470F206Ea98F802E42903C4f2").unwrap();
+        /***
+        deployTokenA:   0x3e1A99f4Ebdec4F6Da224D54a4a25b7B1445e1ea
+deployTokenB:   0x707c73B9425276c0c0adcdd0d1178bB541792049
+        */
+        let tokenA = Address::from_str("0x3e1A99f4Ebdec4F6Da224D54a4a25b7B1445e1ea").unwrap();
+        let tokenB = Address::from_str("0x707c73B9425276c0c0adcdd0d1178bB541792049").unwrap();
         let trades2 = trades.iter().map(|x|{
             SettleValues {
                 user: x.user,
@@ -319,5 +323,9 @@ impl ChemixContractClient {
             })
             .collect::<Vec<BookOrder>>();
         Ok(new_orders2)
+    }
+
+    fn approve(){
+        todo!()
     }
 }
