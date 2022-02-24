@@ -183,7 +183,8 @@ pub fn match_order(
     total_matched_amount
 }
 
-pub fn cancel(new_cancel_orders : Vec<CancelOrderState2>) {
+pub fn cancel(new_cancel_orders : Vec<CancelOrderState2>) -> Vec<CancelOrderState2>{
+    let mut legal_orders = Vec::new();
     for new_cancel_order in new_cancel_orders {
         //todo: 处理异常
         let order = get_order(Index(new_cancel_order.order_index.as_u32())).unwrap();
@@ -196,9 +197,11 @@ pub fn cancel(new_cancel_orders : Vec<CancelOrderState2>) {
                 match order.side.as_str() {
                     "buy" => {
                         crate::BOOK.lock().unwrap().buy.retain(|x| x.id != order.id);
+                        legal_orders.push(new_cancel_order);
                     },
                     "sell" => {
                         crate::BOOK.lock().unwrap().sell.retain(|x| x.id != order.id);
+                        legal_orders.push(new_cancel_order);
                     }
                     _ => {
                         unreachable!()
@@ -209,9 +212,12 @@ pub fn cancel(new_cancel_orders : Vec<CancelOrderState2>) {
                 match order.side.as_str() {
                     "buy" => {
                         crate::BOOK.lock().unwrap().buy.retain(|x| x.id != order.id);
+                        legal_orders.push(new_cancel_order);
+
                     },
                     "sell" => {
                         crate::BOOK.lock().unwrap().sell.retain(|x| x.id != order.id);
+                        legal_orders.push(new_cancel_order);
                     }
                     _ => {
                         unreachable!()
@@ -227,6 +233,7 @@ pub fn cancel(new_cancel_orders : Vec<CancelOrderState2>) {
         }
 
     }
+    legal_orders
 }
 
 pub fn flush() {

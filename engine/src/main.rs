@@ -262,12 +262,11 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     if new_cancel_orders.is_empty() {
                         info!("Not found new_cancel_orders created at height {}",current_height);
                     } else {
-                        cancel(new_cancel_orders.clone());
+                        let legal_orders = cancel(new_cancel_orders.clone());
                         cancel_event_sender
-                            .send(new_cancel_orders)
+                            .send(legal_orders)
                             .expect("failed to send orders");
                     }
-                    //todo: 解冻
 
                     let new_orders = chemix_main_client_sender.clone().write().unwrap().filter_new_order_event(current_height).await.unwrap();
                     info!("new_orders_event {:?}",new_orders);
