@@ -300,8 +300,8 @@ pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(id_or_index: T) -> Result<Ord
     };
     let sql = format!(
         "select id,index,market_id,account,side,
-         amount,\
          price,\
+         amount,\
          status,\
          available_amount,\
          matched_amount,\

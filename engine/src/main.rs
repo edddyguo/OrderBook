@@ -59,6 +59,7 @@ extern crate log;
 
 static BaseTokenDecimal: u32 = 18;
 static QuoteTokenDecimal: u32 = 15;
+use chemix_models::api::MarketInfo;
 
 #[derive(Clone, Serialize, Debug)]
 struct EngineBook {
@@ -115,6 +116,20 @@ lazy_static! {
             sell: available_sell2
         }
     });
+
+    static ref MARKET: MarketInfo = {
+            let matches = App::new("engine")
+        .version("1.0")
+        .about("Does awesome things")
+        .arg(Arg::new("market_id")
+            .about("Sets the pem file to use")
+            .required(true)
+            .index(1))
+        .get_matches();
+    let market_id : &str = matches.value_of("market_id").unwrap();
+    let market = get_markets(market_id);
+        market
+    };
 }
 
 
@@ -208,33 +223,22 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
     //let host = "https://data-seed-prebsc-2-s3.binance.org:8545";
     //let host = "http://58.33.12.252:8548";
     //let host = "wss://bsc-ws-node.nariox.org:443"
-
+    //todo: 重启从上次结束的块开始扫
     let mut last_height: U64 = U64::from(200u64);
     let (event_sender, event_receiver) = mpsc::sync_channel(0);
     let (cancel_event_sender, cancel_event_receiver) = mpsc::sync_channel(0);
-
     let arc_queue = Arc::new(RwLock::new(queue));
     let arc_queue = arc_queue.clone();
 
-
-    //set network
-    //let chemix_main_addr = "0xAfC8a33002B274F43FC56D28D515406966354388";
-
     let chemix_storage = ENV_CONF.chemix_storage.to_owned().unwrap();
-
-    info!("___chemix_storage={}",chemix_storage.to_str().unwrap());
-    //test2
-    //let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
     //test1
     let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
-    //local test1
-    //let pri_key = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+
     let mut chemix_main_client = ChemixContractClient::new(pri_key, chemix_storage.to_str().unwrap());
     let chemix_main_client_arc = Arc::new(RwLock::new(chemix_main_client));
     let chemix_main_client_receiver = chemix_main_client_arc.clone();
     let chemix_main_client_sender = chemix_main_client_arc.clone();
     let chemix_main_client_receiver2 = chemix_main_client_arc.clone();
-
     let ws_url = ENV_CONF.chain_ws.to_owned().unwrap();
     let rpc_url = ENV_CONF.chain_rpc.to_owned().unwrap();
 
@@ -242,9 +246,8 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
     let provider_http = Node::<Http>::new(rpc_url.to_str().unwrap());
 
 
-    info!("__0004");
     rayon::scope(|s| {
-        //send event in new block
+        //监听合约事件（新建订单和取消订单），将其发送到相应处理模块
         s.spawn(move |_| {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
@@ -474,7 +477,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 let settlement_res = rt.block_on(async {
                     let mut receipt = Default::default();
                     loop {
-                        match chemix_main_client2.read().unwrap().settlement_trades(settle_trades.clone()).await {
+                        match chemix_main_client2.read().unwrap().settlement_trades(MARKET.base_token_address.as_str(),MARKET.quote_token_address.as_str(),settle_trades.clone()).await {
                             Ok(data) => {
                                 receipt = data.unwrap();
                                 break;
@@ -611,17 +614,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
     let queue = Queue::new().await;
-    /***
-    let matches = App::new("Hellman")
-        .version("1.0")
-        .about("Does awesome things")
-        .arg(Arg::new("pem_path")
-            .about("Sets the pem file to use")
-            .required(true)
-            .index(1));
-
-     */
-
+    info!("market {}",MARKET.base_token_address);
     info!("initial book {:#?}", crate::BOOK.lock().unwrap());
     listen_blocks(queue).await;
     Ok(())

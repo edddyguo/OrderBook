@@ -161,21 +161,6 @@ impl ChemixContractClient {
         Ok(())
     }
 
-    /****
-    struct CancelOrderState {
-        address   baseToken;
-        address   quoteToken;
-        address   orderUser;
-        uint256   mCancelIndex;
-        uint256   orderIndex;
-        bytes32   hashData;
-    }
-
-    emit NewCancelOrderCreated(baseToken, quoteToken, newHashData, orderUser,
-                index, orderIndex);
-
-    */
-
     pub async fn filter_new_cancel_order_created_event(&mut self,height: U64) -> Result<Vec<CancelOrderState2>>{
         let contract = ChemixStorage::new(self.contract_addr, self.client.clone());
         let canceled_orders: Vec<NewCancelOrderCreatedFilter> = contract
@@ -201,27 +186,6 @@ impl ChemixContractClient {
     }
 
 
-    /***
-    function thawBalance(
-        address token,
-        address from,
-        uint256 amount
-    )
-        external
-        requiresAuthorization
-        nonReentrant
-    {
-        // First send tokens to this contract
-        require(balances[token][from].frozenBalace >= amount, "Vault#thawBalance: InsufficientBalance");
-
-        // Then increment balances
-        balances[token][from].frozenBalace = balances[token][from].frozenBalace.sub(amount);
-        balances[token][from].availableBalance = balances[token][from].availableBalance.add(amount);
-
-        validateBalance(token);
-        emit ThawBalance(token, from, amount);
-    }
-    */
 
     pub async fn thaw_balances(&self, users : Vec<ThawBalances>) -> Result<Option<TransactionReceipt>>{
         info!("test1 {:?},{:?}",self.last_index,self.last_hash_data);
@@ -250,17 +214,14 @@ impl ChemixContractClient {
     }
 
 
-    pub async fn settlement_trades(&self, trades : Vec<SettleValues2>) -> Result<Option<TransactionReceipt>>{
+    pub async fn settlement_trades(&self, base_token:&str,quote_token:&str,trades : Vec<SettleValues2>) -> Result<Option<TransactionReceipt>>{
         info!("test1 {:?},{:?}",self.last_index,self.last_hash_data);
         let chemix_vault = CONF.chemix_vault.to_owned();
         let contract_addr = Address::from_str(chemix_vault.unwrap().to_str().unwrap()).unwrap();
         let contract = Vault::new(contract_addr, self.client.clone());
-        /***
-        deployTokenA:   0x3e1A99f4Ebdec4F6Da224D54a4a25b7B1445e1ea
-deployTokenB:   0x707c73B9425276c0c0adcdd0d1178bB541792049
-        */
-        let tokenA = Address::from_str("0x3e1A99f4Ebdec4F6Da224D54a4a25b7B1445e1ea").unwrap();
-        let tokenB = Address::from_str("0x707c73B9425276c0c0adcdd0d1178bB541792049").unwrap();
+
+        let base_token_address = Address::from_str(base_token).unwrap();
+        let quote_token_address = Address::from_str(quote_token).unwrap();
         let trades2 = trades.iter().map(|x|{
             SettleValues {
                 user: x.user,
@@ -270,7 +231,7 @@ deployTokenB:   0x707c73B9425276c0c0adcdd0d1178bB541792049
                 income_base_token:  x.incomeBaseToken
             }
         }).collect::<Vec<SettleValues>>();
-        let result : Option<TransactionReceipt> = contract.settlement(tokenA,tokenB,self.last_index.unwrap(),self.last_hash_data.unwrap(),trades2).legacy().send().await?.await?;
+        let result : Option<TransactionReceipt> = contract.settlement(base_token_address,quote_token_address,self.last_index.unwrap(),self.last_hash_data.unwrap(),trades2).legacy().send().await?.await?;
         info!("settlement_trades res = {:?}",result);
         Ok(result)
     }

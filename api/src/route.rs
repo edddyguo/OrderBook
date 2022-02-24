@@ -15,6 +15,7 @@ use chemix_models::trade::list_trades;
 use chemix_utils::time::time2unix;
 use serde::{Deserialize, Serialize};
 use chemix_models::order::Side::{Buy, Sell};
+use chemix_utils::env::EnvConf;
 use chemix_utils::math::u256_to_f64;
 
 
@@ -84,10 +85,14 @@ fn respond_json(code: u8, msg: String, data: String) -> String {
 
 #[get("/chemix/dexInfo")]
 async fn dex_info(web::Path(()): web::Path<()>) -> impl Responder {
+    let engine = chemix_utils::env::CONF.chemix_main.to_owned().unwrap();
+    let vault = chemix_utils::env::CONF.chemix_vault.to_owned().unwrap();
+    let proxy = chemix_utils::env::CONF.chemix_token_proxy.to_owned().unwrap();
+
     let dex_info = DexInfo {
-        engine_address: "0xC8be8a025D17D21Da7c8533A34696251D4594257".to_string(),
-        vault_address: "0xa122d710C1a9c6b9C2908D25fbeD357144A45552".to_string(),
-        proxy_address: "0xdf7eBFcAdE666c6C7167Ad39229918AD34585e1b".to_string(),
+        engine_address: engine.into_string().unwrap(),
+        vault_address: vault.into_string().unwrap(),
+        proxy_address: proxy.into_string().unwrap(),
     };
     respond_json(200, "".to_string(), serde_json::to_string(&dex_info).unwrap())
 }
