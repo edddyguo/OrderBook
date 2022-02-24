@@ -162,8 +162,15 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     //todo:错误码
-    let available_buy_orders = list_available_orders(info.symbol.as_str(), Buy);
-    let available_sell_orders = list_available_orders(info.symbol.as_str(), Sell);
+    let mut available_buy_orders = list_available_orders(info.symbol.as_str(), Buy);
+    let mut available_sell_orders = list_available_orders(info.symbol.as_str(), Sell);
+    available_buy_orders.sort_by(|a,b| {
+        a.price.partial_cmp(&b.price).unwrap().reverse()
+    });
+
+    available_sell_orders.sort_by(|a,b| {
+        a.price.partial_cmp(&b.price).unwrap()
+    });
 
     info!("0001__{:?}",available_buy_orders);
     info!("0002__{:?}",available_sell_orders);
