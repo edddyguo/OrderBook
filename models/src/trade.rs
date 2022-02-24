@@ -157,7 +157,7 @@ pub fn list_trades(user: Option<String>,market_id: Option<String>,limit: u32) ->
     cast(created_at as text), \
     cast(updated_at as text) \
     from chemix_trades \
-    where {} order by created_at ASC limit {}",
+    where {} order by created_at DESC limit {}",
         filter_str,limit
     );
     let mut trades: Vec<TradeInfo> = Vec::new();

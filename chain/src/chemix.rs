@@ -97,10 +97,12 @@ index, orderIndex);
 impl ChemixContractClient {
     pub fn new(pri_key:&str,contract_address:&str) -> ChemixContractClient {
         let chain_rpc = env::CONF.chain_rpc.to_owned();
+        let chain_id = env::CONF.chain_id.to_owned();
+        let chain_id = chain_id.unwrap().into_string().unwrap().parse::<u64>().unwrap();
         let provider_http = Provider::<Http>::try_from(chain_rpc.unwrap().to_str().unwrap()).unwrap();
         let wallet = pri_key
             .parse::<LocalWallet>()
-            .unwrap().with_chain_id(15u64);
+            .unwrap().with_chain_id(chain_id);
         let client = SignerMiddleware::new(provider_http.clone(), wallet.clone());
         let client = Arc::new(client);
         let contract_addr = Address::from_str(contract_address).unwrap();
@@ -129,13 +131,13 @@ impl ChemixContractClient {
                 info!("new_limit_buy_order,quoteToken={},baseToken={},price={},amount={}",quoteToken,baseToken,price,amount);
                 let result = contract.new_limit_buy_order(baseToken,quoteToken,price,amount,U256::from(18u32))
                     .legacy().send().await?.await?;
-               info!("new buy order result  {:?}",result);
+               info!("new buy order result  {:?}",result.unwrap().block_number);
             },
             "sell" =>{
-                info!("new_limit_buy_order,quoteToken={},baseToken={},price={},amount={}",quoteToken,baseToken,price,amount);
+                info!("new_limit_sell_order,quoteToken={},baseToken={},price={},amount={}",quoteToken,baseToken,price,amount);
                 let result = contract.new_limit_sell_order(baseToken,quoteToken,price,amount,U256::from(18u32))
                     .legacy().send().await?.await?;
-                info!("new sell order result  {:?}",result);
+                info!("new sell order result  {:?}",result.unwrap().block_number);
             }
             _ => {
                 unreachable!()
@@ -226,9 +228,9 @@ impl ChemixContractClient {
             SettleValues {
                 user: x.user,
                 positive_or_negative_1: x.positiveOrNegative1,
-                income_quote_token: x.incomeQuoteToken,
+                income_base_token:  x.incomeBaseToken,
                 positive_or_negative_2: x.positiveOrNegative2,
-                income_base_token:  x.incomeBaseToken
+                income_quote_token: x.incomeQuoteToken
             }
         }).collect::<Vec<SettleValues>>();
         let result : Option<TransactionReceipt> = contract.settlement(base_token_address,quote_token_address,self.last_index.unwrap(),self.last_hash_data.unwrap(),trades2).legacy().send().await?.await?;

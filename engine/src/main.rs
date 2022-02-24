@@ -461,9 +461,9 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 let settle_trades = settle_values.iter().map(|(address, settle_info)| {
                     SettleValues2 {
                         user: Address::from_str(address).unwrap(),
-                        positiveOrNegative2: settle_info.incomeBaseToken.is_positive(),
+                        positiveOrNegative1: settle_info.incomeBaseToken.is_positive(),
                         incomeBaseToken: settle_info.incomeBaseToken.abs().into_raw(),
-                        positiveOrNegative1: settle_info.incomeQuoteToken.is_positive(),
+                        positiveOrNegative2: settle_info.incomeQuoteToken.is_positive(),
                         incomeQuoteToken: settle_info.incomeQuoteToken.abs().into_raw(),
                     }
                 }).collect::<Vec<SettleValues2>>();
