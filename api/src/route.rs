@@ -161,8 +161,9 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     format!("symbol222 {}, limit:{}", info.symbol, info.limit);
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
-    let available_buy_orders = list_available_orders("BTC-USDT", Buy);
-    let available_sell_orders = list_available_orders("BTC-USDT", Sell);
+    //todo:错误码
+    let available_buy_orders = list_available_orders(info.symbol.as_str(), Buy);
+    let available_sell_orders = list_available_orders(info.symbol.as_str(), Sell);
 
     info!("0001__{:?}",available_buy_orders);
     info!("0002__{:?}",available_sell_orders);
@@ -170,7 +171,7 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     let mut bids = Vec::<(f64, f64)>::new();
 
     'buy_orders: for available_buy_order in available_buy_orders {
-        'asks: for mut bid in bids.clone() {
+        'bids: for mut bid in bids.iter_mut() {
             if u256_to_f64(available_buy_order.price, quote_decimal) == bid.0 {
                 bid.1 += u256_to_f64(available_buy_order.amount, base_decimal);
                 continue 'buy_orders;
@@ -183,7 +184,7 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     }
 
     'sell_orders: for available_sell_order in available_sell_orders {
-        'bids: for mut ask in asks.clone() {
+        'asks: for mut ask in asks.iter_mut() {
             if u256_to_f64(available_sell_order.price, quote_decimal) == ask.0 {
                 ask.1 += u256_to_f64(available_sell_order.amount, base_decimal);
                 continue 'sell_orders;
@@ -232,7 +233,7 @@ struct AggTradesRequest {
 async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Responder {
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
-    let trades = list_trades(None, Some("BTC-USDT".to_string()), info.limit)
+    let trades = list_trades(None, Some(info.symbol), info.limit)
         .iter()
         .map(|x| trade::Trade {
             id: x.id.clone(),

@@ -339,7 +339,7 @@ pub fn list_users_orders(account: &str, status1: Status,status2: Status,limit: u
     side,\
     status,\
     cast(created_at as text) from chemix_orders \
-    where account='{}' and (status=\'{}\' or status=\'{}\') order by created_at ASC limit {}", account, status1.as_str(),status2.as_str(),limit);
+    where account='{}' and (status=\'{}\' or status=\'{}\') order by created_at DESC limit {}", account, status1.as_str(),status2.as_str(),limit);
     info!("list_users_orders raw sql {}",sql);
     let mut orders = Vec::<EngineOrderTmp1>::new();
     let rows = crate::query(sql.as_str()).unwrap();
