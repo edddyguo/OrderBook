@@ -2,6 +2,9 @@ pub mod types;
 pub mod env;
 pub mod utils;
 
+#[macro_use]
+extern crate lazy_static;
+
 #[cfg(test)]
 mod tests {
     #[test]

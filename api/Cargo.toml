@@ -17,7 +17,6 @@ actix-cors = "0.3.0"
 actix-rt = "1.0.0"
 chemix-chain = { path = "../chain" }
 chemix-models = { path = "../models" }
-chemix-utils = { path = "../utils" }
 common = { path = "../common" }
 
 

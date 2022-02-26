@@ -2,8 +2,8 @@ use std::fmt::format;
 use std::str::FromStr;
 use ethers_core::types::U256;
 use crate::struct2array;
-use chemix_utils::algorithm::sha256;
-use chemix_utils::time::get_current_time;
+use common::utils::algorithm::sha256;
+use common::utils::time::get_current_time;
 use serde::{Serialize,Deserialize};
 use common::types::*;
 

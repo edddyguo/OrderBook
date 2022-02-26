@@ -31,6 +31,26 @@ impl MathOperation for f64 {
     }
 }
 
+/***
+pub trait ExtensionNat {
+    fn to_int<T>(&self) -> T
+        where
+            T: FromStr,
+            T::Err: std::fmt::Debug;
+}
+impl ExtensionNat for Nat {
+    fn to_int<T>(&self) -> T
+        where
+            T: FromStr,
+            T::Err: std::fmt::Debug,
+    {
+        self.to_string().replace("_", "").parse::<T>().unwrap()
+    }
+}
+            fee: self.fee.to_int::<u64>(),
+
+ */
+
 pub fn narrow(ori: u64) -> f64 {
     let decimal_number = Decimal::new(ori as i64, 8);
     decimal_number.to_f64().unwrap()

@@ -9,7 +9,7 @@ use crate::AddBook2;
 use serde::Deserialize;
 use chemix_chain::chemix::CancelOrderState2;
 
-use chemix_utils::math::narrow;
+use common::utils::math::narrow;
 
 use chemix_models::order::{BookOrder, get_order};
 use chemix_models::order::IdOrIndex::Index;

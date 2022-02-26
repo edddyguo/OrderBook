@@ -7,7 +7,6 @@ members = [
 	"engine",
 	"ws",
 	"bot",
-	"utils",
 	"scanner",
 	"common"
 ]

@@ -26,8 +26,8 @@ use crate::abi::Abi;
 use std::{convert::TryFrom, path::Path, sync::Arc, time::Duration};
 use std::ops::{Div, Mul};
 use clap::{App, Arg};
-use chemix_utils::math::MathOperation;
-use chemix_utils::env;
+use common::utils::math::MathOperation;
+use common::env;
 use chemix_chain::chemix::ChemixContractClient;
 
 use common::types::order::{Side, Status as OrderStatus};

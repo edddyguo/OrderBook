@@ -12,10 +12,10 @@ use log::info;
 use chemix_models::api::list_markets as list_markets2;
 use chemix_models::order::{EngineOrderTmp2, list_available_orders, list_users_orders};
 use chemix_models::trade::list_trades;
-use chemix_utils::time::time2unix;
+use common::utils::time::time2unix;
 use serde::{Deserialize, Serialize};
-use chemix_utils::env::EnvConf;
-use chemix_utils::math::u256_to_f64;
+use common::env::EnvConf;
+use common::utils::math::u256_to_f64;
 
 use common::types::order::Status as OrderStatus;
 use common::types::trade::Status as TradeStatus;
@@ -87,9 +87,9 @@ fn respond_json(code: u8, msg: String, data: String) -> String {
 
 #[get("/chemix/dexInfo")]
 async fn dex_info(web::Path(()): web::Path<()>) -> impl Responder {
-    let engine = chemix_utils::env::CONF.chemix_main.to_owned().unwrap();
-    let vault = chemix_utils::env::CONF.chemix_vault.to_owned().unwrap();
-    let proxy = chemix_utils::env::CONF.chemix_token_proxy.to_owned().unwrap();
+    let engine = common::env::CONF.chemix_main.to_owned().unwrap();
+    let vault = common::env::CONF.chemix_vault.to_owned().unwrap();
+    let proxy = common::env::CONF.chemix_token_proxy.to_owned().unwrap();
 
     let dex_info = DexInfo {
         engine_address: engine.into_string().unwrap(),

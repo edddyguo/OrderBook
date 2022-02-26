@@ -8,8 +8,8 @@ use serde::Deserialize;
 //#[derive(Serialize)]
 use serde::Serialize;
 use crate::struct2array;
-use chemix_utils::math::narrow;
-use chemix_utils::time::get_current_time;
+use common::utils::math::narrow;
+use common::utils::time::get_current_time;
 use std::fmt::Display;
 use common::types::*;
 

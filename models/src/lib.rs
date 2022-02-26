@@ -38,6 +38,7 @@ lazy_static! {
 
 pub fn restartDB() -> bool {
     let now = Local::now();
+
     println!("restart postgresql {:?}", now);
     // let client =  connetDB();
     if let Some(client) = connetDB() {
