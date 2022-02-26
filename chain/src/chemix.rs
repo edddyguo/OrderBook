@@ -53,9 +53,10 @@ pub struct VaultClient {
 pub struct SettleValues2 {
     pub user : Address,
     pub positiveOrNegative1: bool,
-    pub incomeQuoteToken: U256,
-    pub positiveOrNegative2 : bool,
     pub incomeBaseToken: U256,
+    pub positiveOrNegative2 : bool,
+    pub incomeQuoteToken: U256,
+
 }
 
 #[derive(Clone,Debug)]

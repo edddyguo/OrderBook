@@ -42,9 +42,21 @@ contract Vault is
         bytes32 indexed hashData
     );
 
+    event WithdrawFromVault(
+        address indexed token,
+        address indexed to,
+        uint256 indexed amount
+    );
+
     struct Asset {
         uint256 frozenBalace;
         uint256 availableBalance;
+    }
+
+    struct thawInfos {
+        address token;
+        address addr;
+        uint256 thawAmount;
     }
 
     struct settleValues {
@@ -53,12 +65,6 @@ contract Vault is
         uint256  incomeBaseToken;
         bool     positiveOrNegative2;
         uint256  incomeQuoteToken;
-    }
-
-    struct thawInfos {
-        address token;
-        address from;
-        uint256 amount;
     }
 
     // ============ State Variables ============
@@ -176,14 +182,11 @@ contract Vault is
         // Then increment balances
         balances[token][from].availableBalance = balances[token][from].availableBalance.sub(amount);
         balances[token][from].frozenBalace = balances[token][from].frozenBalace.add(amount);
-
-        validateBalance(token);
     }
 
     function thawBalance(
         bytes32 flag,
         thawInfos[] calldata thawBalances
-
     )
         external
         onlyFrozenAddr
@@ -191,10 +194,10 @@ contract Vault is
     {
         // Then increment balances
         for(uint i = 0; i < thawBalances.length; i++){
-            balances[thawBalances[i].token][thawBalances[i].from].frozenBalace =  balances[thawBalances[i].token][thawBalances[i].from].frozenBalace.sub(thawBalances[i].amount);
-            balances[thawBalances[i].token][thawBalances[i].from].availableBalance = balances[thawBalances[i].token][thawBalances[i].from].availableBalance.add(thawBalances[i].amount);
+            balances[thawBalances[i].token][thawBalances[i].addr].frozenBalace = balances[thawBalances[i].token][thawBalances[i].addr].frozenBalace.sub(thawBalances[i].thawAmount);
+            balances[thawBalances[i].token][thawBalances[i].addr].availableBalance = balances[thawBalances[i].token][thawBalances[i].addr].availableBalance.add(thawBalances[i].thawAmount);        
         }
-        //validateBalance(token);
+        
         emit ThawBalance(flag);
     }
 
@@ -225,6 +228,7 @@ contract Vault is
 
         // Final validation
         validateBalance(token);
+        emit WithdrawFromVault(token, to, amount);
         return true;
     }
 
@@ -240,18 +244,31 @@ contract Vault is
         nonReentrant
     {
         require(ChemixStorage(STORAGE).checkHashData(largestIndex,hashData), 'Chemix: Wrong HashData');
+        
+        uint256 totalPostiveBaseToken = 0;
+        uint256 totalNegativeBaseToken = 0;
+        uint256 totalPostiveQuoteToken = 0;
+        uint256 totalNegativeQuoteToken = 0;
         for(uint i = 0; i < settleInfo.length; i++){
             if(settleInfo[i].positiveOrNegative1){
+                totalPostiveBaseToken += settleInfo[i].incomeBaseToken;
                 balances[baseToken][settleInfo[i].user].availableBalance = balances[baseToken][settleInfo[i].user].availableBalance.add(settleInfo[i].incomeBaseToken);
             }else{
+                totalNegativeBaseToken += settleInfo[i].incomeBaseToken;
                 balances[baseToken][settleInfo[i].user].frozenBalace = balances[baseToken][settleInfo[i].user].frozenBalace.sub(settleInfo[i].incomeBaseToken);
             }
             if(settleInfo[i].positiveOrNegative2){
+                totalPostiveQuoteToken += settleInfo[i].incomeQuoteToken;
                 balances[quoteToken][settleInfo[i].user].availableBalance = balances[quoteToken][settleInfo[i].user].availableBalance.add(settleInfo[i].incomeQuoteToken);
             }else{
+                totalNegativeQuoteToken += settleInfo[i].incomeQuoteToken;
                 balances[quoteToken][settleInfo[i].user].frozenBalace = balances[quoteToken][settleInfo[i].user].frozenBalace.sub(settleInfo[i].incomeQuoteToken);
             }
         }
+
+        require(totalPostiveBaseToken == totalNegativeBaseToken
+                && totalPostiveQuoteToken == totalNegativeQuoteToken, "detail settleInfo not correct");
+
         emit Settlement(baseToken, quoteToken, hashData);
     }
 

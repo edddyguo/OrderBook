@@ -232,7 +232,9 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
 
     let chemix_storage = ENV_CONF.chemix_storage.to_owned().unwrap();
     //test1
-    let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
+    //let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
+    let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
+
 
     let mut chemix_main_client = ChemixContractClient::new(pri_key, chemix_storage.to_str().unwrap());
     let chemix_main_client_arc = Arc::new(RwLock::new(chemix_main_client));
@@ -322,9 +324,29 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     info!("all thaw info {:?}",thaw_infos);
                     info!("start thaw balance");
 
-                    let thaw_res = chemix_main_client2.read().unwrap().thaw_balances(thaw_infos).await.unwrap().unwrap();
-                    info!("finish thaw balance res:{:?}",thaw_res);
+                    //let thaw_res = chemix_main_client2.read().unwrap().thaw_balances(thaw_infos).await.unwrap().unwrap();
+                    let mut receipt = Default::default();
+                    loop {
+                        match chemix_main_client2.read().unwrap().thaw_balances(thaw_infos.clone()).await {
+                            Ok(data) => {
+                                receipt = data.unwrap();
+                                break;
+                            }
+                            Err(error) => {
+                                if error.to_string().contains("underpriced") {
+                                    warn!("gas too low and try again");
+                                    tokio::time::sleep(time::Duration::from_millis(5000)).await;
+                                } else {
+                                    //tmp code
+                                    error!("{}",error);
+                                    unreachable!()
+                                }
+                            }
+                        }
+                    }
 
+                    // info!("finish thaw balance res:{:?}",thaw_res);
+                    info!("finish thaw balance res:{:?}",receipt);
 
                     for cancel_order in cancel_orders {
                         let order = get_order(Index(cancel_order.order_index.as_u32())).unwrap();
@@ -392,113 +414,117 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 error!("gen add depth = {:?}",add_depth);
 
                 //todo: settle traders
-                let mut settle_values: HashMap<String, EnigneSettleValues> = HashMap::new();
+                //let mut settle_values: HashMap<String, EnigneSettleValues> = HashMap::new();
+                //key: account,is_positive value amount
+                let mut base_settle_values: HashMap<(String,bool), U256> = HashMap::new();
+                let mut quote_settle_values: HashMap<(String,bool), U256> = HashMap::new();
+
+                let mut update_base_settle_values = |k: &(String,bool),v: &U256| {
+                    match base_settle_values.get_mut(&k) {
+                        None => {
+                            base_settle_values.insert(k.to_owned(),v.to_owned());
+                        }
+                        Some(mut tmp1) => {
+                            tmp1 = &mut tmp1.add(v);
+                        }
+                    }
+                };
+                let mut update_quote_settle_values = |k: &(String,bool),v: &U256| {
+                    match quote_settle_values.get_mut(&k) {
+                        None => {
+                            quote_settle_values.insert(k.to_owned(),v.to_owned());
+                        }
+                        Some(mut tmp1) => {
+                            tmp1 = &mut tmp1.add(v);
+                        }
+                    }
+                };
+
                 let token_base_decimal = U256::from(10u128).pow(U256::from(18u32));
                 for trader in db_trades.clone() {
-                    let base_amount = I256::from_raw(trader.amount);
-                    let quote_amount = I256::from_raw(trader.amount * trader.price / token_base_decimal);
-                    let negative =  I256::from(-1i32);
-
+                    let base_amount = trader.amount;
+                    let quote_amount = trader.amount * trader.price / token_base_decimal;
                     match trader.taker_side {
                         Buy => {
-                            match settle_values.get_mut(&trader.taker) {
-                                None => {
-                                    settle_values.insert(trader.taker, EnigneSettleValues {
-                                        incomeQuoteToken:  quote_amount * negative,
-                                        incomeBaseToken: base_amount,
-                                    });
-                                }
-                                Some(tmp1) => {
-                                    tmp1.incomeBaseToken += base_amount;
-                                    tmp1.incomeBaseToken -= quote_amount;
-                                }
-                            }
+                            update_base_settle_values(&(trader.taker.clone(),true),&base_amount);
+                            update_quote_settle_values(&(trader.taker,false),&quote_amount);
 
-                            match settle_values.get_mut(&trader.maker) {
-                                None => {
-                                    settle_values.insert(trader.maker, EnigneSettleValues {
-                                        incomeQuoteToken: quote_amount,
-                                        incomeBaseToken: base_amount * negative,
-                                    });
-                                }
-                                Some(tmp1) => {
-                                    tmp1.incomeQuoteToken += quote_amount;
-                                    tmp1.incomeBaseToken -= base_amount;
-                                }
-                            }
+                            update_base_settle_values(&(trader.maker.clone(),false),&base_amount);
+                            update_quote_settle_values(&(trader.maker,true),&quote_amount);
+
                         }
                         Sell => {
-                            match settle_values.get_mut(&trader.taker) {
-                                None => {
-                                    settle_values.insert(trader.taker, EnigneSettleValues {
-                                        incomeBaseToken: base_amount * negative,
-                                        incomeQuoteToken: quote_amount,
-                                    });
-                                }
-                                Some(tmp1) => {
-                                    tmp1.incomeBaseToken -= base_amount;
-                                    tmp1.incomeQuoteToken += quote_amount;
-                                }
-                            }
+                            update_base_settle_values(&(trader.taker.clone(),false),&base_amount);
+                            update_quote_settle_values(&(trader.taker,true),&quote_amount);
 
-                            match settle_values.get_mut(&trader.maker) {
-                                None => {
-                                    settle_values.insert(trader.maker, EnigneSettleValues {
-                                        incomeBaseToken: base_amount,
-                                        incomeQuoteToken: quote_amount * negative,
-                                    });
-                                }
-                                Some(tmp1) => {
-                                    tmp1.incomeBaseToken += base_amount;
-                                    tmp1.incomeQuoteToken -= quote_amount;                                }
-                            }
+                            update_base_settle_values(&(trader.maker.clone(),true),&base_amount);
+                            update_quote_settle_values(&(trader.maker,false),&quote_amount);
                         }
                     }
                 }
 
-
-                info!("_pre_settlement result {:#?}",settle_values);
-                let settle_trades = settle_values.iter().map(|(address, settle_info)| {
+                let settle_trades = base_settle_values.iter().zip(quote_settle_values.iter()).map(|(base,quote)| {
                     SettleValues2 {
-                        user: Address::from_str(address).unwrap(),
-                        positiveOrNegative1: settle_info.incomeBaseToken.is_positive(),
-                        incomeBaseToken: settle_info.incomeBaseToken.abs().into_raw(),
-                        positiveOrNegative2: settle_info.incomeQuoteToken.is_positive(),
-                        incomeQuoteToken: settle_info.incomeQuoteToken.abs().into_raw(),
+                        user: Address::from_str(base.0.0.as_str()).unwrap(),
+                        positiveOrNegative1: base.0.1,
+                        incomeBaseToken: base.1.to_owned(),
+                        positiveOrNegative2: quote.0.1,
+                        incomeQuoteToken: quote.1.to_owned()
                     }
                 }).collect::<Vec<SettleValues2>>();
+
+
 
                 info!("settle_trades {:?} ",settle_trades);
 
 
                 //fixme:有revert
-                let rt = Runtime::new().unwrap();
-                let chemix_main_client2 = chemix_main_client_receiver.clone();
-                let settlement_res = rt.block_on(async {
-                    let mut receipt = Default::default();
-                    loop {
-                        match chemix_main_client2.read().unwrap().settlement_trades(MARKET.base_token_address.as_str(),MARKET.quote_token_address.as_str(),settle_trades.clone()).await {
-                            Ok(data) => {
-                                receipt = data.unwrap();
-                                break;
-                            }
-                            Err(error) => {
-                                if error.to_string().contains("underpriced") {
-                                    warn!("gas too low and try again");
-                                    tokio::time::sleep(time::Duration::from_millis(5000)).await;
-                                } else {
-                                    //tmp code
-                                    error!("{}",error);
-                                    unreachable!()
+                //todo：空数组不清算
+                let mut agg_trades= Vec::new();
+                if !settle_trades.is_empty() {
+                    let rt = Runtime::new().unwrap();
+                    let chemix_main_client2 = chemix_main_client_receiver.clone();
+                    let settlement_res = rt.block_on(async {
+                        let mut receipt = Default::default();
+                        loop {
+                            match chemix_main_client2.read().unwrap().settlement_trades(MARKET.base_token_address.as_str(),MARKET.quote_token_address.as_str(),settle_trades.clone()).await {
+                                Ok(data) => {
+                                    receipt = data.unwrap();
+                                    break;
+                                }
+                                Err(error) => {
+                                    if error.to_string().contains("underpriced") {
+                                        warn!("gas too low and try again");
+                                        tokio::time::sleep(time::Duration::from_millis(5000)).await;
+                                    } else {
+                                        //tmp code
+                                        error!("{}",error);
+                                        unreachable!()
+                                    }
                                 }
                             }
                         }
+                        receipt
+                    });
+                    let height = settlement_res.block_number.unwrap().to_string().parse::<u32>().unwrap();
+                    insert_trades(&mut db_trades);
+                    agg_trades = db_trades.iter().map(|x| {
+                        let user_price = u256_to_f64(x.price, QuoteTokenDecimal);
+                        let user_amount = u256_to_f64(x.amount, BaseTokenDecimal);
+                        LastTrade2 {
+                            price: user_price,
+                            amount: user_amount,
+                            height,
+                            taker_side: x.taker_side.clone(),
+                        }
                     }
-                    receipt
-                });
+                    ).filter(|x| {
+                        x.price != 0.0 && x.amount != 0.0
+                    }).collect::<Vec<LastTrade2>>();
+                }
+
 
                 //todo: 没有区块的情况？
-                let height = settlement_res.block_number.unwrap().to_string().parse::<u32>().unwrap();
                 //------------------
                 //todo: marker orders的状态也要更新掉
                 //todo: 异步落表
@@ -529,22 +555,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     //todo: 批量更新
                     update_order(&update_info);
                 }
-                insert_trades(&mut db_trades);
-                //----------------------
 
-                let agg_trades = db_trades.iter().map(|x| {
-                    let user_price = u256_to_f64(x.price, QuoteTokenDecimal);
-                    let user_amount = u256_to_f64(x.amount, BaseTokenDecimal);
-                    LastTrade2 {
-                        price: user_price,
-                        amount: user_amount,
-                        height,
-                        taker_side: x.taker_side.clone(),
-                    }
-                }
-                ).filter(|x| {
-                    x.price != 0.0 && x.amount != 0.0
-                }).collect::<Vec<LastTrade2>>();
 
                 info!("finished compute  agg_trades {:?},add_depth {:?}",agg_trades,add_depth);
 

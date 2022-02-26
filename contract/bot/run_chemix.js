@@ -1,5 +1,8 @@
-const { ethers, upgrades } = require("hardhat");
-const { expect } = require('chai') //断言模块
+const { ethers, upgrades, network} = require("hardhat");
+const { expect } = require('chai')
+const {defaultHardhatNetworkHdAccountsConfigParams} = require("hardhat/internal/core/config/default-config");
+const {getAccountPath} = require("ethers/lib/utils");
+const {networks} = require("../hardhat.config"); //断言模块
 
 /***
  *
@@ -13,7 +16,7 @@ const { expect } = require('chai') //断言模块
 
 async function main() {
     //peth
-    let account1 = "0x613548d151E096131ece320542d19893C4B8c901"
+    //let account1 = "0x613548d151E096131ece320542d19893C4B8c901"
     //local
     //let account1 = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 
@@ -23,28 +26,70 @@ async function main() {
     let account_tj = "0x3bB395b668Ff9Cb84e55aadFC8e646Dd9184Da9d"
 
 
+
+    let signer = await ethers.getSigners();
+    //let account1 = signer[0].address;
+    //let chemix_signer = signer[0];
+    let account1 = signer[1].address;
+    let chemix_signer = signer[1];
+
     const issueAmountDefault = BigInt(100_000_000_000_000_000_000_000_000_000) //100_000_000_000
     var options = { gasPrice: 10000000000, gasLimit: 850000, value: 0 };
 
     /***
      * 21:47
      *
-     * deployTokenA:   0x3e1A99f4Ebdec4F6Da224D54a4a25b7B1445e1ea
-     * deployTokenB:   0x707c73B9425276c0c0adcdd0d1178bB541792049
-     * deployStorage:   0xdcac0cd7fC67873f9AfCbaC9e7C8F7A46F5443B8
-     * deployTokenProxy:   0xdf7eBFcAdE666c6C7167Ad39229918AD34585e1b
-     * deployVault:   0xa122d710C1a9c6b9C2908D25fbeD357144A45552
-     * deployChemiMain:   0xC8be8a025D17D21Da7c8533A34696251D4594257
+     * deployTokenA:   0x34f12975Bb2e7e1e87A0e59642B960C34f10E1A2
+     * deployTokenB:   0xFF013CBd3eF16f70ED32f0c080820f30B5dbe978
+     * deployStorage:   0xc973A1210Eb6dACd86Fe4dB7744a3A4b8dB6df29
+     * deployTokenProxy:   0x297ADc769890dE02DcA27d1ba4e805d6bC46ab3e
+     * deployVault:   0x4011080e00A75dd049fDA989769e16e266978e15
+     * deployChemiMain:   0xc271117Bd55fcDe1374FaA62bC4F2E48059ddE1a
      *
      * */
 
+    //dev
+        /**
+         * deployTokenA:   0x78F8D152Dc041E6Aa027342A12D19EF9ecf5038a
+         * deployTokenB:   0xCB40288aF19767c0652013D3072e0Dd983d0cFFE
+         * deployStorage:   0x7fAb33f49eB76730962762E2B3eAb8C5ca6936EE
+         * deployTokenProxy:   0x0b4E525C0A237D2A9Fe8E6173B3D709e605aC141
+         * deployVault:   0x36E1C5B7DBa8ab55E4e82bD627d3D81e5D0FaD99
+         * deployChemiMain:   0xCcC6515C3d15b4Fd8ef2c6654d18eB81af5aB7F2
+         *
+         *
+         * deployTokenA:   0x38F52517e6642fB1933E7A6A3a34fEa35372eD32
+         * deployTokenB:   0x719d36AB3752aa2d0311637B79B480C00A8f83fC
+         * deployStorage:   0x2b5a5390170805878c44e3813EbC1f0e48aB2953
+         * deployTokenProxy:   0xdFC403273AE6dc9993f58E8e2d15D48D4AAA5Ff5
+         * deployVault:   0xA45dd22d573314Fd85b5935B542C236A2dB72534
+         * deployChemiMain:   0xEba68dCF72f4601220c4CB576132f7FE3AE25853
+         *
+         * **/
 
-    const contractTokenA = await ethers.getContractAt("BaseToken1",'0x3e1A99f4Ebdec4F6Da224D54a4a25b7B1445e1ea')
-    const contractTokenB = await ethers.getContractAt("QuoteToken1",'0x707c73B9425276c0c0adcdd0d1178bB541792049')
-    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0xdcac0cd7fC67873f9AfCbaC9e7C8F7A46F5443B8')
-    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0xdf7eBFcAdE666c6C7167Ad39229918AD34585e1b')
-    const contractVault = await ethers.getContractAt("Vault",'0xa122d710C1a9c6b9C2908D25fbeD357144A45552')
-    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0xC8be8a025D17D21Da7c8533A34696251D4594257')
+
+
+    const contractTokenA = await ethers.getContractAt("BaseToken1",'0x38F52517e6642fB1933E7A6A3a34fEa35372eD32',chemix_signer)
+    const contractTokenB = await ethers.getContractAt("QuoteToken1",'0x719d36AB3752aa2d0311637B79B480C00A8f83fC',chemix_signer)
+    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0x2b5a5390170805878c44e3813EbC1f0e48aB2953',chemix_signer)
+    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0xdFC403273AE6dc9993f58E8e2d15D48D4AAA5Ff5',chemix_signer)
+    const contractVault = await ethers.getContractAt("Vault",'0xA45dd22d573314Fd85b5935B542C236A2dB72534',chemix_signer)
+    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0xEba68dCF72f4601220c4CB576132f7FE3AE25853',chemix_signer)
+
+
+
+    let authorizeSettle_res = await contractVault.authorizeSettle(account1,options);
+    console.log('authorizeSettle_res result ',authorizeSettle_res);
+
+    let authorizeFronzenAddr = await contractVault.authorizeFronzen(account1,options);
+    console.log('authorizeFronzenAddr result ',authorizeFronzenAddr);
+
+    let grantSettleAddr_result2 = await contractVault.grantSettleAddr(account1,options);
+    console.log('grantSettleAddr_result result ',grantSettleAddr_result2);
+
+
+    let grantFronzenAddr_result2 = await contractVault.grantFronzenAddr(account1,options);
+    console.log('grantSettleAddr_result result ',grantSettleAddr_result2);
 
     //check pair
 

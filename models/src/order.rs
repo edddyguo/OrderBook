@@ -252,13 +252,14 @@ pub fn update_order(order: &UpdateOrder) {
 
 pub fn list_available_orders(market_id: &str, side: Side) -> Vec<EngineOrder> {
     let sql = format!("select id,\
-    account,
+    account,\
     price,\
     available_amount,\
     side,\
     cast(created_at as text) from chemix_orders \
     where market_id='{}' and available_amount!=\'0\' and side='{}' order by created_at ASC", market_id, side.as_str());
     let mut orders = Vec::<EngineOrder>::new();
+    info!("list_available_orders sql {}",sql);
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
         let side_str: String = row.get(4);
