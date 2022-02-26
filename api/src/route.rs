@@ -10,14 +10,16 @@ use std::env;
 use log::info;
 
 use chemix_models::api::list_markets as list_markets2;
-use chemix_models::order::{EngineOrderTmp2, list_available_orders, list_users_orders, Status};
+use chemix_models::order::{EngineOrderTmp2, list_available_orders, list_users_orders};
 use chemix_models::trade::list_trades;
 use chemix_utils::time::time2unix;
 use serde::{Deserialize, Serialize};
-use chemix_models::order::Side::{Buy, Sell};
 use chemix_utils::env::EnvConf;
 use chemix_utils::math::u256_to_f64;
 
+use common::types::order::Status as OrderStatus;
+use common::types::trade::Status as TradeStatus;
+use common::types::order::Side as OrderSide;
 
 #[get("/{id}/{name}/index.html")]
 async fn index(web::Path((id, name)): web::Path<(u32, String)>) -> impl Responder {
@@ -162,8 +164,8 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     //todo:错误码
-    let mut available_buy_orders = list_available_orders(info.symbol.as_str(), Buy);
-    let mut available_sell_orders = list_available_orders(info.symbol.as_str(), Sell);
+    let mut available_buy_orders = list_available_orders(info.symbol.as_str(), OrderSide::Buy);
+    let mut available_sell_orders = list_available_orders(info.symbol.as_str(), OrderSide::Sell);
     available_buy_orders.sort_by(|a,b| {
         a.price.partial_cmp(&b.price).unwrap().reverse()
     });
@@ -394,7 +396,7 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     let account = info.account.clone().to_lowercase();
-    let orders = list_users_orders(account.as_str(), Status::from("pending"), Status::from("partial_filled"), info.limit);
+    let orders = list_users_orders(account.as_str(), OrderStatus::from("pending"), OrderStatus::from("partial_filled"), info.limit);
     let orders = orders.iter().map(|x| {
         EngineOrderTmp2 {
             id: "BTC-USDT".to_string(),
@@ -402,7 +404,7 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
             account: x.account.clone(),
             price: u256_to_f64(x.price, quote_decimal),
             amount: u256_to_f64(x.amount, base_decimal),
-            side: x.side.as_str().to_string(),
+            side: x.side.clone(),
             status: x.status.as_str().to_string(),
             created_at: "".to_string(),
         }

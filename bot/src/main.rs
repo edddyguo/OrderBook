@@ -29,7 +29,11 @@ use clap::{App, Arg};
 use chemix_utils::math::MathOperation;
 use chemix_utils::env;
 use chemix_chain::chemix::ChemixContractClient;
-use chemix_models::order::Side::Sell;
+
+use common::types::order::{Side, Status as OrderStatus};
+use common::types::trade::Status as TradeStatus;
+use common::types::order::Side as OrderSide;
+use common::types::order::Side::{Buy, Sell};
 
 abigen!(
     SimpleContract,
@@ -127,20 +131,20 @@ deployTokenB:   0xCB40288aF19767c0652013D3072e0Dd983d0cFFE
         let amount_add: f64 = rng.gen_range(-1.0..1.0);
         let side_random: u8 = rng.gen_range(0..=1);
         let side = match side_random {
-            0 => "buy",
-            _ => "sell",
+            0 => Buy,
+            _ => Sell,
         };
 
         let price = (base_price + price_add).to_fix(8);
         let amount = (base_amount + amount_add).to_fix(8);
 
-        let side : &str = matches.value_of("side").unwrap();
+        let side_str : &str = matches.value_of("side").unwrap();
         let price= price_str.to_string().parse::<f64>().unwrap();
         let amount= amount_str.to_string().parse::<f64>().unwrap();
 
     println!(
             "[newOrder]: side {} price {},amount {}",
-            side, price, amount
+            side_str, price, amount
         );
         let client = ChemixContractClient::new(pri_key, chemix_main_addr.to_str().unwrap());
         //side sell price 142.21596998,amount 0.3266204
@@ -151,7 +155,7 @@ deployTokenB:   0xCB40288aF19767c0652013D3072e0Dd983d0cFFE
         //todo: 手续费处理
 
         loop {
-            match client.new_order(side,base_token,quote_token,price,amount).await {
+            match client.new_order(Side::from(side_str),base_token,quote_token,price,amount).await {
                 Ok(_) => {
                     break;
                 }

@@ -11,15 +11,18 @@ use chemix_chain::chemix::CancelOrderState2;
 
 use chemix_utils::math::narrow;
 
-use chemix_models::order::{Side, BookOrder, get_order, Status};
+use chemix_models::order::{BookOrder, get_order};
 use chemix_models::order::IdOrIndex::Index;
 use chemix_models::trade::{TradeInfo};
+use common::types::order::Status as OrderStatus;
+use common::types::trade::Status as TradeStatus;
+use common::types::order::Side as OrderSide;
 
 
 #[derive(RustcEncodable, Clone, Serialize)]
 pub struct EventOrder {
     pub market_id: String,
-    pub side: Side,
+    pub side: OrderSide,
     pub price: f64,
     pub amount: f64,
 }
@@ -46,7 +49,7 @@ pub fn match_order(
     let mut total_matched_amount = U256::from(0i32);
     'marker_orders: loop {
         match &taker_order.side {
-            Side::Buy => {
+            OrderSide::Buy => {
                 if book.sell.is_empty() || taker_order.price < book.sell.first().unwrap().price
                 {
                     //此时一定是有吃单剩余
@@ -54,7 +57,7 @@ pub fn match_order(
                     let stat = orders
                         .bids
                         .entry(taker_order.price.clone())
-                        .or_insert(I256::from(0));
+                        .or_insert(I256::from(0i32));
                     *stat += I256::from_raw(taker_order.amount);
 
                     info!("______0002__{:?}",orders.bids.get(&taker_order.price));
@@ -84,7 +87,7 @@ pub fn match_order(
                     let stat = orders
                         .asks
                         .entry(marker_order.price.clone())
-                        .or_insert(I256::from(0));
+                        .or_insert(I256::from(0i32));
                     *stat -= I256::from_raw(matched_amount);
 
                     //get marker_order change value
@@ -108,14 +111,14 @@ pub fn match_order(
                     }
                 }
             }
-            Side::Sell => {
+            OrderSide::Sell => {
                 if book.buy.is_empty() || taker_order.price > book.buy.first().unwrap().price {
                     //此时一定是有吃单剩余
                     info!("______0003__{:?}",orders.asks.get(&taker_order.price));
                     let stat = orders
                         .asks
                         .entry(taker_order.price.clone())
-                        .or_insert(I256::from(0));
+                        .or_insert(I256::from(0i32));
                     *stat += I256::from_raw(taker_order.amount);
 
                     info!("______0004__{:?}",orders.asks.get(&taker_order.price));
@@ -146,7 +149,7 @@ pub fn match_order(
                     let stat = orders
                         .bids
                         .entry(marker_order.price.clone())
-                        .or_insert(I256::from(0));
+                        .or_insert(I256::from(0i32));
                     *stat -= I256::from_raw(matched_amount);
 
                     //get change marker order
@@ -189,45 +192,39 @@ pub fn cancel(new_cancel_orders : Vec<CancelOrderState2>) -> Vec<CancelOrderStat
         //todo: 处理异常
         let order = get_order(Index(new_cancel_order.order_index.as_u32())).unwrap();
         match order.status {
-            Status::FullFilled => {
+            OrderStatus::FullFilled => {
                 warn!("Have already matched");
             }
-            Status::PartialFilled => {
+            OrderStatus::PartialFilled => {
                 //todo: side 处理
-                match order.side.as_str() {
-                    "buy" => {
+                match order.side {
+                    OrderSide::Buy => {
                         crate::BOOK.lock().unwrap().buy.retain(|x| x.id != order.id);
                         legal_orders.push(new_cancel_order);
                     },
-                    "sell" => {
+                    OrderSide::Sell => {
                         crate::BOOK.lock().unwrap().sell.retain(|x| x.id != order.id);
                         legal_orders.push(new_cancel_order);
                     }
-                    _ => {
-                        unreachable!()
-                    }
                 }
             }
-            Status::Pending => {
-                match order.side.as_str() {
-                    "buy" => {
+            OrderStatus::Pending => {
+                match order.side {
+                    OrderSide::Buy => {
                         crate::BOOK.lock().unwrap().buy.retain(|x| x.id != order.id);
                         legal_orders.push(new_cancel_order);
 
                     },
-                    "sell" => {
+                    OrderSide::Sell => {
                         crate::BOOK.lock().unwrap().sell.retain(|x| x.id != order.id);
                         legal_orders.push(new_cancel_order);
                     }
-                    _ => {
-                        unreachable!()
-                    }
                 }
             }
-            Status::Canceled => {
+            OrderStatus::Canceled => {
                 warn!("Have already Canceled");
             }
-            Status::Abandoned => {
+            OrderStatus::Abandoned => {
                 todo!()
             }
         }

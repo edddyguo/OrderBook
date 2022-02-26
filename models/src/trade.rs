@@ -1,51 +1,29 @@
 use std::fmt::format;
 use std::str::FromStr;
 use ethers_core::types::U256;
-use crate::order::Side;
 use crate::struct2array;
-use crate::Side::{Buy, Sell};
 use chemix_utils::algorithm::sha256;
 use chemix_utils::time::get_current_time;
 use serde::{Serialize,Deserialize};
+use common::types::*;
 
 extern crate rustc_serialize;
+use common::types::trade::Status as TradeStatus;
+use common::types::order::Side as OrderSide;
 
-
-#[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
-pub enum Status {
-    #[serde(rename = "matched")]
-    Matched,
-    #[serde(rename = "launched")]
-    Launched,
-    #[serde(rename = "confirmed")] // 有效区块确认防分叉回滚
-    Confirmed,
-    #[serde(rename = "abandoned")] // which is abandoned because of chain forked
-    Abandoned,
-}
-
-impl Status {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Status::Matched => "matched",
-            Status::Launched => "launched",
-            Status::Confirmed => "confirmed",
-            Status::Abandoned => "abandoned",
-        }
-    }
-}
 
 #[derive(Serialize, Debug,Clone)]
 pub struct TradeInfo {
     pub id: String,
     pub transaction_id: i32,
     pub transaction_hash: String,
-    pub status: String,
+    pub status: TradeStatus,
     pub market_id: String,
     pub maker: String,
     pub taker: String,
     pub price: U256,
     pub amount: U256,
-    pub taker_side: Side,
+    pub taker_side: OrderSide,
     pub maker_order_id: String,
     pub taker_order_id: String,
     pub updated_at: String,
@@ -58,7 +36,7 @@ impl TradeInfo {
         maker: String,
         price: U256,
         amount: U256,
-        taker_side: Side,
+        taker_side: OrderSide,
         maker_order_id: String,
         taker_order_id: String,
     ) -> TradeInfo {
@@ -67,7 +45,7 @@ impl TradeInfo {
             id: "".to_string(),
             transaction_id: 0, //todo: 待加逻辑
             transaction_hash: "".to_string(),
-            status: "matched".to_string(),
+            status: TradeStatus::Matched,
             market_id: "BTC-USDT".to_string(),
             taker,
             maker,
@@ -164,12 +142,12 @@ pub fn list_trades(user: Option<String>,market_id: Option<String>,limit: u32) ->
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
         let side_str: String = row.get(9);
-        let side = Side::from(side_str.as_str());
+        let side = order::Side::from(side_str.as_str());
         let info = TradeInfo {
             id: row.get(0),
             transaction_id: row.get(1), //todo: 待加逻辑
             transaction_hash: row.get(2),
-            status: row.get(3),
+            status: TradeStatus::from(row.get::<usize,&str>(3usize)),//row.get(3),
             market_id: row.get(4),
             taker: row.get(5),
             maker: row.get(6),

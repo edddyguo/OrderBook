@@ -8,12 +8,13 @@ use crate::k256::ecdsa::SigningKey;
 use anyhow::Result;
 use chrono::Local;
 use chemix_utils::algorithm::{sha256, sha2562};
-use chemix_models::order::Side::*;
 use chemix_models::order::BookOrder;
 use ethers::types::Address;
 use chemix_utils::env;
 use chemix_utils::env::CONF;
+use common::types::*;
 use serde::Serialize;
+use common::types::order::Side;
 
 
 abigen!(
@@ -76,25 +77,6 @@ pub struct ThawBalances {
     pub amount: U256,
 }
 
-/****
-
-        emit ThawBalance(token, from, amount);
-
-
-struct CancelOrderState {
-    address   baseToken;
-    address   quoteToken;
-    address   orderUser;
-    uint256   mCancelIndex;
-    uint256   orderIndex;
-    bytes32   hashData;
-}
-
-emit NewCancelOrderCreated(baseToken, quoteToken, newHashData, orderUser,
-index, orderIndex);
-
- */
-
 impl ChemixContractClient {
     pub fn new(pri_key:&str,contract_address:&str) -> ChemixContractClient {
         let chain_rpc = env::CONF.chain_rpc.to_owned();
@@ -116,7 +98,7 @@ impl ChemixContractClient {
         }
     }
 
-    pub async fn new_order(&self,side: &str,baseToken: &str,quoteToken : &str,price: f64,amount: f64) -> Result<()>{
+    pub async fn new_order(&self,side: Side,baseToken: &str,quoteToken : &str,price: f64,amount: f64) -> Result<()>{
        let contract = ChemixMain::new(self.contract_addr, self.client.clone());
         let  tokenADecimal  = U256::from(10u128).pow(U256::from(10u32)); //18 -8
         let  tokenBDecimal  = U256::from(10u128).pow(U256::from(7u32)); //15 -8
@@ -128,29 +110,22 @@ impl ChemixContractClient {
         let amount = U256::from(amount.to_nano()).mul(tokenADecimal);
         let price = U256::from(price.to_nano()).mul(tokenBDecimal);
         match side {
-            "buy" => {
+            Side::Buy => {
                 info!("new_limit_buy_order,quoteToken={},baseToken={},price={},amount={}",quoteToken,baseToken,price,amount);
                 let result = contract.new_limit_buy_order(baseToken,quoteToken,price,amount,U256::from(18u32))
                     .legacy().send().await?.await?;
                info!("new buy order result  {:?}",result.unwrap().block_number);
             },
-            "sell" =>{
+            Side::Sell =>{
                 info!("new_limit_sell_order,quoteToken={},baseToken={},price={},amount={}",quoteToken,baseToken,price,amount);
                 let result = contract.new_limit_sell_order(baseToken,quoteToken,price,amount,U256::from(18u32))
                     .legacy().send().await?.await?;
                 info!("new sell order result  {:?}",result.unwrap().block_number);
             }
-            _ => {
-                unreachable!()
-            }
         }
         Ok(())
     }
-    /***
-       address   baseToken,
-        address   quoteToken,
-        uint256   orderIndex
-    */
+
     //重复取消的在后台判断逻辑
     pub async fn cancel_order(&self,baseToken: &str,quoteToken: &str,order_index: u32) -> Result<()>{
         let contract = ChemixMain::new(self.contract_addr, self.client.clone());
@@ -269,12 +244,10 @@ impl ChemixContractClient {
                 );
                 let order_id = sha256(order_json);
                 let side = match x.side {
-                    true => Buy,
-                    false => Sell,
+                    true => order::Side::Buy,
+                    false => order::Side::Sell,
                 };
-                info!("___0001_{}",x.order_user);
                 let account = format!("{:?}",x.order_user);
-                info!("___0002_{}",account);
                 BookOrder {
                     id: order_id,
                     account,

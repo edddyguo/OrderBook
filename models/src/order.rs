@@ -8,66 +8,20 @@ use serde::Deserialize;
 //#[derive(Serialize)]
 use serde::Serialize;
 use crate::struct2array;
-use crate::Side::{Buy, Sell};
 use chemix_utils::math::narrow;
 use chemix_utils::time::get_current_time;
 use std::fmt::Display;
+use common::types::*;
+
+use common::types::order::Status as OrderStatus;
+use common::types::trade::Status as TradeStatus;
+use common::types::order::Side as OrderSide;
 
 
-#[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
-pub enum Status {
-    #[serde(rename = "full_filled")]
-    FullFilled,
-    #[serde(rename = "partial_filled")]
-    PartialFilled,
-    #[serde(rename = "pending")]
-    Pending,
-    #[serde(rename = "canceled")]
-    Canceled,
-    #[serde(rename = "abandoned")]
-    Abandoned,
-}
-
-/***
-
-impl Side {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Buy => "buy",
-            Sell => "sell",
-        }
-    }
-}
-*/
-impl Status {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::FullFilled => "full_filled",
-            Self::Abandoned => "abandoned",
-            Self::PartialFilled => "partial_filled",
-            Self::Pending => "pending",
-            Self::Canceled => "canceled",
-        }
-    }
-}
-
-impl From<&str> for Status {
-    fn from(status_str: &str) -> Self {
-        match status_str {
-            "full_filled" => Self::FullFilled,
-            "partial_filled" => Self::PartialFilled,
-            "pending" => Self::Pending,
-            "canceled" => Self::Canceled,
-            "abandoned" => Self::Abandoned,
-            _ => unreachable!()
-        }
-    }
-}
-
-#[derive(Deserialize, Debug, Default, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct UpdateOrder {
     pub id: String,
-    pub status: String,
+    pub status: OrderStatus,
     pub available_amount: U256,
     pub canceled_amount: U256,
     pub matched_amount: U256,
@@ -80,7 +34,7 @@ pub struct EngineOrder {
     pub account: String,
     pub price: U256,
     pub amount: U256,
-    pub side: Side,
+    pub side: OrderSide,
     pub created_at: String,
 }
 
@@ -92,8 +46,8 @@ pub struct EngineOrderTmp1 {
     pub account: String,
     pub price: U256,
     pub amount: U256,
-    pub side: Side,
-    pub status: Status,
+    pub side: OrderSide,
+    pub status: OrderStatus,
     pub created_at: String,
 }
 
@@ -104,55 +58,25 @@ pub struct EngineOrderTmp2 {
     pub account: String,
     pub price: f64,
     pub amount: f64,
-    pub side: String,
+    pub side: OrderSide,
     pub status: String,
     pub created_at: String,
 }
 
-#[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
-pub enum Side {
-    #[serde(rename = "buy")]
-    Buy,
-    #[serde(rename = "sell")]
-    Sell,
-}
+
 
 #[derive(Clone, Serialize, Debug)]
 pub struct BookOrder {
     pub id: String,
     pub account: String,
     pub index: U256,
-    pub side: Side,
+    pub side: OrderSide,
     pub price: U256,
     pub amount: U256,
     pub created_at: u64,
 }
 
-impl Side {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Buy => "buy",
-            Sell => "sell",
-        }
-    }
 
-    pub fn contrary(&self) -> Side {
-        match self {
-            Buy => Sell,
-            Sell => Buy,
-        }
-    }
-}
-
-impl From<&str> for Side {
-    fn from(side_str: &str) -> Self {
-        match side_str {
-            "buy" => Self::Buy,
-            "sell" => Self::Sell,
-            _ => unreachable!()
-        }
-    }
-}
 
 
 /**
@@ -164,10 +88,10 @@ pub struct OrderInfo {
     pub index: U256,
     pub market_id: String,
     pub account: String,
-    pub side: String,
+    pub side: OrderSide,
     pub price: U256,
     pub amount: U256,
-    pub status: Status,
+    pub status: OrderStatus,
     pub available_amount: U256,
     pub matched_amount: U256,
     pub canceled_amount: U256,
@@ -187,23 +111,19 @@ impl OrderInfo {
         index: U256,
         market_id: String,
         account: String,
-        side: Side,
+        side: OrderSide,
         price: U256,
         amount: U256,
     ) -> OrderInfo {
-        let side = match side {
-            Side::Buy => "buy",
-            Side::Sell => "sell",
-        };
         OrderInfo {
             id,
             index,
             market_id,
             account,
-            side: side.to_string(),
+            side,
             price,
             amount,
-            status: Status::Pending,
+            status: order::Status::Pending,
             available_amount: amount,
             matched_amount: U256::from(0),
             canceled_amount:  U256::from(0),
@@ -241,7 +161,7 @@ pub fn update_order(order: &UpdateOrder) {
         order.available_amount,
         order.canceled_amount,
         order.matched_amount,
-        order.status,
+        order.status.as_str(),
         order.updated_at,
         order.id
     );
@@ -250,7 +170,7 @@ pub fn update_order(order: &UpdateOrder) {
     info!("success update order {} rows", execute_res);
 }
 
-pub fn list_available_orders(market_id: &str, side: Side) -> Vec<EngineOrder> {
+pub fn list_available_orders(market_id: &str, side: order::Side) -> Vec<EngineOrder> {
     let sql = format!("select id,\
     account,\
     price,\
@@ -263,13 +183,7 @@ pub fn list_available_orders(market_id: &str, side: Side) -> Vec<EngineOrder> {
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
         let side_str: String = row.get(4);
-        let side = match side_str.as_str() {
-            "buy" => Buy,
-            "sell" => Sell,
-            _ => {
-                unreachable!()
-            }
-        };
+        let side = OrderSide::from(side_str.as_str());
         let info = EngineOrder {
             id: row.get(0),
             account: row.get(1),
@@ -317,10 +231,10 @@ pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(id_or_index: T) -> Result<Ord
         index: U256::from(rows[0].get::<usize,i32>(1)),
         market_id: rows[0].get(2),
         account: rows[0].get(3),
-        side: rows[0].get(4),
+        side: OrderSide::from(rows[0].get::<usize,&str>(4usize)),//rows[0].get(4),
         price: U256::from_str_radix(rows[0].get::<usize,&str>(5usize),10).unwrap(),
         amount: U256::from_str_radix(rows[0].get::<usize,&str>(6usize),10).unwrap(),
-        status: Status::from(rows[0].get::<usize,&str>(7usize)),
+        status: order::Status::from(rows[0].get::<usize,&str>(7usize)),
         available_amount: U256::from_str_radix(rows[0].get::<usize,&str>(8usize),10).unwrap(),
         matched_amount: U256::from_str_radix(rows[0].get::<usize,&str>(9usize),10).unwrap(),
         canceled_amount: U256::from_str_radix(rows[0].get::<usize,&str>(10usize),10).unwrap(),
@@ -332,7 +246,7 @@ pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(id_or_index: T) -> Result<Ord
 
 
 
-pub fn list_users_orders(account: &str, status1: Status,status2: Status,limit: u32) -> Vec<EngineOrderTmp1> {
+pub fn list_users_orders(account: &str, status1: order::Status,status2: order::Status,limit: u32) -> Vec<EngineOrderTmp1> {
     let sql = format!("select id,index,\
     account,\
     price,\
@@ -346,10 +260,10 @@ pub fn list_users_orders(account: &str, status1: Status,status2: Status,limit: u
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
         let side_str: String = row.get(5);
-        let side = Side::from(side_str.as_str());
+        let side = order::Side::from(side_str.as_str());
 
         let status_str: String = row.get(6);
-        let status = Status::from(status_str.as_str());
+        let status = order::Status::from(status_str.as_str());
 
         let info = EngineOrderTmp1 {
             id: row.get(0),

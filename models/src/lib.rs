@@ -28,9 +28,9 @@ extern crate lazy_static;
 
 use chrono::Local;
 use serde_json::error::Category::Data;
-
-use crate::order::{OrderInfo, Side};
+use common::types::*;
 use crate::trade::TradeInfo;
+use crate::order::OrderInfo;
 
 lazy_static! {
     static ref CLIENTDB: Mutex<postgres::Client> = Mutex::new(connetDB().unwrap());
@@ -131,21 +131,16 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
     let value = value as &dyn Any;
     match value.downcast_ref::<TradeInfo>() {
         Some(trade) => {
-            let side = match trade.taker_side {
-                Side::Buy => "buy",
-                Side::Sell => "sell",
-            };
-
             trade_vec.push(trade.id.string4sql());
             trade_vec.push(trade.transaction_id.to_string());
             trade_vec.push(trade.transaction_hash.string4sql());
-            trade_vec.push(trade.status.string4sql());
+            trade_vec.push(trade.status.as_str().to_string().string4sql());
             trade_vec.push(trade.market_id.string4sql());
             trade_vec.push(trade.maker.string4sql());
             trade_vec.push(trade.taker.string4sql());
             trade_vec.push(trade.price.to_string());
             trade_vec.push(trade.amount.to_string());
-            trade_vec.push(side.to_string().string4sql());
+            trade_vec.push(trade.taker_side.as_str().to_string().string4sql());
             trade_vec.push(trade.maker_order_id.string4sql());
             trade_vec.push(trade.taker_order_id.string4sql());
             trade_vec.push(trade.updated_at.string4sql());
@@ -153,13 +148,13 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
         }
         None => (),
     };
-    match value.downcast_ref::<OrderInfo>() {
+    match value.downcast_ref::<order::OrderInfo>() {
         Some(trade) => {
             trade_vec.push(trade.id.string4sql());
             trade_vec.push(trade.index.to_string());
             trade_vec.push(trade.market_id.string4sql());
             trade_vec.push(trade.account.string4sql());
-            trade_vec.push(trade.side.string4sql());
+            trade_vec.push(trade.side.as_str().to_string().string4sql());
             trade_vec.push(trade.price.to_string());
             trade_vec.push(trade.amount.to_string());
             trade_vec.push(trade.status.as_str().to_string().string4sql());

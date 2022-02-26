@@ -35,7 +35,7 @@ use chemix_utils::time as chemix_time;
 use chrono::prelude::*;
 use clap::{App, Arg};
 
-use chemix_models::order::{get_order, insert_order, list_available_orders, update_order, EngineOrder, OrderInfo, Side, UpdateOrder, Status as OrderStatus, BookOrder, Status};
+use chemix_models::order::{get_order, insert_order, list_available_orders, update_order, EngineOrder, OrderInfo, UpdateOrder, BookOrder};
 use chemix_models::trade::{insert_trades, TradeInfo};
 use chemix_utils::algorithm::sha256;
 use chemix_utils::math::{narrow, MathOperation, u256_to_f64};
@@ -48,7 +48,10 @@ use chemix_models::order::IdOrIndex::{Id, Index};
 use chemix_utils::env::CONF as ENV_CONF;
 use crate::queue::Queue;
 
-use crate::Side::{Buy, Sell};
+use common::types::order::Status as OrderStatus;
+use common::types::trade::Status as TradeStatus;
+use common::types::order::Side as OrderSide;
+
 
 #[macro_use]
 extern crate lazy_static;
@@ -60,6 +63,7 @@ extern crate log;
 static BaseTokenDecimal: u32 = 18;
 static QuoteTokenDecimal: u32 = 15;
 use chemix_models::api::MarketInfo;
+use common::types::order::Status::FullFilled;
 
 #[derive(Clone, Serialize, Debug)]
 struct EngineBook {
@@ -75,8 +79,8 @@ pub struct EnigneSettleValues {
 
 lazy_static! {
     static ref BOOK: Mutex<EngineBook> = Mutex::new({
-        let available_sell : Vec<EngineOrder> = list_available_orders("BTC-USDT",Side::Sell);
-        let available_buy : Vec<EngineOrder> = list_available_orders("BTC-USDT",Side::Buy);
+        let available_sell : Vec<EngineOrder> = list_available_orders("BTC-USDT",OrderSide::Sell);
+        let available_buy : Vec<EngineOrder> = list_available_orders("BTC-USDT",OrderSide::Buy);
 
         let mut available_sell2 = available_sell.iter().map(|x|{
             BookOrder {
@@ -135,17 +139,6 @@ lazy_static! {
 
 
 
-/***
-#[derive(Debug, PartialEq, EthEvent)]
-pub struct NewOrderEvent {
-    user: Address,
-    baseToken: String,
-    quoteToken: String,
-    amount: u64,
-    price: u64,
-}
- */
-
 #[derive(Clone, Serialize)]
 pub struct AddBook {
     pub asks: Vec<(f64, f64)>,
@@ -157,14 +150,6 @@ pub struct AddBook2 {
     pub asks: HashMap<U256, I256>,
     pub bids: HashMap<U256, I256>,
 }
-
-/***
-#[derive(RustcEncodable, Clone, Serialize)]
-pub struct MarketUpdateBook {
-    id: String,
-    data: AddBook,
-}
- */
 
 #[derive(RustcEncodable, Clone, Serialize)]
 pub struct LastTrade {
@@ -180,7 +165,7 @@ pub struct LastTrade2 {
     price: f64,
     amount: f64,
     height: u32,
-    taker_side: Side,
+    taker_side: OrderSide,
 }
 
 //block content logs [NewOrderFilter { user: 0xfaa56b120b8de4597cf20eff21045a9883e82aad, base_token: "BTC", quote_token: "USDT", amount: 3, price: 4 }]
@@ -302,17 +287,14 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                         let market = get_markets(order.market_id.as_str());
                         let cancel_amount = order.available_amount;
                         let token_base_decimal = U256::from(10u128).pow(U256::from(18u32));
-                        let (token_address,amount) = match order.side.as_str() {
-                            "sell" => {
+                        let (token_address,amount) = match order.side {
+                            OrderSide::Sell=> {
                                 info!("available_amount {}",order.available_amount);
                                 (market.base_token_address,order.available_amount)
                             },
-                            "buy" => {
+                            OrderSide::Buy => {
                                 info!("available_amount {},price {},thaw_amount {}",order.available_amount,order.price,order.available_amount * order.price / token_base_decimal);
                                 (market.quote_token_address,order.available_amount * order.price / token_base_decimal)
-                            }
-                            _ => {
-                                unreachable!()
                             }
                         };
                         thaw_infos.push(ThawBalances {
@@ -350,11 +332,10 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
 
                     for cancel_order in cancel_orders {
                         let order = get_order(Index(cancel_order.order_index.as_u32())).unwrap();
-                        let new_status = "canceled";
 
                         let update_info = UpdateOrder {
                             id: order.id,
-                            status: new_status.to_string(),
+                            status: OrderStatus::Canceled,
                             available_amount: U256::from(0i32),
                             matched_amount: order.matched_amount,
                             canceled_amount: order.available_amount,
@@ -539,9 +520,9 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     let new_available_amount = marker_order_ori.available_amount - orders.1;
 
                     let new_status = if new_available_amount == u256_zero {
-                        "full_filled".to_string()
+                        OrderStatus::FullFilled
                     } else {
-                        "partial_filled".to_string()
+                        OrderStatus::PartialFilled
                     };
 
                     let update_info = UpdateOrder {

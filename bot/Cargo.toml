@@ -28,6 +28,7 @@ num = "0.2"
 rust_decimal = { version = "1.0.3", features = ["postgres"] }
 chemix-utils = { path = "../utils" }
 clap = "=3.0.0-beta.5"
+common = { path = "../common" }
 
 
 
