@@ -3,6 +3,7 @@ mod kline;
 mod market;
 mod order;
 mod trade;
+mod error_code;
 
 use actix_cors::Cors;
 use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder};
