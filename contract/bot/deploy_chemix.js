@@ -5,6 +5,10 @@
 // Runtime Environment's members available in the global scope.
 const hre = require("hardhat");
 const {address} = require("hardhat/internal/core/config/config-validation");
+const {defaultHardhatNetworkHdAccountsConfigParams} = require("hardhat/internal/core/config/default-config");
+const {networks} = require("../hardhat.config");
+const {ethers} = require("hardhat"); //断言模块
+
 
 async function main() {
     // Hardhat always runs the compile task when running scripts with its command
@@ -27,8 +31,12 @@ async function main() {
 
     console.log("Greeter deployed to:", chemix.address);
      */
-    const tokenA = await hre.ethers.getContractFactory("BaseToken1");
-    const tokenB = await hre.ethers.getContractFactory("QuoteToken1");
+    let signer = await ethers.getSigners();
+    let account1 = signer[0].address;
+    let chemix_signer = signer[0];
+
+    const tokenA = await hre.ethers.getContractFactory("BaseToken1",chemix_signer);
+    const tokenB = await hre.ethers.getContractFactory("QuoteToken1",chemix_signer);
     const deployTokenA = await tokenA.deploy();
     const deployTokenB = await tokenB.deploy();
     await deployTokenA.deployed();
@@ -36,9 +44,9 @@ async function main() {
     console.log("deployTokenA:  ", deployTokenA.address);
     console.log("deployTokenB:  ", deployTokenB.address);
 
-    const chemixStorage = await hre.ethers.getContractFactory("ChemixStorage");
-    const tokenProxy = await hre.ethers.getContractFactory("TokenProxy");
-    const vault = await hre.ethers.getContractFactory("Vault");
+    const chemixStorage = await hre.ethers.getContractFactory("ChemixStorage",chemix_signer);
+    const tokenProxy = await hre.ethers.getContractFactory("TokenProxy",chemix_signer);
+    const vault = await hre.ethers.getContractFactory("Vault",chemix_signer);
     const deployTokenProxy = await tokenProxy.deploy();
     const deployStorage = await chemixStorage.deploy();
     const deployVault = await vault.deploy(deployTokenProxy.address,deployStorage.address);
@@ -49,7 +57,7 @@ async function main() {
 
     //chemix main
     let feeTo = "0xca9B361934fc7A7b07814D34423d665268111726";
-    const chemixMain = await hre.ethers.getContractFactory("ChemixMain");
+    const chemixMain = await hre.ethers.getContractFactory("ChemixMain",chemix_signer);
     const deployChemiMain = await chemixMain.deploy(deployVault.address,deployStorage.address,feeTo,0);
     console.log("deployChemiMain:  ", deployChemiMain.address);
 

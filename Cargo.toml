@@ -8,5 +8,6 @@ members = [
 	"ws",
 	"bot",
 	"utils",
-	"scanner"
+	"scanner",
+	"common"
 ]
