@@ -511,6 +511,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 //todo: marker orders的状态也要更新掉
                 //todo: 异步落表
                 //todo： 等待清算
+                //todo: 和下边的db操作的事务一致性处理
                 insert_order(db_orders);
                 //update marker orders
                 let u256_zero = U256::from(0i32);

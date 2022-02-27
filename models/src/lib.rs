@@ -2,6 +2,7 @@ pub mod api;
 pub mod chain;
 pub mod order;
 pub mod trade;
+pub mod thaws;
 
 #[macro_use]
 extern crate jsonrpc_client_core;

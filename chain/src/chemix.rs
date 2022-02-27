@@ -214,6 +214,10 @@ impl ChemixContractClient {
         Ok(result)
     }
 
+    pub async fn settlement_trades2(&self,trades : Vec<SettleValues2>) -> Result<Option<TransactionReceipt>>{
+        Ok(None)
+    }
+
 
     //fixme:更合适的区分两份合约
     pub async fn filter_new_order_event(&mut self,height: U64) -> Result<Vec<BookOrder>>{
