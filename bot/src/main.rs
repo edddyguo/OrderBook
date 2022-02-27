@@ -103,7 +103,7 @@ async fn auto_take_order(client: ChemixContractClient, base_token: &str, quote_t
             side.as_str(), price, amount
         );
 
-        new_order(client.clone(), base_token, quote_token, side.clone(), price, amount);
+        new_order(client.clone(), base_token, quote_token, side.clone(), price, amount).await;
         tokio::time::sleep(time::Duration::from_millis(1000)).await;
     }
 }
