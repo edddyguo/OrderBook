@@ -165,18 +165,13 @@ impl ChemixContractClient {
 
 
 
-    pub async fn thaw_balances(&self, users : Vec<ThawBalances>) -> Result<Option<TransactionReceipt>>{
+    pub async fn thaw_balances(&self, users : Vec<ThawBalances>,cancel_id: [u8;32]) -> Result<Option<TransactionReceipt>>{
         info!("test1 {:?},{:?}",self.last_index,self.last_hash_data);
         let chemix_vault = CONF.chemix_vault.to_owned();
         let vault_address = Address::from_str(chemix_vault.unwrap().to_str().unwrap()).unwrap();
         let contract = Vault::new(vault_address, self.client.clone());
         let now = Local::now().timestamp_millis() as u64;
-        let order_json = format!(
-            "{}{}",
-            serde_json::to_string(&users).unwrap(),
-            now
-        );
-        let cancel_id = sha2562(order_json);
+
 
         let users2 = users.iter().map(|x| {
             ThawInfos {

@@ -32,6 +32,7 @@ use serde_json::error::Category::Data;
 use common::types::*;
 use crate::trade::TradeInfo;
 use crate::order::OrderInfo;
+use crate::thaws::Thaws;
 
 lazy_static! {
     static ref CLIENTDB: Mutex<postgres::Client> = Mutex::new(connetDB().unwrap());
@@ -104,11 +105,12 @@ pub fn execute(raw_sql: &str) -> anyhow::Result<u64>{
             Ok(data) => {
                 return Ok(data);
             }
-            Err(_) => {
+            Err(error) => {
                 if try_times == 0 {
                     //Err(anyhow!("Missing attribute: {}", missing));
                     return Err(anyhow!("retry execute failed"));
                 }else {
+                    info!("error {:?}",error);
                     crate::restartDB();
                     try_times -= 1;
                     continue;
@@ -129,46 +131,68 @@ impl FormatSql for String {
 }
 
 pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
-    let mut trade_vec: Vec<String> = vec![];
+    let mut values: Vec<String> = vec![];
     let value = value as &dyn Any;
+
     match value.downcast_ref::<TradeInfo>() {
         Some(trade) => {
-            trade_vec.push(trade.id.string4sql());
-            trade_vec.push(trade.transaction_id.to_string());
-            trade_vec.push(trade.transaction_hash.string4sql());
-            trade_vec.push(trade.status.as_str().to_string().string4sql());
-            trade_vec.push(trade.market_id.string4sql());
-            trade_vec.push(trade.maker.string4sql());
-            trade_vec.push(trade.taker.string4sql());
-            trade_vec.push(trade.price.to_string());
-            trade_vec.push(trade.amount.to_string());
-            trade_vec.push(trade.taker_side.as_str().to_string().string4sql());
-            trade_vec.push(trade.maker_order_id.string4sql());
-            trade_vec.push(trade.taker_order_id.string4sql());
-            trade_vec.push(trade.updated_at.string4sql());
-            trade_vec.push(trade.created_at.string4sql());
+            values.push(trade.id.string4sql());
+            values.push(trade.transaction_id.to_string());
+            values.push(trade.transaction_hash.string4sql());
+            values.push(trade.status.as_str().to_string().string4sql());
+            values.push(trade.market_id.string4sql());
+            values.push(trade.maker.string4sql());
+            values.push(trade.taker.string4sql());
+            values.push(trade.price.to_string());
+            values.push(trade.amount.to_string());
+            values.push(trade.taker_side.as_str().to_string().string4sql());
+            values.push(trade.maker_order_id.string4sql());
+            values.push(trade.taker_order_id.string4sql());
+            values.push(trade.updated_at.string4sql());
+            values.push(trade.created_at.string4sql());
         }
         None => (),
     };
     match value.downcast_ref::<order::OrderInfo>() {
         Some(trade) => {
-            trade_vec.push(trade.id.string4sql());
-            trade_vec.push(trade.index.to_string());
-            trade_vec.push(trade.market_id.string4sql());
-            trade_vec.push(trade.account.string4sql());
-            trade_vec.push(trade.side.as_str().to_string().string4sql());
-            trade_vec.push(trade.price.to_string());
-            trade_vec.push(trade.amount.to_string());
-            trade_vec.push(trade.status.as_str().to_string().string4sql());
-            trade_vec.push(trade.available_amount.to_string());
-            trade_vec.push(trade.matched_amount.to_string());
-            trade_vec.push(trade.canceled_amount.to_string());
-            trade_vec.push(trade.updated_at.string4sql());
-            trade_vec.push(trade.created_at.string4sql());
+            values.push(trade.id.string4sql());
+            values.push(trade.index.to_string());
+            values.push(trade.market_id.string4sql());
+            values.push(trade.account.string4sql());
+            values.push(trade.side.as_str().to_string().string4sql());
+            values.push(trade.price.to_string());
+            values.push(trade.amount.to_string());
+            values.push(trade.status.as_str().to_string().string4sql());
+            values.push(trade.available_amount.to_string());
+            values.push(trade.matched_amount.to_string());
+            values.push(trade.canceled_amount.to_string());
+            values.push(trade.updated_at.string4sql());
+            values.push(trade.created_at.string4sql());
         }
         None => (),
     };
-    trade_vec
+
+
+    match value.downcast_ref::<Thaws>() {
+        Some(thaw) => {
+            let account = format!("{:?}",thaw.account);
+            values.push(thaw.order_id.string4sql());
+            values.push(account.string4sql());
+            values.push(thaw.market_id.string4sql());
+            values.push(thaw.transaction_hash.string4sql());
+            values.push(thaw.block_height.to_string().string4sql());
+            values.push(thaw.thaws_hash.string4sql());
+            values.push(thaw.side.as_str().to_string().string4sql());
+            values.push(thaw.status.as_str().to_string().string4sql());
+            values.push(thaw.amount.to_string());
+            values.push(thaw.price.to_string());
+            values.push(thaw.updated_at.string4sql());
+            values.push(thaw.created_at.string4sql());
+        }
+        None => (),
+    };
+
+    values
 }
 
 #[cfg(test)]

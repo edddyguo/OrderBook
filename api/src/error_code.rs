@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, Debug, PartialEq, EnumIter, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ErrorCode {
     MarketIdNotExist = 101,
     AddressIllegal = 201,

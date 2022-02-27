@@ -34,7 +34,7 @@ use clap::{App, Arg};
 
 use chemix_models::order::{get_order, insert_order, list_available_orders, update_order, EngineOrder, OrderInfo, UpdateOrder, BookOrder};
 use chemix_models::trade::{insert_trades, list_trades, TradeInfo};
-use common::utils::algorithm::sha256;
+use common::utils::algorithm::{sha256, sha2562};
 use common::utils::math::{narrow, MathOperation, u256_to_f64};
 use common::utils::time::get_current_time;
 use common::utils::time::time2unix;
@@ -50,6 +50,8 @@ use crate::queue::Queue;
 use common::types::order::Status as OrderStatus;
 use common::types::trade::Status as TradeStatus;
 use common::types::order::Side as OrderSide;
+use common::types::thaw::Status as ThawStatus;
+
 
 
 #[macro_use]
@@ -63,7 +65,7 @@ static BaseTokenDecimal: u32 = 18;
 static QuoteTokenDecimal: u32 = 15;
 
 use chemix_models::api::MarketInfo;
-use chemix_models::thaws::list_thaws;
+use chemix_models::thaws::{list_thaws, update_thaws1};
 use common::types::order::Status::FullFilled;
 
 #[derive(Clone, Serialize, Debug)]
@@ -160,13 +162,16 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
                 loop {
-                    let pending_thaws = list_thaws("pending".to_string());
+                    let pending_thaws = list_thaws(ThawStatus::Pending);
                     if pending_thaws.is_empty() {
                         info!("Have no thaws need deal,and wait 5 seconds for next check");
                         tokio::time::sleep(time::Duration::from_millis(5000)).await;
                         continue;
+                    }else {
+                        info!("{:#?}",pending_thaws);
                     }
-                    //todo: 1、计算amount，2、上链，3、更新db
+                    //todo: num_pow
+                    //todo: 可以汇总
                     let mut thaw_infos = Vec::new();
                     for pending_thaw in pending_thaws.clone() {
                         let market = get_markets(pending_thaw.market_id.as_str());
@@ -192,8 +197,13 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
 
                     //let thaw_res = chemix_main_client2.read().unwrap().thaw_balances(thaw_infos).await.unwrap().unwrap();
                     let mut receipt = Default::default();
+
+                    let order_json = format!(
+                        "{}{}",
+                        serde_json::to_string(&thaw_infos).unwrap(), get_current_time());
+                    let cancel_id = sha2562(order_json);
                     loop {
-                        match thaw_client.read().unwrap().thaw_balances(thaw_infos.clone()).await {
+                        match thaw_client.read().unwrap().thaw_balances(thaw_infos.clone(),cancel_id).await {
                             Ok(data) => {
                                 receipt = data.unwrap();
                                 break;
@@ -210,13 +220,31 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                             }
                         }
                     }
-                    //todo: update status launch
                     // info!("finish thaw balance res:{:?}",thaw_res);
                     info!("finish thaw balance res:{:?}",receipt);
+                    /***
+                             1、txid
+                             2、cancel_id
+                             3、status
+                             4、block_height
+                             */
+                    let txid = format!("{:?}",receipt.transaction_hash);
+                    let height = receipt.block_number.unwrap().as_u32() as i32;
+                    let mut cancel_id_str= "".to_string();
+                    for item in cancel_id {
+                        let tmp = format!("{:x}", item);
+                        cancel_id_str += &tmp;
+                    }
+                    //todo: 批处理
+                    //pub fn update_thaws1(order_id:&str,cancel_id: &str,tx_id: &str,block_height:i32,status: ThawStatus) {
+                    for pending_thaw in pending_thaws {
+                        update_thaws1(pending_thaw.order_id.as_str(),cancel_id_str.as_str(),txid.as_str(),height,ThawStatus::Launched);
+                    }
                 }
             });
         });
         //execute matched trade
+        /***
         s.spawn(move |_| {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
@@ -364,6 +392,8 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
             });
 
         });
+
+         */
     });
     Ok(())
 }
@@ -372,5 +402,6 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
     let queue = Queue::new().await;
+    listen_blocks(queue).await;
     Ok(())
 }

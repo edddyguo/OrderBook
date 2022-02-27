@@ -64,6 +64,7 @@ extern crate log;
 static BaseTokenDecimal: u32 = 18;
 static QuoteTokenDecimal: u32 = 15;
 use chemix_models::api::MarketInfo;
+use chemix_models::thaws::{insert_thaws, Thaws};
 use common::types::order::Status::FullFilled;
 
 #[derive(Clone, Serialize, Debug)]
@@ -212,7 +213,6 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
     //todo: 重启从上次结束的块开始扫
     let mut last_height: U64 = U64::from(200u64);
     let (event_sender, event_receiver) = mpsc::sync_channel(0);
-    let (cancel_event_sender, cancel_event_receiver) = mpsc::sync_channel(0);
     let arc_queue = Arc::new(RwLock::new(queue));
     let arc_queue = arc_queue.clone();
 
@@ -254,10 +254,26 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     if legal_orders.is_empty() {
                         info!("Not found legal_cancel orders created at height {}",current_height);
                     } else {
-                        cancel_event_sender
-                            .send(legal_orders)
-                            .expect("failed to send orders");
+                        let mut pending_thaws = Vec::new();
+                        for cancel_order in legal_orders {
+                            let order = get_order(Index(cancel_order.order_index.as_u32())).unwrap();
+                            let update_info = UpdateOrder {
+                                id: order.id.clone(),
+                                status: OrderStatus::Canceled,
+                                available_amount: U256::from(0i32),
+                                matched_amount: order.matched_amount,
+                                canceled_amount: order.available_amount,
+                                updated_at: get_current_time(),
+                            };
+                            //todo: 批量更新
+                            update_order(&update_info);
+                            pending_thaws.push(
+                                Thaws::new(order.id.clone(), Address::from_str(order.account.as_str()).unwrap(), order.market_id,  order.amount, order.price, order.side.clone())
+                            );
+                        }
+                        insert_thaws(pending_thaws);
                     }
+
 
                     let new_orders = chemix_main_client_sender.clone().write().unwrap().filter_new_order_event(current_height).await.unwrap();
                     info!("new_orders_event {:?}",new_orders);
@@ -273,81 +289,6 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     last_height = current_height;
                 }
             });
-        });
-        //execute thawbalance
-        s.spawn(move |_| {
-            loop {
-                let cancel_orders: Vec<CancelOrderState2> = cancel_event_receiver.recv().expect("failed to send orders");
-                let chemix_main_client2 = chemix_main_client_receiver2.clone();
-                let rt = Runtime::new().unwrap();
-                rt.block_on(async move {
-                    //todo: 1、计算amount，2、上链，3、更新db
-                    let mut thaw_infos = Vec::new();
-                    for cancel_order in cancel_orders.clone() {
-                        let order = get_order(Index(cancel_order.order_index.as_u32())).unwrap();
-                        let market = get_markets(order.market_id.as_str());
-                        let cancel_amount = order.available_amount;
-                        let token_base_decimal = U256::from(10u128).pow(U256::from(18u32));
-                        let (token_address,amount) = match order.side {
-                            OrderSide::Sell=> {
-                                info!("available_amount {}",order.available_amount);
-                                (market.base_token_address,order.available_amount)
-                            },
-                            OrderSide::Buy => {
-                                info!("available_amount {},price {},thaw_amount {}",order.available_amount,order.price,order.available_amount * order.price / token_base_decimal);
-                                (market.quote_token_address,order.available_amount * order.price / token_base_decimal)
-                            }
-                        };
-                        thaw_infos.push(ThawBalances {
-                            token: Address::from_str(token_address.as_str()).unwrap(),
-                            from: cancel_order.order_user,
-                            amount
-                        });
-                    }
-                    info!("all thaw info {:?}",thaw_infos);
-                    info!("start thaw balance");
-
-                    //let thaw_res = chemix_main_client2.read().unwrap().thaw_balances(thaw_infos).await.unwrap().unwrap();
-                    let mut receipt = Default::default();
-                    loop {
-                        match chemix_main_client2.read().unwrap().thaw_balances(thaw_infos.clone()).await {
-                            Ok(data) => {
-                                receipt = data.unwrap();
-                                break;
-                            }
-                            Err(error) => {
-                                if error.to_string().contains("underpriced") {
-                                    warn!("gas too low and try again");
-                                    tokio::time::sleep(time::Duration::from_millis(5000)).await;
-                                } else {
-                                    //tmp code
-                                    error!("{}",error);
-                                    unreachable!()
-                                }
-                            }
-                        }
-                    }
-
-                    // info!("finish thaw balance res:{:?}",thaw_res);
-                    info!("finish thaw balance res:{:?}",receipt);
-
-                    for cancel_order in cancel_orders {
-                        let order = get_order(Index(cancel_order.order_index.as_u32())).unwrap();
-
-                        let update_info = UpdateOrder {
-                            id: order.id,
-                            status: OrderStatus::Canceled,
-                            available_amount: U256::from(0i32),
-                            matched_amount: order.matched_amount,
-                            canceled_amount: order.available_amount,
-                            updated_at: get_current_time(),
-                        };
-                        //todo: 批量更新
-                        update_order(&update_info);
-                    }
-                });
-            }
-
         });
 
         s.spawn(move |_| {
@@ -393,125 +334,11 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 }
                 error!("db_trades = {:?}",db_trades);
 
-                error!("gen add depth = {:?}",add_depth);
 
-                //todo: settle traders
-                //let mut settle_values: HashMap<String, EnigneSettleValues> = HashMap::new();
-                //key: account,is_positive value amount
-                let mut base_settle_values: HashMap<(String,bool), U256> = HashMap::new();
-                let mut quote_settle_values: HashMap<(String,bool), U256> = HashMap::new();
-
-                let mut update_base_settle_values = |k: &(String,bool),v: &U256| {
-                    match base_settle_values.get_mut(&k) {
-                        None => {
-                            base_settle_values.insert(k.to_owned(),v.to_owned());
-                        }
-                        Some(mut tmp1) => {
-                            tmp1 = &mut tmp1.add(v);
-                        }
-                    }
-                };
-                let mut update_quote_settle_values = |k: &(String,bool),v: &U256| {
-                    match quote_settle_values.get_mut(&k) {
-                        None => {
-                            quote_settle_values.insert(k.to_owned(),v.to_owned());
-                        }
-                        Some(mut tmp1) => {
-                            tmp1 = &mut tmp1.add(v);
-                        }
-                    }
-                };
-
-                let token_base_decimal = U256::from(10u128).pow(U256::from(18u32));
-                for trader in db_trades.clone() {
-                    let base_amount = trader.amount;
-                    let quote_amount = trader.amount * trader.price / token_base_decimal;
-                    match trader.taker_side {
-                        Buy => {
-                            update_base_settle_values(&(trader.taker.clone(),true),&base_amount);
-                            update_quote_settle_values(&(trader.taker,false),&quote_amount);
-
-                            update_base_settle_values(&(trader.maker.clone(),false),&base_amount);
-                            update_quote_settle_values(&(trader.maker,true),&quote_amount);
-
-                        }
-                        Sell => {
-                            update_base_settle_values(&(trader.taker.clone(),false),&base_amount);
-                            update_quote_settle_values(&(trader.taker,true),&quote_amount);
-
-                            update_base_settle_values(&(trader.maker.clone(),true),&base_amount);
-                            update_quote_settle_values(&(trader.maker,false),&quote_amount);
-                        }
-                    }
-                }
-
-                let settle_trades = base_settle_values.iter().zip(quote_settle_values.iter()).map(|(base,quote)| {
-                    SettleValues2 {
-                        user: Address::from_str(base.0.0.as_str()).unwrap(),
-                        positiveOrNegative1: base.0.1,
-                        incomeBaseToken: base.1.to_owned(),
-                        positiveOrNegative2: quote.0.1,
-                        incomeQuoteToken: quote.1.to_owned()
-                    }
-                }).collect::<Vec<SettleValues2>>();
-
-
-
-                info!("settle_trades {:?} ",settle_trades);
-
-
-                //fixme:有revert
-                //todo：空数组不清算
-                let mut agg_trades= Vec::new();
-                if !settle_trades.is_empty() {
-                    let rt = Runtime::new().unwrap();
-                    let chemix_main_client2 = chemix_main_client_receiver.clone();
-                    let settlement_res = rt.block_on(async {
-                        let mut receipt = Default::default();
-                        loop {
-                            match chemix_main_client2.read().unwrap().settlement_trades(MARKET.base_token_address.as_str(),MARKET.quote_token_address.as_str(),settle_trades.clone()).await {
-                                Ok(data) => {
-                                    receipt = data.unwrap();
-                                    break;
-                                }
-                                Err(error) => {
-                                    if error.to_string().contains("underpriced") {
-                                        warn!("gas too low and try again");
-                                        tokio::time::sleep(time::Duration::from_millis(5000)).await;
-                                    } else {
-                                        //tmp code
-                                        error!("{}",error);
-                                        unreachable!()
-                                    }
-                                }
-                            }
-                        }
-                        receipt
-                    });
-                    let height = settlement_res.block_number.unwrap().to_string().parse::<u32>().unwrap();
-                    insert_trades(&mut db_trades);
-                    agg_trades = db_trades.iter().map(|x| {
-                        let user_price = u256_to_f64(x.price, QuoteTokenDecimal);
-                        let user_amount = u256_to_f64(x.amount, BaseTokenDecimal);
-                        LastTrade2 {
-                            price: user_price,
-                            amount: user_amount,
-                            height,
-                            taker_side: x.taker_side.clone(),
-                        }
-                    }
-                    ).filter(|x| {
-                        x.price != 0.0 && x.amount != 0.0
-                    }).collect::<Vec<LastTrade2>>();
-                }
-
-
-                //todo: 没有区块的情况？
-                //------------------
-                //todo: marker orders的状态也要更新掉
-                //todo: 异步落表
-                //todo： 等待清算
                 //todo: 和下边的db操作的事务一致性处理
+                if !db_trades.is_empty() {
+                    insert_trades(&mut db_trades);
+                }
                 insert_order(db_orders);
                 //update marker orders
                 let u256_zero = U256::from(0i32);
@@ -540,8 +367,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 }
 
 
-                info!("finished compute  agg_trades {:?},add_depth {:?}",agg_trades,add_depth);
-
+                info!("finished compute  ,add_depth {:?}",add_depth);
                 let asks2 = add_depth.asks.iter().map(|(x, y)| {
                     let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
                     // let user_volume = u256_to_f64(y.to_owned(), BaseTokenDecimal);
@@ -575,11 +401,8 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     bids: bids2,
                 };
 
-                //let channel_update_book = channel_update_book.clone();
-                //let channel_new_trade = channel_new_trade.clone();
                 let arc_queue = arc_queue.clone();
                 let update_book_queue = arc_queue.read().unwrap().UpdateBook.clone();
-                let new_trade_queue = arc_queue.read().unwrap().NewTrade.clone();
 
                 let rt = Runtime::new().unwrap();
                 rt.block_on(async move {
@@ -588,14 +411,6 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                         .send_message(update_book_queue.as_str(), json_str, None)
                         .await
                         .expect("failed to send message");
-
-                    if !agg_trades.is_empty() {
-                        let json_str = serde_json::to_string(&agg_trades).unwrap();
-                        arc_queue.write().unwrap().client
-                            .send_message(new_trade_queue.as_str(), json_str, None)
-                            .await
-                            .expect("failed to send message");
-                    }
                 });
             }
         });

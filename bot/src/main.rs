@@ -65,7 +65,7 @@ async fn new_order(client: ChemixContractClient, base_token: &str, quote_token: 
 //讨论：取消不需要两个token，全局的index
 async fn cancel_order(client: ChemixContractClient, base_token: &str, quote_token: &str, index: u32) {
     loop {
-        match client.cancel_order(base_token, quote_token, 49).await {
+        match client.cancel_order(base_token, quote_token, index).await {
             Ok(_) => {
                 break;
             }

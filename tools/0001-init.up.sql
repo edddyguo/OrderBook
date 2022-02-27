@@ -93,6 +93,23 @@ create table chemix_orders(
 );
 create index idx_local_chemix_myorders_status on chemix_orders (status);
 
+
+create table chemix_thaws(
+  order_id text  primary key,
+  account text,
+  market_id text ,
+  transaction_hash text ,
+  block_height integer ,
+  thaws_hash  text ,
+  side  text ,
+  status  text ,
+  amount  text ,
+  price  text ,
+  updated_at  timestamp,
+  created_at  timestamp
+);
+create index idx_local_chemix_thaws_status on chemix_thaws (status);
+
 create table chemix_orders_tmp(
   id text  primary key,
   trader_address text ,
