@@ -88,6 +88,7 @@ pub struct ThawBalances {
     pub token : Address,
     pub from: Address,
     pub amount: U256,
+    pub decimal: u32,
 }
 
 #[derive(Clone,Debug,Serialize,Deserialize)]

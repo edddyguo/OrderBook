@@ -8,11 +8,11 @@ pub struct MarketInfo {
     pub id: String,
     pub base_token_address: String,
     base_token_symbol: String,
-    base_contract_decimal: i32,
+    pub base_contract_decimal: i32,
     base_front_decimal: i32,
     pub quote_token_address: String,
     quote_token_symbol: String,
-    quote_contract_decimal: i32,
+    pub quote_contract_decimal: i32,
     quote_front_decimal: i32,
 }
 

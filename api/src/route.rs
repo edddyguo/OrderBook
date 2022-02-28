@@ -243,7 +243,7 @@ struct AggTradesRequest {
 async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Responder {
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
-    let trades = list_trades(None, Some(info.symbol), info.limit)
+    let trades = list_trades(None, Some(info.symbol), None,info.limit)
         .iter()
         .map(|x| trade::Trade {
             id: x.id.clone(),
@@ -443,7 +443,7 @@ async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> imp
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     let account = info.account.clone().to_lowercase();
-    let trades = list_trades(Some(account.clone()), None, info.limit);
+    let trades = list_trades(Some(account.clone()), None, None,info.limit);
     let trades = trades.iter().map(|x| {
         let side = if account == x.taker {
             x.taker_side.clone()

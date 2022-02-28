@@ -32,8 +32,8 @@ async function main() {
     console.log("Greeter deployed to:", chemix.address);
      */
     let signer = await ethers.getSigners();
-    let account1 = signer[1].address;
-    let chemix_signer = signer[1];
+    let account1 = signer[0].address;
+    let chemix_signer = signer[0];
 
     const tokenA = await hre.ethers.getContractFactory("BaseToken1",chemix_signer);
     const tokenB = await hre.ethers.getContractFactory("QuoteToken1",chemix_signer);

@@ -201,8 +201,8 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
 
     let chemix_storage = ENV_CONF.chemix_storage.to_owned().unwrap();
     //test1
-    //let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
-    let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
+    let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
+    //let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
 
 
     let mut chemix_main_client = ChemixContractClient::new(pri_key, chemix_storage.to_str().unwrap());
@@ -260,20 +260,22 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     let mut thaw_infos = Vec::new();
                     for pending_thaw in pending_thaws.clone() {
                         let market = get_markets(pending_thaw.market_id.as_str());
-                        let token_base_decimal = U256::from(10u128).pow(U256::from(18u32));
-                        let (token_address, amount) = match pending_thaw.side {
+
+                        let token_base_decimal = U256::from(10u128).pow(U256::from(market.base_contract_decimal));
+                        let (token_address, amount,decimal) = match pending_thaw.side {
                             OrderSide::Sell => {
                                 info!("available_amount {}",pending_thaw.amount);
-                                (market.base_token_address, pending_thaw.amount)
+                                (market.base_token_address, pending_thaw.amount,market.base_contract_decimal)
                             }
                             OrderSide::Buy => {
                                 info!("available_amount {},price {},thaw_amount {}",pending_thaw.amount,pending_thaw.price,pending_thaw.amount * pending_thaw.price / token_base_decimal);
-                                (market.quote_token_address, pending_thaw.amount * pending_thaw.price / token_base_decimal)
+                                (market.quote_token_address, pending_thaw.amount * pending_thaw.price / token_base_decimal,market.quote_contract_decimal)
                             }
                         };
                         thaw_infos.push(ThawBalances {
                             token: Address::from_str(token_address.as_str()).unwrap(),
                             from: pending_thaw.account,
+                            decimal: decimal as u32,
                             amount,
                         });
                     }
@@ -330,7 +332,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                         ThawBalances2 {
                             token: x.token,
                             from: x.from,
-                            amount: u256_to_f64(x.amount,18),
+                            amount: u256_to_f64(x.amount,x.decimal),
                         }
                     }).collect::<Vec::<ThawBalances2>>();
                     let json_str = serde_json::to_string(&thaw_infos2).unwrap();
