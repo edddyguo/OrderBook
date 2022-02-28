@@ -243,13 +243,13 @@ struct AggTradesRequest {
 async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Responder {
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
-    let trades = list_trades(None, Some(info.symbol), None,info.limit)
+    let trades = list_trades(None, Some(info.symbol), Some(TradeStatus::Launched),info.limit)
         .iter()
         .map(|x| trade::Trade {
             id: x.id.clone(),
             price: u256_to_f64(x.price, quote_decimal),
             amount: u256_to_f64(x.amount, base_decimal),
-            height: 12345u32,
+            height: x.block_height as u32,
             taker_side: x.taker_side.clone(),
             updated_at: time2unix(x.created_at.clone()),
         })

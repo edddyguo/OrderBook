@@ -111,8 +111,8 @@ pub fn list_trades(user: Option<String>,market_id: Option<String>,status:Option<
         (Some(account), None,_) => {
             format!(" where taker='{}' or maker='{}' ",account,account)
         }
-        (None, Some(id),_) => {
-            format!(" where market_id='{}'",id)
+        (None, Some(id),Some(status)) => {
+            format!(" where market_id='{}' and status='{}' ",id,status.as_str())
         }
         (Some(account), Some(id),_) => {
             format!(" where market_id='{}' and (taker='{}' or maker='{}') ",id,account,account)
