@@ -15,7 +15,7 @@ use common::types::order::Side as OrderSide;
 #[derive(Serialize, Debug,Clone)]
 pub struct TradeInfo {
     pub id: String,
-    pub transaction_id: i32,
+    pub block_height: i32,
     pub transaction_hash: String,
     pub status: TradeStatus,
     pub market_id: String,
@@ -43,7 +43,7 @@ impl TradeInfo {
         let now = get_current_time();
         let mut trade = TradeInfo {
             id: "".to_string(),
-            transaction_id: 0, //todo: 待加逻辑
+            block_height: 0, //todo: 待加逻辑
             transaction_hash: "".to_string(),
             status: TradeStatus::Matched,
             market_id: "BTC-USDT".to_string(),
@@ -102,26 +102,31 @@ pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
     info!("success insert traders {} rows", execute_res);
 }
 
-pub fn list_trades(user: Option<String>,market_id: Option<String>,limit: u32) -> Vec<TradeInfo> {
-    let filter_str = match (user,market_id) {
-        (None, None) => {
+pub fn list_trades(user: Option<String>,market_id: Option<String>,status:Option<TradeStatus> ,limit: u32) -> Vec<TradeInfo> {
+    //todo: 待补充场景
+    let filter_str = match (user,market_id,status) {
+        (None, None,None) => {
             format!("")
         },
-        (Some(account), None) => {
-            format!(" taker='{}' or maker='{}' ",account,account)
+        (Some(account), None,_) => {
+            format!(" where taker='{}' or maker='{}' ",account,account)
         }
-        (None, Some(id)) => {
-            format!(" market_id='{}'",id)
+        (None, Some(id),_) => {
+            format!(" where market_id='{}'",id)
         }
-        (Some(account), Some(id)) => {
-            format!(" market_id='{}' and (taker='{}' or maker='{}') ",id,account,account)
+        (Some(account), Some(id),_) => {
+            format!(" where market_id='{}' and (taker='{}' or maker='{}') ",id,account,account)
         }
+        (None, None,Some(status)) => {
+            format!(" where status='{}' ",status.as_str())
+        }
+        _ => {unreachable!()}
     };
 
     let sql = format!(
         "select \
     id,\
-    transaction_id,\
+    block_height,\
     transaction_hash,\
     status,\
     market_id,\
@@ -135,17 +140,18 @@ pub fn list_trades(user: Option<String>,market_id: Option<String>,limit: u32) ->
     cast(created_at as text), \
     cast(updated_at as text) \
     from chemix_trades \
-    where {} order by created_at DESC limit {}",
+    {} order by created_at DESC limit {}",
         filter_str,limit
     );
     let mut trades: Vec<TradeInfo> = Vec::new();
+    info!("list_trades_sql {}",sql);
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
         let side_str: String = row.get(9);
         let side = order::Side::from(side_str.as_str());
         let info = TradeInfo {
             id: row.get(0),
-            transaction_id: row.get(1), //todo: 待加逻辑
+            block_height: row.get(1), //todo: 待加逻辑
             transaction_hash: row.get(2),
             status: TradeStatus::from(row.get::<usize,&str>(3usize)),//row.get(3),
             market_id: row.get(4),
@@ -162,4 +168,21 @@ pub fn list_trades(user: Option<String>,market_id: Option<String>,limit: u32) ->
         trades.push(info);
     }
     trades
+}
+
+pub fn update_trade(id:&str,status: TradeStatus,height: u32,transaction_hash: &str) {
+
+    let sql = format!(
+        "UPDATE chemix_trades SET (status,block_height,transaction_hash,updated_at)=\
+         ('{}',{},'{}','{}') WHERE id='{}'",
+        status.as_str(),
+        height,
+        transaction_hash,
+        get_current_time(),
+        id
+    );
+    info!("start update trade {} ", sql);
+    let execute_res = crate::execute(sql.as_str()).unwrap();
+    info!("success update trade {} rows", execute_res);
+
 }

@@ -168,18 +168,6 @@
       "inputs": [
         {
           "indexed": true,
-          "internalType": "address",
-          "name": "baseToken",
-          "type": "address"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "quoteToken",
-          "type": "address"
-        },
-        {
-          "indexed": true,
           "internalType": "bytes32",
           "name": "hashData",
           "type": "bytes32"
@@ -199,6 +187,31 @@
         }
       ],
       "name": "ThawBalance",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "WithdrawFromVault",
       "type": "event"
     },
     {
@@ -547,16 +560,6 @@
     {
       "inputs": [
         {
-          "internalType": "address",
-          "name": "baseToken",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "quoteToken",
-          "type": "address"
-        },
-        {
           "internalType": "uint256",
           "name": "largestIndex",
           "type": "uint256"
@@ -574,23 +577,18 @@
               "type": "address"
             },
             {
+              "internalType": "address",
+              "name": "token",
+              "type": "address"
+            },
+            {
               "internalType": "bool",
-              "name": "positiveOrNegative1",
+              "name": "isPositive",
               "type": "bool"
             },
             {
               "internalType": "uint256",
-              "name": "incomeBaseToken",
-              "type": "uint256"
-            },
-            {
-              "internalType": "bool",
-              "name": "positiveOrNegative2",
-              "type": "bool"
-            },
-            {
-              "internalType": "uint256",
-              "name": "incomeQuoteToken",
+              "name": "incomeTokenAmount",
               "type": "uint256"
             }
           ],
@@ -620,12 +618,12 @@
             },
             {
               "internalType": "address",
-              "name": "from",
+              "name": "addr",
               "type": "address"
             },
             {
               "internalType": "uint256",
-              "name": "amount",
+              "name": "thawAmount",
               "type": "uint256"
             }
           ],

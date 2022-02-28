@@ -137,7 +137,7 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
     match value.downcast_ref::<TradeInfo>() {
         Some(trade) => {
             values.push(trade.id.string4sql());
-            values.push(trade.transaction_id.to_string());
+            values.push(trade.block_height.to_string());
             values.push(trade.transaction_hash.string4sql());
             values.push(trade.status.as_str().to_string().string4sql());
             values.push(trade.market_id.string4sql());
@@ -157,6 +157,7 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
         Some(trade) => {
             values.push(trade.id.string4sql());
             values.push(trade.index.to_string());
+            values.push(trade.hash_data.string4sql());
             values.push(trade.market_id.string4sql());
             values.push(trade.account.string4sql());
             values.push(trade.side.as_str().to_string().string4sql());

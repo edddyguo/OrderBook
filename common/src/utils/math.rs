@@ -69,8 +69,8 @@ pub fn u256_to_f64(ori: U256,decimal: u32) -> f64 {
 #[cfg(test)]
 mod tests {
     use ethers_core::types::U256;
-    use crate::math::u256_to_f64;
     use std::str::FromStr;
+    use crate::utils::math::u256_to_f64;
 
     #[test]
     fn test_u256_to_f64() {

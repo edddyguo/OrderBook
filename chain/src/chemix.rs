@@ -7,7 +7,7 @@ use common::utils::math::MathOperation;
 use crate::k256::ecdsa::SigningKey;
 use anyhow::Result;
 use chrono::Local;
-use common::utils::algorithm::{sha256, sha2562};
+use common::utils::algorithm::{sha256, sha2562, u8_arr_from_str, u8_arr_to_str};
 use chemix_models::order::BookOrder;
 use ethers::types::Address;
 use common::env;
@@ -57,8 +57,20 @@ pub struct SettleValues2 {
     pub incomeBaseToken: U256,
     pub positiveOrNegative2 : bool,
     pub incomeQuoteToken: U256,
-
 }
+#[derive(Clone,Debug)]
+pub struct SettleValues3 {
+    pub user : Address,
+    pub token: Address,
+    pub isPositive : bool,
+    pub incomeTokenAmount: U256,
+}
+/**
+address  user;
+      address  token;
+      bool     isPositive;
+      uint256  incomeTokenAmount;
+ */
 
 #[derive(Clone,Debug)]
 pub struct CancelOrderState2 {
@@ -176,8 +188,8 @@ impl ChemixContractClient {
         let users2 = users.iter().map(|x| {
             ThawInfos {
                 token : x.token,
-                from: x.from,
-                amount: x.amount,
+                addr: x.from,
+                thaw_amount: x.amount,
             }
         }).collect::<Vec<ThawInfos>>();
 
@@ -186,7 +198,7 @@ impl ChemixContractClient {
         Ok(result)
     }
 
-
+    /***
     pub async fn settlement_trades(&self, base_token:&str,quote_token:&str,trades : Vec<SettleValues2>) -> Result<Option<TransactionReceipt>>{
         info!("test1 {:?},{:?}",self.last_index,self.last_hash_data);
         let chemix_vault = CONF.chemix_vault.to_owned();
@@ -209,8 +221,25 @@ impl ChemixContractClient {
         Ok(result)
     }
 
-    pub async fn settlement_trades2(&self,trades : Vec<SettleValues2>) -> Result<Option<TransactionReceipt>>{
-        Ok(None)
+     */
+
+    pub async fn settlement_trades2(&self,last_index: U256,last_hash: [u8;32],trades : Vec<SettleValues3>) -> Result<Option<TransactionReceipt>>{
+        //info!("test1 {:?},{:?}",self.last_index,self.last_hash_data);
+        let chemix_vault = CONF.chemix_vault.to_owned();
+        let contract_addr = Address::from_str(chemix_vault.unwrap().to_str().unwrap()).unwrap();
+        let contract = Vault::new(contract_addr, self.client.clone());
+
+        let trades2 = trades.iter().map(|x|{
+            SettleValues {
+                user: x.user,
+                token: x.token,
+                is_positive:  x.isPositive,
+                income_token_amount: x.incomeTokenAmount,
+            }
+        }).collect::<Vec<SettleValues>>();
+        let result : Option<TransactionReceipt> = contract.settlement(last_index,last_hash,trades2).legacy().send().await?.await?;
+        info!("settlement_trades res = {:?}",result);
+        Ok(result)
     }
 
 
@@ -247,10 +276,17 @@ impl ChemixContractClient {
                     false => order::Side::Sell,
                 };
                 let account = format!("{:?}",x.order_user);
+                info!("hash_data_u8 {:?}",x.hash_data);
+                let hash_data_str = u8_arr_to_str(x.hash_data);
+                info!("hash_data_str {}",hash_data_str);
+                let hash_data = u8_arr_from_str(hash_data_str.clone());
+                info!("hash_data_u8_2 {:?}",hash_data);
+
                 BookOrder {
                     id: order_id,
                     account,
                     index: x.order_index,
+                    hash_data: hash_data_str.clone(),
                     side,
                     price: x.limit_price,
                     amount: x.order_amount,

@@ -65,16 +65,32 @@ async function main() {
          * deployVault:   0xA45dd22d573314Fd85b5935B542C236A2dB72534
          * deployChemiMain:   0xEba68dCF72f4601220c4CB576132f7FE3AE25853
          *
+         * 0227
+         * deployTokenA:   0x0C304A4B59107ADd1bb422a27741Db7151559c32
+         * deployTokenB:   0x8Db8FFbe335F99778CCbB8DdCa9e210fFd0D54Af
+         * deployStorage:   0x53c14905Ba0452eEC44c6AA9Dd294a296aA8dE2c
+         * deployTokenProxy:   0x36a4bD8E1dE94A130334397C70aE36641f386Bc3
+         * deployVault:   0x1098B7A05c932B0e8b3957f4a8B33cee9Efd724A
+         * deployChemiMain:   0x413a559aafA36809F77896Be70284A4C13542f93
+         *
+         *
+         * 0228
+         * deployTokenA:   0x12B4e1E58D2EEc9B984A18D7275359E269726Dc2
+         * deployTokenB:   0x1B1D8299C787046dE1Be0CCb80aBfeb7Bf126809
+         * deployStorage:   0xE5b11BF87f01f952e7Cd268ec710aF0aaE7Ac1aF
+         * deployTokenProxy:   0x51751e8d9cB87F8a8A677fF539B2cd4fa45bd435
+         * deployVault:   0x5E5849cF979e4984c7785B47A353ddbcA4d82377
+         * deployChemiMain:   0xDc776C3FF24A3b4DD11eDB7BCa2474De73856b22
          * **/
 
 
 
-    const contractTokenA = await ethers.getContractAt("BaseToken1",'0x38F52517e6642fB1933E7A6A3a34fEa35372eD32',chemix_signer)
-    const contractTokenB = await ethers.getContractAt("QuoteToken1",'0x719d36AB3752aa2d0311637B79B480C00A8f83fC',chemix_signer)
-    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0x2b5a5390170805878c44e3813EbC1f0e48aB2953',chemix_signer)
-    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0xdFC403273AE6dc9993f58E8e2d15D48D4AAA5Ff5',chemix_signer)
-    const contractVault = await ethers.getContractAt("Vault",'0xA45dd22d573314Fd85b5935B542C236A2dB72534',chemix_signer)
-    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0xEba68dCF72f4601220c4CB576132f7FE3AE25853',chemix_signer)
+    const contractTokenA = await ethers.getContractAt("BaseToken1",'0x12B4e1E58D2EEc9B984A18D7275359E269726Dc2',chemix_signer)
+    const contractTokenB = await ethers.getContractAt("QuoteToken1",'0x1B1D8299C787046dE1Be0CCb80aBfeb7Bf126809',chemix_signer)
+    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0xE5b11BF87f01f952e7Cd268ec710aF0aaE7Ac1aF',chemix_signer)
+    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0x51751e8d9cB87F8a8A677fF539B2cd4fa45bd435',chemix_signer)
+    const contractVault = await ethers.getContractAt("Vault",'0x5E5849cF979e4984c7785B47A353ddbcA4d82377',chemix_signer)
+    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0xDc776C3FF24A3b4DD11eDB7BCa2474De73856b22',chemix_signer)
 
 
 

@@ -70,6 +70,7 @@ pub struct BookOrder {
     pub id: String,
     pub account: String,
     pub index: U256,
+    pub hash_data: String,
     pub side: OrderSide,
     pub price: U256,
     pub amount: U256,
@@ -86,6 +87,7 @@ amount = available_amount + matched_amount + canceled_amount
 pub struct OrderInfo {
     pub id: String,
     pub index: U256,
+    pub hash_data: String,
     pub market_id: String,
     pub account: String,
     pub side: OrderSide,
@@ -109,6 +111,7 @@ impl OrderInfo {
     pub fn new(
         id: String,
         index: U256,
+        hash_data: String,
         market_id: String,
         account: String,
         side: OrderSide,
@@ -118,6 +121,7 @@ impl OrderInfo {
         OrderInfo {
             id,
             index,
+            hash_data,
             market_id,
             account,
             side,
@@ -204,6 +208,40 @@ pub enum IdOrIndex {
     Index(u32),
 }
 
+
+pub fn get_last_order() -> Result<OrderInfo,String> {
+    let sql = format!(
+        "select id,index,hash_data,market_id,account,side,
+         price,\
+         amount,\
+         status,\
+         available_amount,\
+         matched_amount,\
+         canceled_amount,\
+         cast(updated_at as text) ,\
+         cast(created_at as text) \
+         from chemix_orders order by index desc limit 1 "
+    );
+    let rows = crate::query(sql.as_str()).unwrap();
+    let order = OrderInfo {
+        id: rows[0].get(0),
+        index: U256::from(rows[0].get::<usize,i32>(1)),
+        hash_data: rows[0].get(2),
+        market_id: rows[0].get(3),
+        account: rows[0].get(4),
+        side: OrderSide::from(rows[0].get::<usize,&str>(5usize)),//rows[0].get(4),
+        price: U256::from_str_radix(rows[0].get::<usize,&str>(6usize),10).unwrap(),
+        amount: U256::from_str_radix(rows[0].get::<usize,&str>(7usize),10).unwrap(),
+        status: order::Status::from(rows[0].get::<usize,&str>(8usize)),
+        available_amount: U256::from_str_radix(rows[0].get::<usize,&str>(9usize),10).unwrap(),
+        matched_amount: U256::from_str_radix(rows[0].get::<usize,&str>(10usize),10).unwrap(),
+        canceled_amount: U256::from_str_radix(rows[0].get::<usize,&str>(11usize),10).unwrap(),
+        updated_at: rows[0].get(12),
+        created_at: rows[0].get(13),
+    };
+    Ok(order)
+}
+
 pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(id_or_index: T) -> Result<OrderInfo,String> {
     let filter_str = match id_or_index.into() {
         IdOrIndex::Id(id) => {
@@ -214,7 +252,7 @@ pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(id_or_index: T) -> Result<Ord
         }
     };
     let sql = format!(
-        "select id,index,market_id,account,side,
+        "select id,index,hash_data,market_id,account,side,
          price,\
          amount,\
          status,\
@@ -229,17 +267,18 @@ pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(id_or_index: T) -> Result<Ord
     let order = OrderInfo {
         id: rows[0].get(0),
         index: U256::from(rows[0].get::<usize,i32>(1)),
-        market_id: rows[0].get(2),
-        account: rows[0].get(3),
-        side: OrderSide::from(rows[0].get::<usize,&str>(4usize)),//rows[0].get(4),
-        price: U256::from_str_radix(rows[0].get::<usize,&str>(5usize),10).unwrap(),
-        amount: U256::from_str_radix(rows[0].get::<usize,&str>(6usize),10).unwrap(),
-        status: order::Status::from(rows[0].get::<usize,&str>(7usize)),
-        available_amount: U256::from_str_radix(rows[0].get::<usize,&str>(8usize),10).unwrap(),
-        matched_amount: U256::from_str_radix(rows[0].get::<usize,&str>(9usize),10).unwrap(),
-        canceled_amount: U256::from_str_radix(rows[0].get::<usize,&str>(10usize),10).unwrap(),
-        updated_at: rows[0].get(11),
-        created_at: rows[0].get(12),
+        hash_data: rows[0].get(2),
+        market_id: rows[0].get(3),
+        account: rows[0].get(4),
+        side: OrderSide::from(rows[0].get::<usize,&str>(5usize)),//rows[0].get(4),
+        price: U256::from_str_radix(rows[0].get::<usize,&str>(6usize),10).unwrap(),
+        amount: U256::from_str_radix(rows[0].get::<usize,&str>(7usize),10).unwrap(),
+        status: order::Status::from(rows[0].get::<usize,&str>(8usize)),
+        available_amount: U256::from_str_radix(rows[0].get::<usize,&str>(9usize),10).unwrap(),
+        matched_amount: U256::from_str_radix(rows[0].get::<usize,&str>(10usize),10).unwrap(),
+        canceled_amount: U256::from_str_radix(rows[0].get::<usize,&str>(11usize),10).unwrap(),
+        updated_at: rows[0].get(12),
+        created_at: rows[0].get(13),
     };
     Ok(order)
 }

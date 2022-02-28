@@ -37,8 +37,6 @@ contract Vault is
     );
 
     event Settlement(
-        address indexed baseToken,
-        address indexed quoteToken,
         bytes32 indexed hashData
     );
 
@@ -61,10 +59,9 @@ contract Vault is
 
     struct settleValues {
         address  user;
-        bool     positiveOrNegative1;
-        uint256  incomeBaseToken;
-        bool     positiveOrNegative2;
-        uint256  incomeQuoteToken;
+        address  token;
+        bool     isPositive;
+        uint256  incomeTokenAmount;
     }
 
     // ============ State Variables ============
@@ -233,8 +230,6 @@ contract Vault is
     }
 
     function settlement(
-        address   baseToken,
-        address   quoteToken,
         uint256   largestIndex,
         bytes32   hashData,
         settleValues[] calldata settleInfo
@@ -244,32 +239,27 @@ contract Vault is
         nonReentrant
     {
         require(ChemixStorage(STORAGE).checkHashData(largestIndex,hashData), 'Chemix: Wrong HashData');
-        
+        /***
         uint256 totalPostiveBaseToken = 0;
         uint256 totalNegativeBaseToken = 0;
         uint256 totalPostiveQuoteToken = 0;
         uint256 totalNegativeQuoteToken = 0;
+        ***/
         for(uint i = 0; i < settleInfo.length; i++){
-            if(settleInfo[i].positiveOrNegative1){
-                totalPostiveBaseToken += settleInfo[i].incomeBaseToken;
-                balances[baseToken][settleInfo[i].user].availableBalance = balances[baseToken][settleInfo[i].user].availableBalance.add(settleInfo[i].incomeBaseToken);
+            if(settleInfo[i].isPositive){
+                //totalPostiveBaseToken += settleInfo[i].incomeBaseToken;
+                balances[settleInfo[i].token][settleInfo[i].user].availableBalance = balances[settleInfo[i].token][settleInfo[i].user].availableBalance.add(settleInfo[i].incomeTokenAmount);
             }else{
-                totalNegativeBaseToken += settleInfo[i].incomeBaseToken;
-                balances[baseToken][settleInfo[i].user].frozenBalace = balances[baseToken][settleInfo[i].user].frozenBalace.sub(settleInfo[i].incomeBaseToken);
-            }
-            if(settleInfo[i].positiveOrNegative2){
-                totalPostiveQuoteToken += settleInfo[i].incomeQuoteToken;
-                balances[quoteToken][settleInfo[i].user].availableBalance = balances[quoteToken][settleInfo[i].user].availableBalance.add(settleInfo[i].incomeQuoteToken);
-            }else{
-                totalNegativeQuoteToken += settleInfo[i].incomeQuoteToken;
-                balances[quoteToken][settleInfo[i].user].frozenBalace = balances[quoteToken][settleInfo[i].user].frozenBalace.sub(settleInfo[i].incomeQuoteToken);
+                //totalNegativeBaseToken += settleInfo[i].incomeBaseToken;
+                require(balances[settleInfo[i].token][settleInfo[i].user].frozenBalace >= settleInfo[i].incomeTokenAmount, 'frozenBalace must be greater than incomeBaseToken');
+                balances[settleInfo[i].token][settleInfo[i].user].frozenBalace = balances[settleInfo[i].token][settleInfo[i].user].frozenBalace.sub(settleInfo[i].incomeTokenAmount);
             }
         }
-
+        /***
         require(totalPostiveBaseToken == totalNegativeBaseToken
                 && totalPostiveQuoteToken == totalNegativeQuoteToken, "detail settleInfo not correct");
-
-        emit Settlement(baseToken, quoteToken, hashData);
+        ***/
+        emit Settlement(hashData);
     }
 
     // ============ Private Helper-Functions ============

@@ -84,10 +84,12 @@ lazy_static! {
         let available_sell : Vec<EngineOrder> = list_available_orders("BTC-USDT",OrderSide::Sell);
         let available_buy : Vec<EngineOrder> = list_available_orders("BTC-USDT",OrderSide::Buy);
 
+        //todo: 统一数据结构
         let mut available_sell2 = available_sell.iter().map(|x|{
             BookOrder {
                 id: x.id.clone(),
                 index: U256::from(0i8),
+                hash_data: "".to_string(),
                 account: x.account.clone(),
                 side: x.side.clone(),
                 price: x.price,
@@ -104,6 +106,7 @@ lazy_static! {
             BookOrder {
                 id: x.id.clone(),
                 index: U256::from(0i8), //todo
+                hash_data: "".to_string(),
                 account: x.account.clone(),
                 side: x.side.clone(),
                 price: x.price,
@@ -242,6 +245,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 let mut stream = watcher.gen_watcher().await.unwrap();
                 while let Some(block) = stream.next().await {
                     info!("block {}",block);
+                    info!("current_book {:#?}",crate::BOOK.lock().unwrap());
                     //last_height = last_height.add(1i32);
                     let current_height = provider_http.get_block(block).await.unwrap().unwrap();
                     //todo: 处理块高异常的情况,get block from http
@@ -313,7 +317,12 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 let u256_zero = U256::from(0i32);
 
                 for (index, order) in orders.into_iter().enumerate() {
-                    let mut db_order = OrderInfo::new(order.id.clone(), order.index.clone(), "BTC-USDT".to_string(), order.account.clone(), order.side.clone(), order.price.clone(), order.amount.clone());
+                    let mut db_order = OrderInfo::new(order.id.clone(),
+                                                      order.index.clone(), order.hash_data.clone(),
+                                                      "BTC-USDT".to_string(),
+                                                      order.account.clone(), order.side.clone(),
+                                                      order.price.clone(), order.amount.clone(),
+                    );
                     let matched_amount = match_order(order, &mut db_trades, &mut add_depth, &mut db_marker_orders_reduce);
 
                     error!("index={},taker_amount={},matched_amount={}",index,db_order.amount,matched_amount);

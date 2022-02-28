@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use ethers_contract_abigen::parse_address;
 use ethers_providers::{Http, Middleware, Provider, StreamExt};
 use rsmq_async::{Rsmq, RsmqConnection, RsmqError};
-use chemix_chain::chemix::{CancelOrderState2, ChemixContractClient, SettleValues2, ThawBalances};
+use chemix_chain::chemix::{CancelOrderState2, ChemixContractClient, SettleValues2, SettleValues3, ThawBalances};
 use chemix_chain::chemix::SettleValues;
 use chemix_chain::bsc::Node;
 use std::string::String;
@@ -32,9 +32,9 @@ use common::utils::time as chemix_time;
 use chrono::prelude::*;
 use clap::{App, Arg};
 
-use chemix_models::order::{get_order, insert_order, list_available_orders, update_order, EngineOrder, OrderInfo, UpdateOrder, BookOrder};
-use chemix_models::trade::{insert_trades, list_trades, TradeInfo};
-use common::utils::algorithm::{sha256, sha2562};
+use chemix_models::order::{get_order, insert_order, list_available_orders, update_order, EngineOrder, OrderInfo, UpdateOrder, BookOrder, get_last_order};
+use chemix_models::trade::{insert_trades, list_trades, TradeInfo, update_trade};
+use common::utils::algorithm::{sha256, sha2562, u8_arr_from_str};
 use common::utils::math::{narrow, MathOperation, u256_to_f64};
 use common::utils::time::get_current_time;
 use common::utils::time::time2unix;
@@ -107,6 +107,90 @@ pub struct LastTrade2 {
     amount: f64,
     height: u32,
     taker_side: OrderSide,
+}
+
+
+fn gen_settle_trades(db_trades: Vec<TradeInfo>) -> Vec<SettleValues3>{
+    //key: account,token_address,is_positive
+    let mut base_settle_values: HashMap<(String,String,bool), U256> = HashMap::new();
+    let mut quote_settle_values: HashMap<(String,String,bool), U256> = HashMap::new();
+
+    let mut update_base_settle_values = |k: &(String, String,bool), v: &U256| {
+        match base_settle_values.get_mut(&k) {
+            None => {
+                base_settle_values.insert(k.to_owned(), v.to_owned());
+            }
+            Some(mut tmp1) => {
+                tmp1 = &mut tmp1.add(v);
+            }
+        }
+    };
+    let mut update_quote_settle_values = |k: &(String, String,bool), v: &U256| {
+        match quote_settle_values.get_mut(&k) {
+            None => {
+                quote_settle_values.insert(k.to_owned(), v.to_owned());
+            }
+            Some(mut tmp1) => {
+                tmp1 = &mut tmp1.add(v);
+            }
+        }
+    };
+
+    let token_base_decimal = U256::from(10u128).pow(U256::from(18u32));
+    for trader in db_trades.clone() {
+        let base_amount = trader.amount;
+        let quote_amount = trader.amount * trader.price / token_base_decimal;
+        let market = get_markets(&trader.market_id);
+
+        match trader.taker_side {
+            OrderSide::Buy => {
+                update_base_settle_values(&(trader.taker.clone(),market.base_token_address.clone(), true), &base_amount);
+                update_quote_settle_values(&(trader.taker,market.quote_token_address.clone(), false), &quote_amount);
+
+                update_base_settle_values(&(trader.maker.clone(),market.base_token_address.clone(), false), &base_amount);
+                update_quote_settle_values(&(trader.maker,market.quote_token_address.clone(), true), &quote_amount);
+            }
+            OrderSide::Sell => {
+                update_base_settle_values(&(trader.taker.clone(), market.base_token_address.clone(),false), &base_amount);
+                update_quote_settle_values(&(trader.taker, market.quote_token_address.clone(),true), &quote_amount);
+
+                update_base_settle_values(&(trader.maker.clone(),market.base_token_address.clone(), true), &base_amount);
+                update_quote_settle_values(&(trader.maker,market.quote_token_address.clone(), false), &quote_amount);
+            }
+        }
+    }
+
+    /***
+    let settle_trades = base_settle_values.iter().zip(quote_settle_values.iter()).map(|(base, quote)| {
+        SettleValues2 {
+            user: Address::from_str(base.0.0.as_str()).unwrap(),
+            positiveOrNegative1: base.0.1,
+            incomeBaseToken: base.1.to_owned(),
+            positiveOrNegative2: quote.0.1,
+            incomeQuoteToken: quote.1.to_owned(),
+        }
+    }).collect::<Vec<SettleValues2>>();
+     */
+    let mut settle_trades = base_settle_values.iter().map(|(k,v)| {
+        SettleValues3{
+            user: Address::from_str(k.0.as_str()).unwrap(),
+            token: Address::from_str(k.1.as_str()).unwrap(),
+            isPositive: k.2,
+            incomeTokenAmount: v.to_owned()
+        }
+    }).collect::<Vec<SettleValues3>>();
+
+    let mut settle_trades_quote = quote_settle_values.iter().map(|(k,v)| {
+        SettleValues3{
+            user: Address::from_str(k.0.as_str()).unwrap(),
+            token: Address::from_str(k.1.as_str()).unwrap(),
+            isPositive: k.2,
+            incomeTokenAmount: v.to_owned()
+        }
+    }).collect::<Vec<SettleValues3>>();
+
+    settle_trades.append(&mut settle_trades_quote);
+    settle_trades
 }
 
 async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
@@ -222,12 +306,6 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     }
                     // info!("finish thaw balance res:{:?}",thaw_res);
                     info!("finish thaw balance res:{:?}",receipt);
-                    /***
-                             1、txid
-                             2、cancel_id
-                             3、status
-                             4、block_height
-                             */
                     let txid = format!("{:?}",receipt.transaction_hash);
                     let height = receipt.block_number.unwrap().as_u32() as i32;
                     let mut cancel_id_str= "".to_string();
@@ -240,11 +318,12 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     for pending_thaw in pending_thaws {
                         update_thaws1(pending_thaw.order_id.as_str(),cancel_id_str.as_str(),txid.as_str(),height,ThawStatus::Launched);
                     }
+
+
                 }
             });
         });
         //execute matched trade
-        /***
         s.spawn(move |_| {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
@@ -252,87 +331,36 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     //market_orders的移除或者减少
                     let u256_zero = U256::from(0i32);
                     //fix: list_trades 增加过滤条件
-                    let db_trades = list_trades(None, None, 10000);
+                    let db_trades = list_trades(None, None,Some(TradeStatus::Matched), 10000);
                     if db_trades.is_empty() {
-                        info!("Have no thaws need deal,and wait 5 seconds for next check");
+                        info!("Have no matched trade need launch,and wait 5 seconds for next check");
                         tokio::time::sleep(time::Duration::from_millis(5000)).await;
                         continue;
                     }
+                    let last_order = get_last_order().unwrap();
                     error!("db_trades = {:?}",db_trades);
 
                     //todo: settle traders
                     //let mut settle_values: HashMap<String, EnigneSettleValues> = HashMap::new();
                     //key: account,is_positive value amount
-                    let mut base_settle_values: HashMap<(String, bool), U256> = HashMap::new();
-                    let mut quote_settle_values: HashMap<(String, bool), U256> = HashMap::new();
 
-                    let mut update_base_settle_values = |k: &(String, bool), v: &U256| {
-                        match base_settle_values.get_mut(&k) {
-                            None => {
-                                base_settle_values.insert(k.to_owned(), v.to_owned());
-                            }
-                            Some(mut tmp1) => {
-                                tmp1 = &mut tmp1.add(v);
-                            }
-                        }
-                    };
-                    let mut update_quote_settle_values = |k: &(String, bool), v: &U256| {
-                        match quote_settle_values.get_mut(&k) {
-                            None => {
-                                quote_settle_values.insert(k.to_owned(), v.to_owned());
-                            }
-                            Some(mut tmp1) => {
-                                tmp1 = &mut tmp1.add(v);
-                            }
-                        }
-                    };
-
-                    let token_base_decimal = U256::from(10u128).pow(U256::from(18u32));
-                    for trader in db_trades.clone() {
-                        let base_amount = trader.amount;
-                        let quote_amount = trader.amount * trader.price / token_base_decimal;
-                        match trader.taker_side {
-                            Buy => {
-                                update_base_settle_values(&(trader.taker.clone(), true), &base_amount);
-                                update_quote_settle_values(&(trader.taker, false), &quote_amount);
-
-                                update_base_settle_values(&(trader.maker.clone(), false), &base_amount);
-                                update_quote_settle_values(&(trader.maker, true), &quote_amount);
-                            }
-                            Sell => {
-                                update_base_settle_values(&(trader.taker.clone(), false), &base_amount);
-                                update_quote_settle_values(&(trader.taker, true), &quote_amount);
-
-                                update_base_settle_values(&(trader.maker.clone(), true), &base_amount);
-                                update_quote_settle_values(&(trader.maker, false), &quote_amount);
-                            }
-                        }
-                    }
-
-                    let settle_trades = base_settle_values.iter().zip(quote_settle_values.iter()).map(|(base, quote)| {
-                        SettleValues2 {
-                            user: Address::from_str(base.0.0.as_str()).unwrap(),
-                            positiveOrNegative1: base.0.1,
-                            incomeBaseToken: base.1.to_owned(),
-                            positiveOrNegative2: quote.0.1,
-                            incomeQuoteToken: quote.1.to_owned(),
-                        }
-                    }).collect::<Vec<SettleValues2>>();
-
+                    let settle_trades = gen_settle_trades(db_trades.clone());
                     info!("settle_trades {:?} ",settle_trades);
-
 
                     //fixme:有revert
                     //todo：空数组不清算
+                    let hash_data = u8_arr_from_str(last_order.hash_data);
+                    info!("__0000");
+
                     let mut agg_trades = Vec::new();
                     if !settle_trades.is_empty() {
-                        let rt = Runtime::new().unwrap();
                         let chemix_main_client2 = chemix_main_client_receiver.clone();
-                        let settlement_res = rt.block_on(async {
-                            let mut receipt = Default::default();
+                        let mut receipt = Default::default();
+
                             loop {
 //                            match chemix_main_client2.read().unwrap().settlement_trades(MARKET.base_token_address.as_str(),MARKET.quote_token_address.as_str(),settle_trades.clone()).await {
-                                match chemix_main_client2.read().unwrap().settlement_trades2(settle_trades.clone()).await {
+                                info!("settlement_trades____ trade={:?}_index={},hash={:?}",settle_trades,last_order.index,hash_data);
+                                match chemix_main_client2.read().unwrap().settlement_trades2(last_order.index,hash_data,settle_trades.clone()).await {
                                     Ok(data) => {
                                         receipt = data.unwrap();
                                         break;
@@ -349,9 +377,14 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                                     }
                                 }
                             }
-                            receipt
-                        });
-                        let height = settlement_res.block_number.unwrap().to_string().parse::<u32>().unwrap();
+                        //todo: update confirm
+
+                        let height = receipt.block_number.unwrap().to_string().parse::<u32>().unwrap();
+                        let txid = receipt.transaction_hash.to_string();
+                        for db_trade in db_trades.clone() {
+                            update_trade(db_trade.id.as_str(),TradeStatus::Launched,height,txid.as_str());
+                        }
+
                         agg_trades = db_trades.iter().map(|x| {
                             let user_price = u256_to_f64(x.price, QuoteTokenDecimal);
                             let user_amount = u256_to_f64(x.amount, BaseTokenDecimal);
@@ -377,9 +410,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     //let channel_new_trade = channel_new_trade.clone();
                     let arc_queue = arc_queue.clone();
                     let new_trade_queue = arc_queue.read().unwrap().NewTrade.clone();
-
-                    let rt = Runtime::new().unwrap();
-                    rt.block_on(async move {
+                    info!("__0001");
                         if !agg_trades.is_empty() {
                             let json_str = serde_json::to_string(&agg_trades).unwrap();
                             arc_queue.write().unwrap().client
@@ -387,13 +418,11 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                                 .await
                                 .expect("failed to send message");
                         }
-                    });
+                    info!("__0002");
                 }
             });
 
         });
-
-         */
     });
     Ok(())
 }
