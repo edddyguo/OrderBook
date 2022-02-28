@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use ethers_contract_abigen::parse_address;
 use ethers_providers::{Http, Middleware, Provider, StreamExt};
 use rsmq_async::{Rsmq, RsmqConnection, RsmqError};
-use chemix_chain::chemix::{CancelOrderState2, ChemixContractClient, SettleValues2, SettleValues3, ThawBalances};
+use chemix_chain::chemix::{CancelOrderState2, ChemixContractClient, SettleValues2, SettleValues3, ThawBalances, ThawBalances2};
 use chemix_chain::chemix::SettleValues;
 use chemix_chain::bsc::Node;
 use std::string::String;
@@ -197,6 +197,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
     let mut last_height: U64 = U64::from(200u64);
     let arc_queue = Arc::new(RwLock::new(queue));
     let arc_queue = arc_queue.clone();
+    let arc_queue2 = arc_queue.clone();
 
     let chemix_storage = ENV_CONF.chemix_storage.to_owned().unwrap();
     //test1
@@ -310,6 +311,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     let height = receipt.block_number.unwrap().as_u32() as i32;
                     let mut cancel_id_str= "".to_string();
                     for item in cancel_id {
+                        //fixme: 0>2x?
                         let tmp = format!("{:x}", item);
                         cancel_id_str += &tmp;
                     }
@@ -318,6 +320,36 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     for pending_thaw in pending_thaws {
                         update_thaws1(pending_thaw.order_id.as_str(),cancel_id_str.as_str(),txid.as_str(),height,ThawStatus::Launched);
                     }
+
+                    //解冻推送前端更新余额
+                    //todo: 自己推送解冻事件，深度在ws里计算？
+                    let arc_queue = arc_queue2.clone();
+                    let new_thaw_queue = arc_queue.read().unwrap().ThawOrder.clone();
+                    info!("__0001");
+                    let thaw_infos2 = thaw_infos.iter().map(|x| {
+                        ThawBalances2 {
+                            token: x.token,
+                            from: x.from,
+                            amount: u256_to_f64(x.amount,18),
+                        }
+                    }).collect::<Vec::<ThawBalances2>>();
+                    let json_str = serde_json::to_string(&thaw_infos2).unwrap();
+                    arc_queue.write().unwrap().client
+                        .send_message(new_thaw_queue.as_str(), json_str, None)
+                        .await
+                        .expect("failed to send message");
+
+                    //更新深度
+                    /***
+                    let new_update_book_queue = arc_queue.read().unwrap().UpdateBook.clone();
+                    info!("__0001");
+                    let json_str = serde_json::to_string(&agg_trades).unwrap();
+                    arc_queue.write().unwrap().client
+                        .send_message(new_update_book_queue.as_str(), json_str, None)
+                        .await
+                        .expect("failed to send message");
+                    ***/
+
 
 
                 }

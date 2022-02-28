@@ -410,6 +410,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     bids: bids2,
                 };
 
+                //todo: 放在luanch模块在交易确认后推送？
                 let arc_queue = arc_queue.clone();
                 let update_book_queue = arc_queue.read().unwrap().UpdateBook.clone();
 

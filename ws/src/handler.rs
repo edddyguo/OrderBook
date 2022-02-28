@@ -2,6 +2,7 @@ use crate::{ws, Client, Clients, Result};
 use serde::{Deserialize, Serialize};
 
 use warp::{http::StatusCode, ws::Message, Reply};
+use chemix_chain::chemix::ThawBalances;
 
 #[derive(Deserialize, Debug)]
 pub struct RegisterRequest {
@@ -19,8 +20,10 @@ pub struct PublishRespond {
 pub struct Event {
     pub(crate) topic: String,
     pub(crate) user_id: Option<usize>,
+    pub(crate) user_address: Option<String>,
     pub(crate) message: String,
 }
+
 
 pub async fn publish_handler(body: Event, clients: Clients) -> Result<impl Reply> {
     let respond = PublishRespond {
@@ -39,6 +42,17 @@ pub async fn publish_handler(body: Event, clients: Clients) -> Result<impl Reply
             None => true,
         })
         .filter(|(_, client)| client.topics.contains(&body.topic))
+        .filter(|(_, client)| {
+            match body.user_address.clone() {
+                None => {
+                    true
+                },
+                Some(addr) => {
+                    println!("user_addr={},body_addr={},eq={}", client.user_address.as_ref().unwrap().to_string(),addr,client.user_address.as_ref().unwrap().to_string() == addr);
+                    client.user_address.as_ref().unwrap().to_string() == addr
+                }
+            }
+        })
         .for_each(|(_, client)| {
             if let Some(sender) = &client.sender {
                 println!("-==========={:?}", respond_str);
@@ -55,6 +69,7 @@ async fn register_client(id: String, _user_id: usize, clients: Clients) {
         id,
         Client {
             topics: vec![String::from("cats")],
+            user_address: None,
             sender: None,
         },
     );

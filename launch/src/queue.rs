@@ -6,6 +6,7 @@ pub struct Queue {
     pub client: Rsmq,
     pub NewTrade: String,
     pub UpdateBook: String,
+    pub ThawOrder: String,
 }
 
 /***
@@ -60,14 +61,23 @@ impl Queue {
             }
         };
 
+        let channel_thaw_order = match env::var_os("CHEMIX_MODE") {
+            None => "thaw_order_local".to_string(),
+            Some(mist_mode) => {
+                format!("thaw_order_{}", mist_mode.into_string().unwrap())
+            }
+        };
+
 
         Queue::check_queue(channel_update_book.clone()).await;
+        Queue::check_queue(channel_thaw_order.clone()).await;
         Queue::check_queue(channel_new_trade.clone()).await;
 
         Queue {
             client: rsmq,
             NewTrade: channel_new_trade,
             UpdateBook: channel_update_book,
+            ThawOrder: channel_thaw_order,
         }
     }
 }

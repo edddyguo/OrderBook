@@ -1,7 +1,7 @@
 use crate::{Client, Clients};
 use futures::{FutureExt, SinkExt, StreamExt};
 use serde::Deserialize;
-use serde_json::from_str;
+use serde_json::{from_str, to_string};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::ws::{Message, WebSocket};
@@ -70,6 +70,7 @@ pub async fn client_connection(
     let id = Uuid::new_v4().simple().to_string();
     let client = Client {
         topics: vec![],
+        user_address: None,
         sender: Some(client_sender.clone()),
     };
 
@@ -127,6 +128,15 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
         match topics_req.method {
             WSMethod::SUBSCRIBE => {
                 v.topics = topics_req.params.channel;
+                match topics_req.params.hash.as_str() {
+                    "" => {
+                        v.user_address = None;
+
+                    },
+                    _ =>{
+                        v.user_address = Some(topics_req.params.hash.to_lowercase());
+                    }
+                }
                 println!("v----topics={:?}", v.topics);
                 if let Some(_sender) = &v.sender {
                     //todo: 可能要推全量数据
@@ -146,14 +156,10 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
                     channel: "".to_string(),
                     data: "".to_string(),
                 };
-                println!("0001____");
                 let respond_str = serde_json::to_string(&respond).unwrap();
                 if let Some(sender) = &v.sender {
-                    println!("0002____");
                     let _ = sender.send(Ok(Message::text(&respond_str)));
-                    println!("0003____");
                 }
-                println!("0004____");
             }
             WSMethod::PONG => {}
         }

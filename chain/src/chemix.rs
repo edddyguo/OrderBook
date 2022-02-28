@@ -13,8 +13,9 @@ use ethers::types::Address;
 use common::env;
 use common::env::CONF;
 use common::types::*;
-use serde::Serialize;
 use common::types::order::Side;
+use serde::{Deserialize, Serialize};
+
 
 
 abigen!(
@@ -82,11 +83,18 @@ pub struct CancelOrderState2 {
     pub hash_data: [u8; 32],
 }
 
-#[derive(Clone,Debug,Serialize)]
+#[derive(Clone,Debug,Serialize,Deserialize)]
 pub struct ThawBalances {
     pub token : Address,
     pub from: Address,
     pub amount: U256,
+}
+
+#[derive(Clone,Debug,Serialize,Deserialize)]
+pub struct ThawBalances2 {
+    pub token : Address,
+    pub from: Address,
+    pub amount: f64,
 }
 
 impl ChemixContractClient {

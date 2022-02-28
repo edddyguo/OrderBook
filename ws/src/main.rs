@@ -18,6 +18,7 @@ use tokio::sync::{mpsc, RwLock};
 use tokio::time;
 use warp::http::Method;
 use warp::{ws::Message, Filter, Rejection};
+use chemix_chain::chemix::{ThawBalances, ThawBalances2};
 
 mod handler;
 mod ws;
@@ -28,6 +29,7 @@ type Clients = Arc<RwLock<HashMap<String, Client>>>;
 #[derive(Debug, Clone)]
 pub struct Client {
     pub topics: Vec<String>,
+    pub user_address: Option<String>,
     pub sender: Option<mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
 }
 
@@ -98,6 +100,7 @@ async fn listen_msg_queue(
         let event = Event {
             topic: queue_name.to_string(),
             user_id: None,
+            user_address: None,
             message: message.message.clone(),
         };
         handler::publish_handler(event, clients).await;
@@ -160,16 +163,24 @@ async fn main() {
                 }
             };
 
+            let channel_thaw_order = match env::var_os("CHEMIX_MODE") {
+                None => "thaw_order_local".to_string(),
+                Some(mist_mode) => {
+                    format!("thaw_order_{}", mist_mode.into_string().unwrap())
+                }
+            };
+
             let message = rsmq
                 .receive_message::<String>(channel_update_book.as_str(), None)
                 .await
                 .expect("cannot receive message");
             if let Some(message) = message {
-                println!("receive new message {:?}", message);
+                //println!("receive new message {:?}", message);
                 let event = Event {
                     topic: format!("{}@depth", "BTC-USDT"),
                     //topic: format!("human"),
                     user_id: None,
+                    user_address: None,
                     message: message.message.clone(),
                 };
                 handler::publish_handler(event, clients.clone()).await;
@@ -184,15 +195,44 @@ async fn main() {
                 .await
                 .expect("cannot receive message");
             if let Some(message) = message {
-                println!("receive new message {:?}", message);
+                //println!("receive new message {:?}", message);
                 let event = Event {
                     topic: format!("{}@aggTrade", "BTC-USDT"),
                     //topic: format!("human"),
                     user_id: None,
+                    user_address: None,
                     message: message.message.clone(),
                 };
                 handler::publish_handler(event, clients.clone()).await;
                 rsmq.delete_message(channel_new_trade.as_str(), &message.id)
+                    .await;
+            } else {
+                tokio::time::sleep(time::Duration::from_millis(10)).await;
+            }
+
+
+            //thaw order
+            let message = rsmq
+                .receive_message::<String>(channel_thaw_order.as_str(), None)
+                .await
+                .expect("cannot receive message");
+            if let Some(message) = message {
+                //todo: for循环推送
+                println!("receive new message {:?}", message);
+                let thaw_infos: Vec<ThawBalances2> = serde_json::from_str(message.message.as_str()).unwrap();
+                for thaw in thaw_infos {
+                    let addr = format!("{:?}",thaw.from);
+                    let event = Event {
+                        topic: format!("thaws"),
+                        //topic: format!("human"),
+                        user_id: None,
+                        user_address: Some(addr),
+                        message: serde_json::to_string(&thaw).unwrap(),
+                    };
+                    handler::publish_handler(event, clients.clone()).await;
+                }
+
+                rsmq.delete_message(channel_thaw_order.as_str(), &message.id)
                     .await;
             } else {
                 tokio::time::sleep(time::Duration::from_millis(10)).await;
