@@ -239,26 +239,19 @@ contract Vault is
         nonReentrant
     {
         require(ChemixStorage(STORAGE).checkHashData(largestIndex,hashData), 'Chemix: Wrong HashData');
-        /***
-        uint256 totalPostiveBaseToken = 0;
-        uint256 totalNegativeBaseToken = 0;
-        uint256 totalPostiveQuoteToken = 0;
-        uint256 totalNegativeQuoteToken = 0;
-        ***/
+        uint256 totalPostiveToken = 0;
+        uint256 totalNegativeToken = 0;
         for(uint i = 0; i < settleInfo.length; i++){
             if(settleInfo[i].isPositive){
-                //totalPostiveBaseToken += settleInfo[i].incomeBaseToken;
+                totalPostiveToken += settleInfo[i].incomeTokenAmount;
                 balances[settleInfo[i].token][settleInfo[i].user].availableBalance = balances[settleInfo[i].token][settleInfo[i].user].availableBalance.add(settleInfo[i].incomeTokenAmount);
             }else{
-                //totalNegativeBaseToken += settleInfo[i].incomeBaseToken;
+                totalNegativeToken += settleInfo[i].incomeTokenAmount;
                 require(balances[settleInfo[i].token][settleInfo[i].user].frozenBalace >= settleInfo[i].incomeTokenAmount, 'frozenBalace must be greater than incomeBaseToken');
                 balances[settleInfo[i].token][settleInfo[i].user].frozenBalace = balances[settleInfo[i].token][settleInfo[i].user].frozenBalace.sub(settleInfo[i].incomeTokenAmount);
             }
         }
-        /***
-        require(totalPostiveBaseToken == totalNegativeBaseToken
-                && totalPostiveQuoteToken == totalNegativeQuoteToken, "detail settleInfo not correct");
-        ***/
+        require(totalPostiveToken == totalNegativeToken, "detail settleInfo not correct");
         emit Settlement(hashData);
     }
 

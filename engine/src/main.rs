@@ -309,7 +309,7 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
         s.spawn(move |_| {
             loop {
                 let orders: Vec<BookOrder> =
-                    event_receiver.recv().expect("failed to recv columns");
+                    event_receiver.recv().expect("failed to recv book order");
                 println!(
                     "[listen_blocks: receive] New order Event {:?},base token {:?}",
                     orders[0].id, orders[0].side
@@ -346,11 +346,10 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                     );
 
                     error!(
-                        "index={},taker_amount={},matched_amount={}",
+                        "index {},taker amount {},matched-amount {}",
                         index, db_order.amount, matched_amount
                     );
                     db_order.status = if matched_amount == db_order.amount {
-                        info!("0001");
                         OrderStatus::FullFilled
                     } else if matched_amount != u256_zero && matched_amount < db_order.amount {
                         OrderStatus::PartialFilled

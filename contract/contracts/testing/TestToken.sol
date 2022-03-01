@@ -28,9 +28,9 @@ contract TestToken {
     mapping (address => uint256) balances;
     mapping (address => mapping (address => uint256)) allowed;
 
-    event Transfer(address token, address from, address to, uint256 value);
-    event Approval(address token, address owner, address spender, uint256 value);
-    event Issue(address token, address owner, uint256 value);
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Issue(address indexed owner, uint256 value);
 
     // Allow anyone to get new token
     function issue(uint256 amount) public {
@@ -40,7 +40,7 @@ contract TestToken {
     function issueTo(address who, uint256 amount) internal {
         supply = supply.add(amount);
         balances[who] = balances[who].add(amount);
-        emit Issue(address(this), who, amount);
+        emit Issue(who, amount);
     }
 
     function totalSupply() public view returns (uint256) {
@@ -72,7 +72,6 @@ contract TestToken {
         balances[msg.sender] = balances[msg.sender].sub(value);
         balances[to] = balances[to].add(value);
         emit Transfer(
-            address(this),
             msg.sender,
             to,
             value
@@ -88,7 +87,6 @@ contract TestToken {
         balances[from] = balances[from].sub(value);
         allowed[from][msg.sender] = allowed[from][msg.sender].sub(value);
         emit Transfer(
-            address(this),
             from,
             to,
             value
@@ -99,7 +97,6 @@ contract TestToken {
     function approve(address spender, uint256 value) public returns (bool) {
         allowed[msg.sender][spender] = value;
         emit Approval(
-            address(this),
             msg.sender,
             spender,
             value

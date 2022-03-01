@@ -64,12 +64,6 @@ pub struct SettleValues3 {
     pub isPositive: bool,
     pub incomeTokenAmount: U256,
 }
-/**
-address  user;
-      address  token;
-      bool     isPositive;
-      uint256  incomeTokenAmount;
- */
 
 #[derive(Clone, Debug)]
 pub struct CancelOrderState2 {

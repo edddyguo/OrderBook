@@ -127,7 +127,13 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
         //todo: match  method
         match topics_req.method {
             WSMethod::SUBSCRIBE => {
-                v.topics = topics_req.params.channel;
+                //v.topics = topics_req.params.channel;
+                for item in topics_req.params.channel{
+                    if !v.topics.contains(&item) {
+                        v.topics.push(item)
+                    }
+                }
+
                 //todo:不需要hash字段
                 match topics_req.params.hash.as_str() {
                     "" => {
