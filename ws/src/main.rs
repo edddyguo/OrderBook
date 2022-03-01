@@ -100,7 +100,6 @@ async fn listen_msg_queue(
         let event = Event {
             topic: queue_name.to_string(),
             user_id: None,
-            user_address: None,
             message: message.message.clone(),
         };
         handler::publish_handler(event, clients).await;
@@ -180,7 +179,6 @@ async fn main() {
                     topic: format!("{}@depth", "BTC-USDT"),
                     //topic: format!("human"),
                     user_id: None,
-                    user_address: None,
                     message: message.message.clone(),
                 };
                 handler::publish_handler(event, clients.clone()).await;
@@ -200,7 +198,6 @@ async fn main() {
                     topic: format!("{}@aggTrade", "BTC-USDT"),
                     //topic: format!("human"),
                     user_id: None,
-                    user_address: None,
                     message: message.message.clone(),
                 };
                 handler::publish_handler(event, clients.clone()).await;
@@ -221,12 +218,10 @@ async fn main() {
                 let thaw_infos: Vec<ThawBalances2> =
                     serde_json::from_str(message.message.as_str()).unwrap();
                 for thaw in thaw_infos {
-                    let addr = format!("{:?}", thaw.from);
                     let event = Event {
-                        topic: format!("thaws"),
+                        topic: format!("{:?}@thaws",thaw.from),
                         //topic: format!("human"),
                         user_id: None,
-                        user_address: Some(addr),
                         message: serde_json::to_string(&thaw).unwrap(),
                     };
                     handler::publish_handler(event, clients.clone()).await;

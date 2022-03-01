@@ -19,7 +19,6 @@ pub struct PublishRespond {
 pub struct Event {
     pub(crate) topic: String,
     pub(crate) user_id: Option<usize>,
-    pub(crate) user_address: Option<String>,
     pub(crate) message: String,
 }
 
@@ -39,18 +38,9 @@ pub async fn publish_handler(body: Event, clients: Clients) -> Result<impl Reply
             Some(v) => **id == v.to_string(),
             None => true,
         })
-        .filter(|(_, client)| client.topics.contains(&body.topic))
-        .filter(|(_, client)| match body.user_address.clone() {
-            None => true,
-            Some(addr) => {
-                println!(
-                    "user_addr={},body_addr={},eq={}",
-                    client.user_address.as_ref().unwrap().to_string(),
-                    addr,
-                    client.user_address.as_ref().unwrap().to_string() == addr
-                );
-                client.user_address.as_ref().unwrap().to_string() == addr
-            }
+        .filter(|(_, client)| {
+            let lowercase_client_topic = client.topics.iter().map(|x| x.to_lowercase()).collect::<Vec<String>>();
+            lowercase_client_topic.contains(&body.topic.to_lowercase())
         })
         .for_each(|(_, client)| {
             if let Some(sender) = &client.sender {

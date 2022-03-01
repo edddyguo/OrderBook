@@ -128,6 +128,7 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
         match topics_req.method {
             WSMethod::SUBSCRIBE => {
                 v.topics = topics_req.params.channel;
+                //todo:不需要hash字段
                 match topics_req.params.hash.as_str() {
                     "" => {
                         v.user_address = None;
