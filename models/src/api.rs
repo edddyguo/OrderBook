@@ -48,24 +48,6 @@ pub fn list_markets() -> Vec<MarketInfo> {
     markets
 }
 
-//user num from scope time age to now or no time limit
-pub fn get_user_number(_scope: Option<u64>) -> u32 {
-    let sql =
-        "select count(1) from (select account from chemix_orders group by account) as users";
-    let mut user_num = 0u32;
-    let mut result = crate::CLIENTDB.lock().unwrap().query(sql, &[]);
-    if let Err(err) = result {
-        println!("get_active_address_num failed {:?}", err);
-        if !crate::restartDB() {
-            return user_num;
-        }
-        result = crate::CLIENTDB.lock().unwrap().query(sql, &[]);
-    }
-    let rows = result.unwrap();
-    user_num = rows[0].get(0);
-    user_num
-}
-
 pub fn get_markets(id: &str) -> MarketInfo {
     let sql = format!(
         "select id,base_token_address,base_token_symbol,base_contract_decimal,\

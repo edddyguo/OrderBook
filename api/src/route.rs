@@ -9,12 +9,15 @@ use actix_cors::Cors;
 use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder};
 use log::info;
 use std::env;
+use ethers_core::types::U256;
 
 use chemix_models::api::list_markets as list_markets2;
-use chemix_models::order::{list_available_orders, list_users_orders, EngineOrderTmp2};
-use chemix_models::trade::list_trades;
+use chemix_models::order::{list_available_orders, list_users_orders, EngineOrderTmp2, get_user_number, get_order_num, get_order_volume};
+use chemix_models::trade::{get_current_price, get_trade_volume, list_trades};
 use common::utils::time::time2unix;
 use serde::{Deserialize, Serialize};
+use chemix_models::TimeScope;
+use chemix_models::TimeScope::TwentyFour;
 
 use common::utils::math::u256_to_f64;
 
@@ -347,16 +350,49 @@ async fn klines(web::Query(info): web::Query<KlinesRequest>) -> impl Responder {
  * */
 #[get("/dashBoard/profile")]
 async fn dex_profile() -> impl Responder {
+    let base_token_decimal = U256::from(10u128).pow(U256::from(18u32));
+    let quote_token_decimal = U256::from(10u128).pow(U256::from(15u32));
+    //todo： 定时落表写到db
+    info!("_0001");
+    //for循环计算所有market
+    let cumulativeOrder_TVL = {
+        let volume = get_order_volume(TimeScope::NoLimit,"BTC-USDT".to_string());
+        let price = get_current_price("BTC-USDT".to_string());
+        volume * price / base_token_decimal
+    };
+    info!("_0002");
+    let TVL_u256 = {
+        let volume = get_order_volume(TimeScope::TwentyFour,"BTC-USDT".to_string());
+        let price = get_current_price("BTC-USDT".to_string());
+        volume * price / base_token_decimal
+    };
+    info!("_0003");
+    let tradingVolume = {
+        let volume = get_trade_volume(TimeScope::TwentyFour,"BTC-USDT".to_string());
+        let price = get_current_price("BTC-USDT".to_string());
+        volume * price / base_token_decimal
+    };
+    info!("_0004");
+    let cumulativeTransactions = get_order_num(TimeScope::NoLimit);
+    info!("_0004.1");
+    let cumulativeTraders = get_user_number(TimeScope::NoLimit);
+    info!("_0004.3");
+    let numberOfTraders = get_user_number(TimeScope::TwentyFour);
+    info!("_0004.4");
+    let numberOfTransactions = get_order_num(TimeScope::TwentyFour);;
+    let tradingPairs = 1;
+    let price = get_current_price("BTC-USDT".to_string());
+    info!("_0005");
     let profile = DexProfile {
-        cumulativeTVL: 0.0,
-        cumulativeTransactions: 0,
-        cumulativeTraders: 0,
-        numberOfTraders: 0,
-        tradingVolume: 0.0,
-        numberOfTransactions: 0,
-        TVL: 0.0,
-        tradingPairs: 0,
-        price: 0.0,
+        cumulativeTVL: u256_to_f64(cumulativeOrder_TVL, 15),
+        cumulativeTransactions: cumulativeTransactions,
+        cumulativeTraders: cumulativeTraders,
+        numberOfTraders: numberOfTraders,
+        tradingVolume: u256_to_f64(cumulativeOrder_TVL, 15),
+        numberOfTransactions: numberOfTransactions,
+        TVL: u256_to_f64(TVL_u256, 15),
+        tradingPairs: 1,
+        price: u256_to_f64(price, 15),
     };
     respond_json(
         200,

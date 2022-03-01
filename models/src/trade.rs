@@ -1,4 +1,4 @@
-use crate::struct2array;
+use crate::{struct2array, TimeScope};
 use common::types::*;
 use common::utils::algorithm::sha256;
 use common::utils::time::get_current_time;
@@ -194,4 +194,33 @@ pub fn update_trade(id: &str, status: TradeStatus, height: u32, transaction_hash
     info!("start update trade {} ", sql);
     let execute_res = crate::execute(sql.as_str()).unwrap();
     info!("success update trade {} rows", execute_res);
+}
+
+pub fn get_current_price(market_id: String) -> U256 {
+    let sql =format!("select price from chemix_trades where market_id='{}' order by created_at desc limit 1;",market_id);
+    let rows = crate::query(sql.as_str()).unwrap();
+    U256::from_str_radix(rows[0].get::<usize, &str>(0), 10).unwrap()
+}
+
+
+pub fn get_trade_volume(scope: TimeScope,market_id: String) -> U256{
+    //select amount from chemix_orders where created_at > NOW() - INTERVAL '7 day' and  market_id='BTC-USDT';
+    let filter_str  = match scope {
+        TimeScope::NoLimit => {
+            format!("where market_id='{}' ",market_id)
+        }
+        TimeScope::SevenDay => {
+            format!("{} and market_id='{}' ",scope.filter_str(), market_id)
+        },
+        TimeScope::TwentyFour => {
+            format!("{} and market_id='{}' ",scope.filter_str(), market_id)
+        }
+    };
+    let sql =format!("select amount from chemix_trades {}",filter_str);
+    let mut sum = U256::from(0);
+    let rows = crate::query(sql.as_str()).unwrap();
+    for row in rows {
+        sum +=  U256::from_str_radix(row.get::<usize, &str>(0), 10).unwrap()
+    }
+    sum
 }

@@ -32,6 +32,35 @@ use crate::trade::TradeInfo;
 
 use crate::thaws::Thaws;
 
+extern crate rustc_serialize;
+use serde::Deserialize;
+use serde::Serialize;
+
+
+
+#[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
+pub enum TimeScope {
+    NoLimit,
+    SevenDay,
+    TwentyFour,
+}
+
+impl TimeScope {
+    pub fn filter_str(&self) -> &'static str {
+        match self {
+            TimeScope::NoLimit => {
+                ""
+            },
+            TimeScope::SevenDay => {
+                "where created_at > NOW() - INTERVAL '7 day'"
+            },
+            TimeScope::TwentyFour => {
+                "where created_at > NOW() - INTERVAL '24 hour'"
+            }
+        }
+    }
+}
+
 lazy_static! {
     static ref CLIENTDB: Mutex<postgres::Client> = Mutex::new(connetDB().unwrap());
 }

@@ -5,7 +5,7 @@ use ethers_core::types::U256;
 use serde::Deserialize;
 
 //#[derive(Serialize)]
-use crate::struct2array;
+use crate::{struct2array, TimeScope};
 use serde::Serialize;
 
 use common::utils::time::get_current_time;
@@ -325,4 +325,44 @@ pub fn list_users_orders(
     }
     orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
     orders
+}
+
+
+//
+pub fn get_order_num(scope: TimeScope) -> u32{
+    let scope_str = scope.filter_str();
+    let sql =format!("select cast(count(1) as integer) from chemix_orders {} ",scope_str);
+    let rows = crate::query(sql.as_str()).unwrap();
+    rows[0].get::<usize, i32>(0) as u32
+
+}
+//
+pub fn get_order_volume(scope: TimeScope,market_id: String) -> U256{
+    //select amount from chemix_orders where created_at > NOW() - INTERVAL '7 day' and  market_id='BTC-USDT';
+    let filter_str  = match scope {
+        TimeScope::NoLimit => {
+            format!("where market_id='{}' ",market_id)
+        }
+        TimeScope::SevenDay => {
+            format!("{} and market_id='{}' ",scope.filter_str(), market_id)
+        },
+        TimeScope::TwentyFour => {
+            format!("{} and market_id='{}' ",scope.filter_str(), market_id)
+        }
+    };
+    let sql =format!("select amount from chemix_orders {}",filter_str);
+    let mut sum = U256::from(0);
+    let rows = crate::query(sql.as_str()).unwrap();
+    for row in rows {
+        sum +=  U256::from_str_radix(row.get::<usize, &str>(0), 10).unwrap()
+    }
+    sum
+}
+
+//user num from scope time age to now or no time limit
+pub fn get_user_number(scope: TimeScope) -> u32 {
+    let scope_str = scope.filter_str();
+    let sql =format!("select cast(count(1) as integer) from (select account from chemix_orders {} group by account) as users",scope_str);
+    let rows = crate::query(sql.as_str()).unwrap();
+    rows[0].get::<usize, i32>(0) as u32
 }
