@@ -4,29 +4,26 @@
  */
 extern crate rustc_serialize;
 
-use std::str::FromStr;
 use ethers_core::types::U256;
-use jsonrpc_http_server::tokio::prelude::future::Ok;
+use std::str::FromStr;
+
 use serde::Deserialize;
 
 //#[derive(Serialize)]
-use serde::Serialize;
 use crate::struct2array;
-use common::utils::math::narrow;
+use serde::Serialize;
+
 use common::utils::time::get_current_time;
-use std::fmt::Display;
+
 use ethers_core::abi::Address;
-use common::types::*;
 
 use common::types::order::Status as OrderStatus;
-use common::types::trade::Status as TradeStatus;
+
 use common::types::order::Side as OrderSide;
 use common::types::thaw::Status as ThawStatus;
 
-
-
 #[derive(Deserialize, Debug, Clone)]
-pub struct Thaws{
+pub struct Thaws {
     pub order_id: String,
     pub account: Address,
     pub market_id: String,
@@ -40,7 +37,6 @@ pub struct Thaws{
     pub updated_at: String,
     pub created_at: String,
 }
-
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct UpdateOrder {
@@ -61,11 +57,6 @@ pub struct EngineOrder {
     pub side: OrderSide,
     pub created_at: String,
 }
-
-
-
-
-
 
 #[derive(Clone, Serialize, Debug)]
 pub struct BookOrder {
@@ -106,15 +97,19 @@ impl Thaws {
     }
 }
 
-
 /**
 1、txid
                         2、cancel_id
                         3、status
                         4、block_height
  */
-pub fn update_thaws1(order_id:&str,cancel_id: &str,tx_id: &str,block_height:i32,status: ThawStatus) {
-
+pub fn update_thaws1(
+    order_id: &str,
+    cancel_id: &str,
+    tx_id: &str,
+    block_height: i32,
+    status: ThawStatus,
+) {
     let sql = format!(
         "UPDATE chemix_thaws SET (thaws_hash,\
          transaction_hash,block_height,status,updated_at)=\
@@ -129,10 +124,9 @@ pub fn update_thaws1(order_id:&str,cancel_id: &str,tx_id: &str,block_height:i32,
     info!("start update order {} ", sql);
     let execute_res = crate::execute(sql.as_str()).unwrap();
     info!("success update order {} rows", execute_res);
-
 }
 
-pub fn insert_thaws(thaw_info: Vec<Thaws>){
+pub fn insert_thaws(thaw_info: Vec<Thaws>) {
     //fixme: 批量插入
     for order in thaw_info.into_iter() {
         let order_info = struct2array(&order);
@@ -150,8 +144,9 @@ pub fn insert_thaws(thaw_info: Vec<Thaws>){
     }
 }
 
-pub fn list_thaws(status: ThawStatus) -> Vec<Thaws>{
-    let sql = format!("select order_id,\
+pub fn list_thaws(status: ThawStatus) -> Vec<Thaws> {
+    let sql = format!(
+        "select order_id,\
     account,\
     market_id,\
     transaction_hash,\
@@ -163,9 +158,11 @@ pub fn list_thaws(status: ThawStatus) -> Vec<Thaws>{
     price,\
     cast(updated_at as text),\
     cast(created_at as text) from chemix_thaws \
-    where status='{}' order by created_at DESC", status.as_str());
+    where status='{}' order by created_at DESC",
+        status.as_str()
+    );
     let mut thaws = Vec::<Thaws>::new();
-    info!("list_thaws sql {}",sql);
+    info!("list_thaws sql {}", sql);
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
         let side_str: String = row.get(6);
@@ -175,18 +172,18 @@ pub fn list_thaws(status: ThawStatus) -> Vec<Thaws>{
         let status = ThawStatus::from(status_str.as_str());
 
         let info = Thaws {
-            order_id: row.get::<usize,&str>(0).to_string(),
-            account: Address::from_str(row.get::<usize,&str>(1)).unwrap(),
-            market_id: row.get::<usize,&str>(2).to_string(),
-            transaction_hash: row.get::<usize,&str>(3).to_string(),
-            block_height: row.get::<usize,i32>(4),
-            thaws_hash: row.get::<usize,&str>(5).to_string(),
+            order_id: row.get::<usize, &str>(0).to_string(),
+            account: Address::from_str(row.get::<usize, &str>(1)).unwrap(),
+            market_id: row.get::<usize, &str>(2).to_string(),
+            transaction_hash: row.get::<usize, &str>(3).to_string(),
+            block_height: row.get::<usize, i32>(4),
+            thaws_hash: row.get::<usize, &str>(5).to_string(),
             side,
             status,
-            amount: U256::from_str_radix(row.get::<usize,&str>(8),10).unwrap(),
-            price: U256::from_str_radix(row.get::<usize,&str>(9), 10).unwrap(),
-            updated_at: row.get::<usize,&str>(10).to_string(),
-            created_at: row.get::<usize,&str>(11).to_string(),
+            amount: U256::from_str_radix(row.get::<usize, &str>(8), 10).unwrap(),
+            price: U256::from_str_radix(row.get::<usize, &str>(9), 10).unwrap(),
+            updated_at: row.get::<usize, &str>(10).to_string(),
+            created_at: row.get::<usize, &str>(11).to_string(),
         };
         thaws.push(info);
     }

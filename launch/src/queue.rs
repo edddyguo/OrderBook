@@ -1,7 +1,6 @@
 use rsmq_async::{Rsmq, RsmqConnection, RsmqError};
 use std::env;
 
-
 pub struct Queue {
     pub client: Rsmq,
     pub NewTrade: String,
@@ -21,7 +20,7 @@ async fn check_queue(name: &str) {
 */
 
 impl Queue {
-    async fn check_queue(name: String){
+    async fn check_queue(name: String) {
         let mut rsmq = Rsmq::new(Default::default())
             .await
             .expect("connection failed");
@@ -43,7 +42,7 @@ impl Queue {
     }
 
     pub async fn new() -> Queue {
-        let mut rsmq = Rsmq::new(Default::default())
+        let rsmq = Rsmq::new(Default::default())
             .await
             .expect("connection failed");
 
@@ -67,7 +66,6 @@ impl Queue {
                 format!("thaw_order_{}", mist_mode.into_string().unwrap())
             }
         };
-
 
         Queue::check_queue(channel_update_book.clone()).await;
         Queue::check_queue(channel_thaw_order.clone()).await;

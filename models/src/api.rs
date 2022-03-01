@@ -49,8 +49,9 @@ pub fn list_markets() -> Vec<MarketInfo> {
 }
 
 //user num from scope time age to now or no time limit
-pub fn get_user_number(scope: Option<u64>) -> u32 {
-    let sql = "select count(1) from (select account from chemix_orders group by account) as users";
+pub fn get_user_number(_scope: Option<u64>) -> u32 {
+    let sql =
+        "select count(1) from (select account from chemix_orders group by account) as users";
     let mut user_num = 0u32;
     let mut result = crate::CLIENTDB.lock().unwrap().query(sql, &[]);
     if let Err(err) = result {
@@ -66,11 +67,14 @@ pub fn get_user_number(scope: Option<u64>) -> u32 {
 }
 
 pub fn get_markets(id: &str) -> MarketInfo {
-    let sql = format!("select id,base_token_address,base_token_symbol,base_contract_decimal,\
+    let sql = format!(
+        "select id,base_token_address,base_token_symbol,base_contract_decimal,\
     base_front_decimal,quote_token_address,quote_token_symbol,quote_contract_decimal,\
-    quote_front_decimal from chemix_markets where online=true and id=\'{}\'", id);
+    quote_front_decimal from chemix_markets where online=true and id=\'{}\'",
+        id
+    );
     let execute_res = crate::query(sql.as_str()).unwrap();
-    info!("get_markets: raw sql {}",sql);
+    info!("get_markets: raw sql {}", sql);
     //id只有一个
     MarketInfo {
         id: execute_res[0].get(0),

@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 #[derive(Clone, Serialize)]
 pub struct Depth {
@@ -9,6 +9,7 @@ pub struct Depth {
 impl Depth {
     pub fn sort(&mut self) {
         self.asks.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-        self.bids.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap().reverse());
+        self.bids
+            .sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap().reverse());
     }
 }

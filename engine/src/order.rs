@@ -1,23 +1,20 @@
+use ethers_core::types::{I256, U256};
 use std::collections::HashMap;
 use std::ops::{Add, Sub};
-use ethers_core::types::{I256, U256};
 
 use serde::Serialize;
 
 use crate::AddBook2;
 //use ethers::{prelude::*,types::{U256}};
-use serde::Deserialize;
+
 use chemix_chain::chemix::CancelOrderState2;
 
-use common::utils::math::narrow;
-
-use chemix_models::order::{BookOrder, get_order};
 use chemix_models::order::IdOrIndex::Index;
-use chemix_models::trade::{TradeInfo};
+use chemix_models::order::{get_order, BookOrder};
+use chemix_models::trade::TradeInfo;
 use common::types::order::Status as OrderStatus;
-use common::types::trade::Status as TradeStatus;
-use common::types::order::Side as OrderSide;
 
+use common::types::order::Side as OrderSide;
 
 #[derive(RustcEncodable, Clone, Serialize)]
 pub struct EventOrder {
@@ -53,14 +50,14 @@ pub fn match_order(
                 if book.sell.is_empty() || taker_order.price < book.sell.first().unwrap().price
                 {
                     //此时一定是有吃单剩余
-                    info!("______0001__{:?}",orders.asks.get(&taker_order.price));
+                    info!("______0001__{:?}", orders.asks.get(&taker_order.price));
                     let stat = orders
                         .bids
                         .entry(taker_order.price.clone())
                         .or_insert(I256::from(0i32));
                     *stat += I256::from_raw(taker_order.amount);
 
-                    info!("______0002__{:?}",orders.bids.get(&taker_order.price));
+                    info!("______0002__{:?}", orders.bids.get(&taker_order.price));
 
                     //insert this order by compare price and created_at
                     //fixme:tmpcode,优化，还有时间排序的问题
@@ -91,8 +88,7 @@ pub fn match_order(
                     *stat -= I256::from_raw(matched_amount);
 
                     //get marker_order change value
-                    marker_reduced_orders
-                        .insert(marker_order.id.clone(), matched_amount);
+                    marker_reduced_orders.insert(marker_order.id.clone(), matched_amount);
 
                     marker_order.amount = marker_order.amount.sub(matched_amount);
                     //todo: 不在去减，用total_matched_amount 判断
@@ -101,9 +97,13 @@ pub fn match_order(
                     if marker_order.amount != u256_zero && taker_order.amount == u256_zero {
                         book.sell[0] = marker_order;
                         break 'marker_orders;
-                    } else if marker_order.amount == u256_zero && taker_order.amount != u256_zero {
+                    } else if marker_order.amount == u256_zero
+                        && taker_order.amount != u256_zero
+                    {
                         book.sell.remove(0);
-                    } else if marker_order.amount == u256_zero && taker_order.amount == u256_zero {
+                    } else if marker_order.amount == u256_zero
+                        && taker_order.amount == u256_zero
+                    {
                         book.sell.remove(0);
                         break 'marker_orders;
                     } else {
@@ -114,15 +114,14 @@ pub fn match_order(
             OrderSide::Sell => {
                 if book.buy.is_empty() || taker_order.price > book.buy.first().unwrap().price {
                     //此时一定是有吃单剩余
-                    info!("______0003__{:?}",orders.asks.get(&taker_order.price));
+                    info!("______0003__{:?}", orders.asks.get(&taker_order.price));
                     let stat = orders
                         .asks
                         .entry(taker_order.price.clone())
                         .or_insert(I256::from(0i32));
                     *stat += I256::from_raw(taker_order.amount);
 
-                    info!("______0004__{:?}",orders.asks.get(&taker_order.price));
-
+                    info!("______0004__{:?}", orders.asks.get(&taker_order.price));
 
                     //insert this order by compare price and created_at
                     //fixme:tmpcode,优化，还有时间的问题
@@ -153,18 +152,21 @@ pub fn match_order(
                     *stat -= I256::from_raw(matched_amount);
 
                     //get change marker order
-                    marker_reduced_orders
-                        .insert(marker_order.id.clone(), matched_amount);
+                    marker_reduced_orders.insert(marker_order.id.clone(), matched_amount);
 
-                    marker_order.amount =  marker_order.amount.sub(matched_amount);
+                    marker_order.amount = marker_order.amount.sub(matched_amount);
                     taker_order.amount = taker_order.amount.sub(matched_amount);
                     total_matched_amount = total_matched_amount.add(matched_amount);
                     if marker_order.amount != u256_zero && taker_order.amount == u256_zero {
                         book.buy[0] = marker_order;
                         break 'marker_orders;
-                    } else if marker_order.amount == u256_zero && taker_order.amount != u256_zero {
+                    } else if marker_order.amount == u256_zero
+                        && taker_order.amount != u256_zero
+                    {
                         book.buy.remove(0);
-                    } else if marker_order.amount == u256_zero && taker_order.amount == u256_zero {
+                    } else if marker_order.amount == u256_zero
+                        && taker_order.amount == u256_zero
+                    {
                         book.buy.remove(0);
                         break 'marker_orders;
                     } else {
@@ -186,7 +188,7 @@ pub fn match_order(
     total_matched_amount
 }
 
-pub fn cancel(new_cancel_orders : Vec<CancelOrderState2>) -> Vec<CancelOrderState2>{
+pub fn cancel(new_cancel_orders: Vec<CancelOrderState2>) -> Vec<CancelOrderState2> {
     let mut legal_orders = Vec::new();
     for new_cancel_order in new_cancel_orders {
         //todo: 处理异常
@@ -201,26 +203,31 @@ pub fn cancel(new_cancel_orders : Vec<CancelOrderState2>) -> Vec<CancelOrderStat
                     OrderSide::Buy => {
                         crate::BOOK.lock().unwrap().buy.retain(|x| x.id != order.id);
                         legal_orders.push(new_cancel_order);
-                    },
+                    }
                     OrderSide::Sell => {
-                        crate::BOOK.lock().unwrap().sell.retain(|x| x.id != order.id);
+                        crate::BOOK
+                            .lock()
+                            .unwrap()
+                            .sell
+                            .retain(|x| x.id != order.id);
                         legal_orders.push(new_cancel_order);
                     }
                 }
             }
-            OrderStatus::Pending => {
-                match order.side {
-                    OrderSide::Buy => {
-                        crate::BOOK.lock().unwrap().buy.retain(|x| x.id != order.id);
-                        legal_orders.push(new_cancel_order);
-
-                    },
-                    OrderSide::Sell => {
-                        crate::BOOK.lock().unwrap().sell.retain(|x| x.id != order.id);
-                        legal_orders.push(new_cancel_order);
-                    }
+            OrderStatus::Pending => match order.side {
+                OrderSide::Buy => {
+                    crate::BOOK.lock().unwrap().buy.retain(|x| x.id != order.id);
+                    legal_orders.push(new_cancel_order);
                 }
-            }
+                OrderSide::Sell => {
+                    crate::BOOK
+                        .lock()
+                        .unwrap()
+                        .sell
+                        .retain(|x| x.id != order.id);
+                    legal_orders.push(new_cancel_order);
+                }
+            },
             OrderStatus::Canceled => {
                 warn!("Have already Canceled");
             }
@@ -228,7 +235,6 @@ pub fn cancel(new_cancel_orders : Vec<CancelOrderState2>) -> Vec<CancelOrderStat
                 todo!()
             }
         }
-
     }
     legal_orders
 }

@@ -14,11 +14,11 @@ use std::env;
 
 use std::sync::Arc;
 
+use chemix_chain::chemix::ThawBalances2;
 use tokio::sync::{mpsc, RwLock};
 use tokio::time;
 use warp::http::Method;
 use warp::{ws::Message, Filter, Rejection};
-use chemix_chain::chemix::{ThawBalances, ThawBalances2};
 
 mod handler;
 mod ws;
@@ -210,7 +210,6 @@ async fn main() {
                 tokio::time::sleep(time::Duration::from_millis(10)).await;
             }
 
-
             //thaw order
             let message = rsmq
                 .receive_message::<String>(channel_thaw_order.as_str(), None)
@@ -219,9 +218,10 @@ async fn main() {
             if let Some(message) = message {
                 //todo: for循环推送
                 println!("receive new message {:?}", message);
-                let thaw_infos: Vec<ThawBalances2> = serde_json::from_str(message.message.as_str()).unwrap();
+                let thaw_infos: Vec<ThawBalances2> =
+                    serde_json::from_str(message.message.as_str()).unwrap();
                 for thaw in thaw_infos {
-                    let addr = format!("{:?}",thaw.from);
+                    let addr = format!("{:?}", thaw.from);
                     let event = Event {
                         topic: format!("thaws"),
                         //topic: format!("human"),

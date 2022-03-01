@@ -1,7 +1,7 @@
 use crate::{Client, Clients};
 use futures::{FutureExt, SinkExt, StreamExt};
 use serde::Deserialize;
-use serde_json::{from_str, to_string};
+use serde_json::from_str;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::ws::{Message, WebSocket};
@@ -131,9 +131,8 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
                 match topics_req.params.hash.as_str() {
                     "" => {
                         v.user_address = None;
-
-                    },
-                    _ =>{
+                    }
+                    _ => {
                         v.user_address = Some(topics_req.params.hash.to_lowercase());
                     }
                 }

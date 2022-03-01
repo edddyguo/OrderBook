@@ -1,8 +1,8 @@
 use std::env;
-use std::collections::HashMap;
+
 use std::ffi::OsString;
-use std::string::String;
-pub struct EnvConf{
+
+pub struct EnvConf {
     pub chemix_mode: Option<OsString>,
     pub api_port: Option<OsString>,
     pub ws_port: Option<OsString>,

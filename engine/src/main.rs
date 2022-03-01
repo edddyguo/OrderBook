@@ -1,58 +1,56 @@
 pub mod order;
-mod trade;
 mod queue;
+mod trade;
 
 use anyhow::Result;
 use ethers::prelude::*;
 use std::collections::HashMap;
 
 //use ethers::providers::Ws;
-use ethers_contract_abigen::parse_address;
+
+use chemix_chain::chemix::ChemixContractClient;
 use ethers_providers::{Http, Middleware, Provider, StreamExt};
-use rsmq_async::{Rsmq, RsmqConnection, RsmqError};
-use chemix_chain::chemix::{CancelOrderState2, ChemixContractClient, SettleValues2, ThawBalances};
-use chemix_chain::chemix::SettleValues;
+use rsmq_async::RsmqConnection;
+
 use chemix_chain::bsc::Node;
 use std::string::String;
 
 use serde::Serialize;
 use std::convert::TryFrom;
-use std::env;
-use std::fmt::Debug;
-use std::ops::{Add, Div, Sub};
-use std::str::FromStr;
-use ethers::types::Address;
 
+use ethers::types::Address;
+use std::fmt::Debug;
+use std::ops::Sub;
+use std::str::FromStr;
 
 use crate::order::{cancel, match_order};
 use std::sync::Mutex;
 use std::sync::{mpsc, Arc, RwLock};
-use std::time::Duration;
-use tokio::runtime::Runtime;
-use tokio::time;
 
-use common::utils::time as chemix_time;
-use chrono::prelude::*;
+use tokio::runtime::Runtime;
+
 use clap::{App, Arg};
 
-use chemix_models::order::{get_order, insert_order, list_available_orders, update_order, EngineOrder, OrderInfo, UpdateOrder, BookOrder};
+use chemix_models::order::{
+    get_order, insert_order, list_available_orders, update_order, BookOrder, EngineOrder,
+    OrderInfo, UpdateOrder,
+};
 use chemix_models::trade::{insert_trades, TradeInfo};
-use common::utils::algorithm::sha256;
-use common::utils::math::{narrow, MathOperation, u256_to_f64};
+
+use common::utils::math::u256_to_f64;
 use common::utils::time::get_current_time;
 use common::utils::time::time2unix;
 use ethers_core::abi::ethereum_types::U64;
-use ethers_core::types::BlockId::Hash;
+
 use chemix_models::api::get_markets;
 use chemix_models::order::IdOrIndex::{Id, Index};
 //use common::env::CONF as ENV_CONF;
-use common::env::CONF as ENV_CONF;
 use crate::queue::Queue;
+use common::env::CONF as ENV_CONF;
 
 use common::types::order::Status as OrderStatus;
-use common::types::trade::Status as TradeStatus;
-use common::types::order::Side as OrderSide;
 
+use common::types::order::Side as OrderSide;
 
 #[macro_use]
 extern crate lazy_static;
@@ -60,12 +58,10 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
-
 static BaseTokenDecimal: u32 = 18;
 static QuoteTokenDecimal: u32 = 15;
 use chemix_models::api::MarketInfo;
 use chemix_models::thaws::{insert_thaws, Thaws};
-use common::types::order::Status::FullFilled;
 
 #[derive(Clone, Serialize, Debug)]
 struct EngineBook {
@@ -141,9 +137,6 @@ lazy_static! {
     };
 }
 
-
-
-
 #[derive(Clone, Serialize)]
 pub struct AddBook {
     pub asks: Vec<(f64, f64)>,
@@ -208,7 +201,7 @@ async fn get_balance() -> Result<()> {
     Ok(())
 }
 
-async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
+async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
     //let host = "https://bsc-dataseed4.ninicoin.io";
     //let host = "https://data-seed-prebsc-2-s3.binance.org:8545";
     //let host = "http://58.33.12.252:8548";
@@ -224,18 +217,17 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
     //let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
     let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
 
-
-    let mut chemix_main_client = ChemixContractClient::new(pri_key, chemix_storage.to_str().unwrap());
+    let chemix_main_client =
+        ChemixContractClient::new(pri_key, chemix_storage.to_str().unwrap());
     let chemix_main_client_arc = Arc::new(RwLock::new(chemix_main_client));
-    let chemix_main_client_receiver = chemix_main_client_arc.clone();
+    let _chemix_main_client_receiver = chemix_main_client_arc.clone();
     let chemix_main_client_sender = chemix_main_client_arc.clone();
-    let chemix_main_client_receiver2 = chemix_main_client_arc.clone();
+    let _chemix_main_client_receiver2 = chemix_main_client_arc.clone();
     let ws_url = ENV_CONF.chain_ws.to_owned().unwrap();
     let rpc_url = ENV_CONF.chain_rpc.to_owned().unwrap();
 
     let watcher = Node::<Ws>::new(ws_url.to_str().unwrap()).await;
     let provider_http = Node::<Http>::new(rpc_url.to_str().unwrap());
-
 
     rayon::scope(|s| {
         //监听合约事件（新建订单和取消订单），将其发送到相应处理模块
@@ -244,23 +236,33 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
             rt.block_on(async move {
                 let mut stream = watcher.gen_watcher().await.unwrap();
                 while let Some(block) = stream.next().await {
-                    info!("block {}",block);
-                    info!("current_book {:#?}",crate::BOOK.lock().unwrap());
+                    info!("block {}", block);
+                    info!("current_book {:#?}", crate::BOOK.lock().unwrap());
                     //last_height = last_height.add(1i32);
                     let current_height = provider_http.get_block(block).await.unwrap().unwrap();
                     //todo: 处理块高异常的情况,get block from http
                     //assert_eq!(last_height.add(1u64), current_height);
-                    info!("new_orders_event {:?}",current_height);
+                    info!("new_orders_event {:?}", current_height);
 
-                    let new_cancel_orders = chemix_main_client_sender.clone().write().unwrap().filter_new_cancel_order_created_event(current_height).await.unwrap();
-                    info!("new_cancel_orders_event {:?}",new_cancel_orders);
+                    let new_cancel_orders = chemix_main_client_sender
+                        .clone()
+                        .write()
+                        .unwrap()
+                        .filter_new_cancel_order_created_event(current_height)
+                        .await
+                        .unwrap();
+                    info!("new_cancel_orders_event {:?}", new_cancel_orders);
                     let legal_orders = cancel(new_cancel_orders.clone());
                     if legal_orders.is_empty() {
-                        info!("Not found legal_cancel orders created at height {}",current_height);
+                        info!(
+                            "Not found legal_cancel orders created at height {}",
+                            current_height
+                        );
                     } else {
                         let mut pending_thaws = Vec::new();
                         for cancel_order in legal_orders {
-                            let order = get_order(Index(cancel_order.order_index.as_u32())).unwrap();
+                            let order =
+                                get_order(Index(cancel_order.order_index.as_u32())).unwrap();
                             let update_info = UpdateOrder {
                                 id: order.id.clone(),
                                 status: OrderStatus::Canceled,
@@ -271,20 +273,29 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                             };
                             //todo: 批量更新
                             update_order(&update_info);
-                            pending_thaws.push(
-                                Thaws::new(order.id.clone(), Address::from_str(order.account.as_str()).unwrap(), order.market_id,  order.amount, order.price, order.side.clone())
-                            );
+                            pending_thaws.push(Thaws::new(
+                                order.id.clone(),
+                                Address::from_str(order.account.as_str()).unwrap(),
+                                order.market_id,
+                                order.amount,
+                                order.price,
+                                order.side.clone(),
+                            ));
                         }
                         insert_thaws(pending_thaws);
                     }
 
-
-                    let new_orders = chemix_main_client_sender.clone().write().unwrap().filter_new_order_event(current_height).await.unwrap();
-                    info!("new_orders_event {:?}",new_orders);
-
+                    let new_orders = chemix_main_client_sender
+                        .clone()
+                        .write()
+                        .unwrap()
+                        .filter_new_order_event(current_height)
+                        .await
+                        .unwrap();
+                    info!("new_orders_event {:?}", new_orders);
 
                     if new_orders.is_empty() {
-                        info!("Not found new order created at height {}",current_height);
+                        info!("Not found new order created at height {}", current_height);
                     } else {
                         event_sender
                             .send(new_orders)
@@ -317,15 +328,27 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 let u256_zero = U256::from(0i32);
 
                 for (index, order) in orders.into_iter().enumerate() {
-                    let mut db_order = OrderInfo::new(order.id.clone(),
-                                                      order.index.clone(), order.hash_data.clone(),
-                                                      "BTC-USDT".to_string(),
-                                                      order.account.clone(), order.side.clone(),
-                                                      order.price.clone(), order.amount.clone(),
+                    let mut db_order = OrderInfo::new(
+                        order.id.clone(),
+                        order.index.clone(),
+                        order.hash_data.clone(),
+                        "BTC-USDT".to_string(),
+                        order.account.clone(),
+                        order.side.clone(),
+                        order.price.clone(),
+                        order.amount.clone(),
                     );
-                    let matched_amount = match_order(order, &mut db_trades, &mut add_depth, &mut db_marker_orders_reduce);
+                    let matched_amount = match_order(
+                        order,
+                        &mut db_trades,
+                        &mut add_depth,
+                        &mut db_marker_orders_reduce,
+                    );
 
-                    error!("index={},taker_amount={},matched_amount={}",index,db_order.amount,matched_amount);
+                    error!(
+                        "index={},taker_amount={},matched_amount={}",
+                        index, db_order.amount, matched_amount
+                    );
                     db_order.status = if matched_amount == db_order.amount {
                         info!("0001");
                         OrderStatus::FullFilled
@@ -338,11 +361,15 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     };
                     db_order.matched_amount = matched_amount;
                     db_order.available_amount = db_order.amount.sub(matched_amount);
-                    info!("finished match_order index {},and status {:?},status_str={},",index,db_order.status,db_order.status.as_str());
+                    info!(
+                        "finished match_order index {},and status {:?},status_str={},",
+                        index,
+                        db_order.status,
+                        db_order.status.as_str()
+                    );
                     db_orders.push(db_order);
                 }
-                error!("db_trades = {:?}",db_trades);
-
+                error!("db_trades = {:?}", db_trades);
 
                 //todo: 和下边的db操作的事务一致性处理
                 if !db_trades.is_empty() {
@@ -375,35 +402,50 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                     update_order(&update_info);
                 }
 
+                info!("finished compute  ,add_depth {:?}", add_depth);
+                let asks2 = add_depth
+                    .asks
+                    .iter()
+                    .map(|(x, y)| {
+                        let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
+                        // let user_volume = u256_to_f64(y.to_owned(), BaseTokenDecimal);
+                        info!(
+                            "__test_decimal_0001_{}_{}_{}",
+                            y,
+                            y.into_raw(),
+                            y.abs().into_raw()
+                        );
+                        let user_volume = if y < &I256::from(0u32) {
+                            u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
+                        } else {
+                            u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
+                        };
 
-                info!("finished compute  ,add_depth {:?}",add_depth);
-                let asks2 = add_depth.asks.iter().map(|(x, y)| {
-                    let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
-                    // let user_volume = u256_to_f64(y.to_owned(), BaseTokenDecimal);
-                    info!("__test_decimal_0001_{}_{}_{}",y,y.into_raw(),y.abs().into_raw());
-                    let user_volume = if y < &I256::from(0u32) {
-                        u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
-                    } else {
-                        u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
-                    };
+                        (user_price, user_volume)
+                    })
+                    .filter(|(p, v)| p != &0.0 && v != &0.0)
+                    .collect::<Vec<(f64, f64)>>();
 
-                    (user_price, user_volume)
-                }).filter(|(p, v)| {
-                    p != &0.0 && v != &0.0
-                }).collect::<Vec<(f64, f64)>>();
-
-                let bids2 = add_depth.bids.iter().map(|(x, y)| {
-                    info!("__test_decimal_0002_{}_{}_{}",y,y.into_raw(),y.abs().into_raw());
-                    let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
-                    let user_volume = if y < &I256::from(0u32) {
-                        u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
-                    } else {
-                        u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
-                    };
-                    (user_price, user_volume)
-                }).filter(|(p, v)| {
-                    p != &0.0 && v != &0.0
-                }).collect::<Vec<(f64, f64)>>();
+                let bids2 = add_depth
+                    .bids
+                    .iter()
+                    .map(|(x, y)| {
+                        info!(
+                            "__test_decimal_0002_{}_{}_{}",
+                            y,
+                            y.into_raw(),
+                            y.abs().into_raw()
+                        );
+                        let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
+                        let user_volume = if y < &I256::from(0u32) {
+                            u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
+                        } else {
+                            u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
+                        };
+                        (user_price, user_volume)
+                    })
+                    .filter(|(p, v)| p != &0.0 && v != &0.0)
+                    .collect::<Vec<(f64, f64)>>();
 
                 let book2 = AddBook {
                     asks: asks2,
@@ -417,7 +459,10 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
                 let rt = Runtime::new().unwrap();
                 rt.block_on(async move {
                     let json_str = serde_json::to_string(&book2).unwrap();
-                    arc_queue.write().unwrap().client
+                    arc_queue
+                        .write()
+                        .unwrap()
+                        .client
                         .send_message(update_book_queue.as_str(), json_str, None)
                         .await
                         .expect("failed to send message");
@@ -433,7 +478,7 @@ async fn listen_blocks(mut queue: Queue) -> anyhow::Result<()> {
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
     let queue = Queue::new().await;
-    info!("market {}",MARKET.base_token_address);
+    info!("market {}", MARKET.base_token_address);
     info!("initial book {:#?}", crate::BOOK.lock().unwrap());
     listen_blocks(queue).await;
     Ok(())

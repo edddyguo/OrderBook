@@ -1,22 +1,21 @@
 pub mod api;
 pub mod chain;
 pub mod order;
-pub mod trade;
 pub mod thaws;
+pub mod trade;
 
 #[macro_use]
 extern crate jsonrpc_client_core;
 extern crate jsonrpc_client_http;
 
-use postgres::{Client, Error, NoTls, Row};
+use postgres::{Client, NoTls, Row};
 use std::any::Any;
 use std::env;
 
 use std::fmt::Debug;
 
+use anyhow::anyhow;
 use std::sync::Mutex;
-use anyhow::{anyhow, Result};
-
 
 extern crate chrono;
 extern crate postgres;
@@ -28,10 +27,9 @@ extern crate log;
 extern crate lazy_static;
 
 use chrono::Local;
-use serde_json::error::Category::Data;
-use common::types::*;
+
 use crate::trade::TradeInfo;
-use crate::order::OrderInfo;
+
 use crate::thaws::Thaws;
 
 lazy_static! {
@@ -75,11 +73,10 @@ fn connetDB() -> Option<postgres::Client> {
     }
 }
 
-
-pub fn query(raw_sql: &str) -> anyhow::Result<Vec<Row>>{
+pub fn query(raw_sql: &str) -> anyhow::Result<Vec<Row>> {
     let mut try_times = 5;
     loop {
-        match  crate::CLIENTDB.lock().unwrap().query(raw_sql, &[]) {
+        match crate::CLIENTDB.lock().unwrap().query(raw_sql, &[]) {
             Ok(data) => {
                 return Ok(data);
             }
@@ -87,8 +84,8 @@ pub fn query(raw_sql: &str) -> anyhow::Result<Vec<Row>>{
                 if try_times == 0 {
                     //Err(anyhow!("Missing attribute: {}", missing));
                     return Err(anyhow!("retry query failed"));
-                }else {
-                    info!("error {:?}",error);
+                } else {
+                    info!("error {:?}", error);
                     crate::restartDB();
                     try_times -= 1;
                     continue;
@@ -98,10 +95,10 @@ pub fn query(raw_sql: &str) -> anyhow::Result<Vec<Row>>{
     }
 }
 
-pub fn execute(raw_sql: &str) -> anyhow::Result<u64>{
+pub fn execute(raw_sql: &str) -> anyhow::Result<u64> {
     let mut try_times = 5;
     loop {
-        match  crate::CLIENTDB.lock().unwrap().execute(raw_sql, &[]) {
+        match crate::CLIENTDB.lock().unwrap().execute(raw_sql, &[]) {
             Ok(data) => {
                 return Ok(data);
             }
@@ -109,8 +106,8 @@ pub fn execute(raw_sql: &str) -> anyhow::Result<u64>{
                 if try_times == 0 {
                     //Err(anyhow!("Missing attribute: {}", missing));
                     return Err(anyhow!("retry execute failed"));
-                }else {
-                    info!("error {:?}",error);
+                } else {
+                    info!("error {:?}", error);
                     crate::restartDB();
                     try_times -= 1;
                     continue;
@@ -173,10 +170,9 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
         None => (),
     };
 
-
     match value.downcast_ref::<Thaws>() {
         Some(thaw) => {
-            let account = format!("{:?}",thaw.account);
+            let account = format!("{:?}", thaw.account);
             values.push(thaw.order_id.string4sql());
             values.push(account.string4sql());
             values.push(thaw.market_id.string4sql());

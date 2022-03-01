@@ -1,13 +1,10 @@
 extern crate rustc_serialize;
 
-use std::str::FromStr;
-use ethers_core::types::U256;
-use jsonrpc_http_server::tokio::prelude::future::Ok;
 use serde::Deserialize;
 
 //#[derive(Serialize)]
 use serde::Serialize;
-use std::fmt::Display;
+
 use crate::types::order::Side::{Buy, Sell};
 
 #[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
@@ -44,7 +41,7 @@ impl From<&str> for Status {
             "pending" => Self::Pending,
             "canceled" => Self::Canceled,
             "abandoned" => Self::Abandoned,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -78,7 +75,7 @@ impl From<&str> for Side {
         match side_str {
             "buy" => Self::Buy,
             "sell" => Self::Sell,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }

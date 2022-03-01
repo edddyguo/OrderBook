@@ -1,26 +1,26 @@
 mod depth;
+mod error_code;
 mod kline;
 mod market;
 mod order;
 mod trade;
-mod error_code;
 
 use actix_cors::Cors;
 use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder};
-use std::env;
 use log::info;
+use std::env;
 
 use chemix_models::api::list_markets as list_markets2;
-use chemix_models::order::{EngineOrderTmp2, list_available_orders, list_users_orders};
+use chemix_models::order::{list_available_orders, list_users_orders, EngineOrderTmp2};
 use chemix_models::trade::list_trades;
 use common::utils::time::time2unix;
 use serde::{Deserialize, Serialize};
-use common::env::EnvConf;
+
 use common::utils::math::u256_to_f64;
 
+use common::types::order::Side as OrderSide;
 use common::types::order::Status as OrderStatus;
 use common::types::trade::Status as TradeStatus;
-use common::types::order::Side as OrderSide;
 
 #[get("/{id}/{name}/index.html")]
 async fn index(web::Path((id, name)): web::Path<(u32, String)>) -> impl Responder {
@@ -57,7 +57,6 @@ struct ChemixRespond {
     data: String,
 }
 
-
 #[derive(Deserialize, Serialize)]
 struct DexInfo {
     engine_address: String,
@@ -69,7 +68,6 @@ fn respond_json(code: u8, msg: String, data: String) -> String {
     let respond = ChemixRespond { code, msg, data };
     serde_json::to_string(&respond).unwrap()
 }
-
 
 /***
 * @api {get} /chemix/dexInfo dex_info
@@ -97,7 +95,11 @@ async fn dex_info(web::Path(()): web::Path<()>) -> impl Responder {
         vault_address: vault.into_string().unwrap(),
         proxy_address: proxy.into_string().unwrap(),
     };
-    respond_json(200, "".to_string(), serde_json::to_string(&dex_info).unwrap())
+    respond_json(
+        200,
+        "".to_string(),
+        serde_json::to_string(&dex_info).unwrap(),
+    )
 }
 
 /***
@@ -166,17 +168,14 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     let quote_decimal = 15u32;
     //todo:错误码
     let mut available_buy_orders = list_available_orders(info.symbol.as_str(), OrderSide::Buy);
-    let mut available_sell_orders = list_available_orders(info.symbol.as_str(), OrderSide::Sell);
-    available_buy_orders.sort_by(|a,b| {
-        a.price.partial_cmp(&b.price).unwrap().reverse()
-    });
+    let mut available_sell_orders =
+        list_available_orders(info.symbol.as_str(), OrderSide::Sell);
+    available_buy_orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap().reverse());
 
-    available_sell_orders.sort_by(|a,b| {
-        a.price.partial_cmp(&b.price).unwrap()
-    });
+    available_sell_orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
 
-    info!("0001__{:?}",available_buy_orders);
-    info!("0002__{:?}",available_sell_orders);
+    info!("0001__{:?}", available_buy_orders);
+    info!("0002__{:?}", available_sell_orders);
     let mut asks = Vec::<(f64, f64)>::new();
     let mut bids = Vec::<(f64, f64)>::new();
 
@@ -190,7 +189,10 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
         if bids.len() as u32 == info.limit {
             break 'buy_orders;
         }
-        bids.push((u256_to_f64(available_buy_order.price, quote_decimal), u256_to_f64(available_buy_order.amount, base_decimal)));
+        bids.push((
+            u256_to_f64(available_buy_order.price, quote_decimal),
+            u256_to_f64(available_buy_order.amount, base_decimal),
+        ));
     }
 
     'sell_orders: for available_sell_order in available_sell_orders {
@@ -203,7 +205,10 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
         if asks.len() as u32 == info.limit {
             break 'sell_orders;
         }
-        asks.push((u256_to_f64(available_sell_order.price, quote_decimal), u256_to_f64(available_sell_order.amount, base_decimal)));
+        asks.push((
+            u256_to_f64(available_sell_order.price, quote_decimal),
+            u256_to_f64(available_sell_order.amount, base_decimal),
+        ));
     }
 
     let mut depth_data = depth::Depth { asks, bids };
@@ -243,17 +248,22 @@ struct AggTradesRequest {
 async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Responder {
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
-    let trades = list_trades(None, Some(info.symbol), Some(TradeStatus::Launched),info.limit)
-        .iter()
-        .map(|x| trade::Trade {
-            id: x.id.clone(),
-            price: u256_to_f64(x.price, quote_decimal),
-            amount: u256_to_f64(x.amount, base_decimal),
-            height: x.block_height as u32,
-            taker_side: x.taker_side.clone(),
-            updated_at: time2unix(x.created_at.clone()),
-        })
-        .collect::<Vec<trade::Trade>>();
+    let trades = list_trades(
+        None,
+        Some(info.symbol),
+        Some(TradeStatus::Launched),
+        info.limit,
+    )
+    .iter()
+    .map(|x| trade::Trade {
+        id: x.id.clone(),
+        price: u256_to_f64(x.price, quote_decimal),
+        amount: u256_to_f64(x.amount, base_decimal),
+        height: x.block_height as u32,
+        taker_side: x.taker_side.clone(),
+        updated_at: time2unix(x.created_at.clone()),
+    })
+    .collect::<Vec<trade::Trade>>();
 
     respond_json(200, "".to_string(), serde_json::to_string(&trades).unwrap())
 }
@@ -321,7 +331,6 @@ async fn klines(web::Query(info): web::Query<KlinesRequest>) -> impl Responder {
 *   {"channel":"","method":"PONG","data":""}
 * */
 
-
 /***
 * @api {get} /dashBoard/profile dex profile info
 * @apiName profile
@@ -349,7 +358,11 @@ async fn dex_profile() -> impl Responder {
         tradingPairs: 0,
         price: 0.0,
     };
-    respond_json(200, "".to_string(), serde_json::to_string(&profile).unwrap())
+    respond_json(
+        200,
+        "".to_string(),
+        serde_json::to_string(&profile).unwrap(),
+    )
 }
 
 #[get("/freezeBalance/{user}")]
@@ -365,7 +378,6 @@ async fn add_market(web::Path(contract_address): web::Path<String>) -> HttpRespo
 async fn echo(req_body: String) -> impl Responder {
     HttpResponse::Ok().body(req_body)
 }
-
 
 /***
 * @api {get} /chemix/listOrders listOrders
@@ -397,9 +409,15 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     let account = info.account.clone().to_lowercase();
-    let orders = list_users_orders(account.as_str(), OrderStatus::from("pending"), OrderStatus::from("partial_filled"), info.limit);
-    let orders = orders.iter().map(|x| {
-        EngineOrderTmp2 {
+    let orders = list_users_orders(
+        account.as_str(),
+        OrderStatus::from("pending"),
+        OrderStatus::from("partial_filled"),
+        info.limit,
+    );
+    let orders = orders
+        .iter()
+        .map(|x| EngineOrderTmp2 {
             id: "BTC-USDT".to_string(),
             index: x.index.to_string(),
             account: x.account.clone(),
@@ -408,11 +426,10 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
             side: x.side.clone(),
             status: x.status.as_str().to_string(),
             created_at: "".to_string(),
-        }
-    }).collect::<Vec<EngineOrderTmp2>>();
+        })
+        .collect::<Vec<EngineOrderTmp2>>();
     respond_json(200, "".to_string(), serde_json::to_string(&orders).unwrap())
 }
-
 
 /***
 * @api {get} /chemix/recentTrades recentTrades
@@ -443,26 +460,28 @@ async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> imp
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     let account = info.account.clone().to_lowercase();
-    let trades = list_trades(Some(account.clone()), None, None,info.limit);
-    let trades = trades.iter().map(|x| {
-        let side = if account == x.taker {
-            x.taker_side.clone()
-        }else {
-            x.taker_side.contrary()
-        };
-        trade::Trade {
-            id: x.id.clone(),
-            price: u256_to_f64(x.price, quote_decimal),
-            amount: u256_to_f64(x.amount, base_decimal),
-            height: 12345u32,
-            // fixme: maybe side?
-            taker_side: side,
-            updated_at: time2unix(x.created_at.clone()),
-        }
-    }).collect::<Vec<trade::Trade>>();
+    let trades = list_trades(Some(account.clone()), None, None, info.limit);
+    let trades = trades
+        .iter()
+        .map(|x| {
+            let side = if account == x.taker {
+                x.taker_side.clone()
+            } else {
+                x.taker_side.contrary()
+            };
+            trade::Trade {
+                id: x.id.clone(),
+                price: u256_to_f64(x.price, quote_decimal),
+                amount: u256_to_f64(x.amount, base_decimal),
+                height: 12345u32,
+                // fixme: maybe side?
+                taker_side: side,
+                updated_at: time2unix(x.created_at.clone()),
+            }
+        })
+        .collect::<Vec<trade::Trade>>();
     respond_json(200, "".to_string(), serde_json::to_string(&trades).unwrap())
 }
-
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -509,7 +528,7 @@ async fn main() -> std::io::Result<()> {
             .service(echo)
         //.service(web::resource("/chemix/depth").route(web::get().to(depth)))
     })
-        .bind(service.as_str())?
-        .run()
-        .await
+    .bind(service.as_str())?
+    .run()
+    .await
 }

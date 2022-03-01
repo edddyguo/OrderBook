@@ -1,18 +1,15 @@
-use std::fmt::format;
-use std::str::FromStr;
-use ethers_core::types::U256;
 use crate::struct2array;
+use common::types::*;
 use common::utils::algorithm::sha256;
 use common::utils::time::get_current_time;
-use serde::{Serialize,Deserialize};
-use common::types::*;
+use ethers_core::types::U256;
+use serde::Serialize;
 
 extern crate rustc_serialize;
-use common::types::trade::Status as TradeStatus;
 use common::types::order::Side as OrderSide;
+use common::types::trade::Status as TradeStatus;
 
-
-#[derive(Serialize, Debug,Clone)]
+#[derive(Serialize, Debug, Clone)]
 pub struct TradeInfo {
     pub id: String,
     pub block_height: i32,
@@ -102,25 +99,39 @@ pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
     info!("success insert traders {} rows", execute_res);
 }
 
-pub fn list_trades(user: Option<String>,market_id: Option<String>,status:Option<TradeStatus> ,limit: u32) -> Vec<TradeInfo> {
+pub fn list_trades(
+    user: Option<String>,
+    market_id: Option<String>,
+    status: Option<TradeStatus>,
+    limit: u32,
+) -> Vec<TradeInfo> {
     //todo: 待补充场景
-    let filter_str = match (user,market_id,status) {
-        (None, None,None) => {
+    let filter_str = match (user, market_id, status) {
+        (None, None, None) => {
             format!("")
-        },
-        (Some(account), None,_) => {
-            format!(" where taker='{}' or maker='{}' ",account,account)
         }
-        (None, Some(id),Some(status)) => {
-            format!(" where market_id='{}' and status='{}' ",id,status.as_str())
+        (Some(account), None, _) => {
+            format!(" where taker='{}' or maker='{}' ", account, account)
         }
-        (Some(account), Some(id),_) => {
-            format!(" where market_id='{}' and (taker='{}' or maker='{}') ",id,account,account)
+        (None, Some(id), Some(status)) => {
+            format!(
+                " where market_id='{}' and status='{}' ",
+                id,
+                status.as_str()
+            )
         }
-        (None, None,Some(status)) => {
-            format!(" where status='{}' ",status.as_str())
+        (Some(account), Some(id), _) => {
+            format!(
+                " where market_id='{}' and (taker='{}' or maker='{}') ",
+                id, account, account
+            )
         }
-        _ => {unreachable!()}
+        (None, None, Some(status)) => {
+            format!(" where status='{}' ", status.as_str())
+        }
+        _ => {
+            unreachable!()
+        }
     };
 
     let sql = format!(
@@ -141,10 +152,10 @@ pub fn list_trades(user: Option<String>,market_id: Option<String>,status:Option<
     cast(updated_at as text) \
     from chemix_trades \
     {} order by created_at DESC limit {}",
-        filter_str,limit
+        filter_str, limit
     );
     let mut trades: Vec<TradeInfo> = Vec::new();
-    info!("list_trades_sql {}",sql);
+    info!("list_trades_sql {}", sql);
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
         let side_str: String = row.get(9);
@@ -153,12 +164,12 @@ pub fn list_trades(user: Option<String>,market_id: Option<String>,status:Option<
             id: row.get(0),
             block_height: row.get(1), //todo: 待加逻辑
             transaction_hash: row.get(2),
-            status: TradeStatus::from(row.get::<usize,&str>(3usize)),//row.get(3),
+            status: TradeStatus::from(row.get::<usize, &str>(3usize)), //row.get(3),
             market_id: row.get(4),
             taker: row.get(5),
             maker: row.get(6),
-            price: U256::from_str_radix(row.get::<usize,&str>(7),10).unwrap(),
-            amount: U256::from_str_radix(row.get::<usize,&str>(8),10).unwrap(),
+            price: U256::from_str_radix(row.get::<usize, &str>(7), 10).unwrap(),
+            amount: U256::from_str_radix(row.get::<usize, &str>(8), 10).unwrap(),
             taker_side: side,
             maker_order_id: row.get(10),
             taker_order_id: row.get(11),
@@ -170,8 +181,7 @@ pub fn list_trades(user: Option<String>,market_id: Option<String>,status:Option<
     trades
 }
 
-pub fn update_trade(id:&str,status: TradeStatus,height: u32,transaction_hash: &str) {
-
+pub fn update_trade(id: &str, status: TradeStatus, height: u32, transaction_hash: &str) {
     let sql = format!(
         "UPDATE chemix_trades SET (status,block_height,transaction_hash,updated_at)=\
          ('{}',{},'{}','{}') WHERE id='{}'",
@@ -184,5 +194,4 @@ pub fn update_trade(id:&str,status: TradeStatus,height: u32,transaction_hash: &s
     info!("start update trade {} ", sql);
     let execute_res = crate::execute(sql.as_str()).unwrap();
     info!("success update trade {} rows", execute_res);
-
 }

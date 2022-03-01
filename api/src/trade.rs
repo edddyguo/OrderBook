@@ -1,6 +1,5 @@
 use serde::Serialize;
-use common::types::order::Status as OrderStatus;
-use common::types::trade::Status as TradeStatus;
+
 use common::types::order::Side as OrderSide;
 
 #[derive(Serialize)]

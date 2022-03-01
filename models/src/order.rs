@@ -1,22 +1,20 @@
 extern crate rustc_serialize;
 
-use std::str::FromStr;
 use ethers_core::types::U256;
-use jsonrpc_http_server::tokio::prelude::future::Ok;
+
 use serde::Deserialize;
 
 //#[derive(Serialize)]
-use serde::Serialize;
 use crate::struct2array;
-use common::utils::math::narrow;
+use serde::Serialize;
+
 use common::utils::time::get_current_time;
-use std::fmt::Display;
+
 use common::types::*;
 
 use common::types::order::Status as OrderStatus;
-use common::types::trade::Status as TradeStatus;
-use common::types::order::Side as OrderSide;
 
+use common::types::order::Side as OrderSide;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct UpdateOrder {
@@ -38,7 +36,6 @@ pub struct EngineOrder {
     pub created_at: String,
 }
 
-
 #[derive(Deserialize, Debug, Clone)]
 pub struct EngineOrderTmp1 {
     pub id: String,
@@ -51,7 +48,7 @@ pub struct EngineOrderTmp1 {
     pub created_at: String,
 }
 
-#[derive(Deserialize, Debug, Clone,Serialize)]
+#[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct EngineOrderTmp2 {
     pub id: String,
     pub index: String,
@@ -62,8 +59,6 @@ pub struct EngineOrderTmp2 {
     pub status: String,
     pub created_at: String,
 }
-
-
 
 #[derive(Clone, Serialize, Debug)]
 pub struct BookOrder {
@@ -76,9 +71,6 @@ pub struct BookOrder {
     pub amount: U256,
     pub created_at: u64,
 }
-
-
-
 
 /**
 amount = available_amount + matched_amount + canceled_amount
@@ -130,7 +122,7 @@ impl OrderInfo {
             status: order::Status::Pending,
             available_amount: amount,
             matched_amount: U256::from(0),
-            canceled_amount:  U256::from(0),
+            canceled_amount: U256::from(0),
             updated_at: get_current_time(),
             created_at: get_current_time(),
         }
@@ -175,15 +167,19 @@ pub fn update_order(order: &UpdateOrder) {
 }
 
 pub fn list_available_orders(market_id: &str, side: order::Side) -> Vec<EngineOrder> {
-    let sql = format!("select id,\
+    let sql = format!(
+        "select id,\
     account,\
     price,\
     available_amount,\
     side,\
     cast(created_at as text) from chemix_orders \
-    where market_id='{}' and available_amount!=\'0\' and side='{}' order by created_at ASC", market_id, side.as_str());
+    where market_id='{}' and available_amount!=\'0\' and side='{}' order by created_at ASC",
+        market_id,
+        side.as_str()
+    );
     let mut orders = Vec::<EngineOrder>::new();
-    info!("list_available_orders sql {}",sql);
+    info!("list_available_orders sql {}", sql);
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
         let side_str: String = row.get(4);
@@ -191,8 +187,8 @@ pub fn list_available_orders(market_id: &str, side: order::Side) -> Vec<EngineOr
         let info = EngineOrder {
             id: row.get(0),
             account: row.get(1),
-            price: U256::from_str_radix(row.get::<usize,&str>(2),10).unwrap(),
-            amount: U256::from_str_radix(row.get::<usize,&str>(3),10).unwrap(),
+            price: U256::from_str_radix(row.get::<usize, &str>(2), 10).unwrap(),
+            amount: U256::from_str_radix(row.get::<usize, &str>(3), 10).unwrap(),
             side,
             created_at: row.get(5),
         };
@@ -208,8 +204,7 @@ pub enum IdOrIndex {
     Index(u32),
 }
 
-
-pub fn get_last_order() -> Result<OrderInfo,String> {
+pub fn get_last_order() -> Result<OrderInfo, String> {
     let sql = format!(
         "select id,index,hash_data,market_id,account,side,
          price,\
@@ -225,30 +220,32 @@ pub fn get_last_order() -> Result<OrderInfo,String> {
     let rows = crate::query(sql.as_str()).unwrap();
     let order = OrderInfo {
         id: rows[0].get(0),
-        index: U256::from(rows[0].get::<usize,i32>(1)),
+        index: U256::from(rows[0].get::<usize, i32>(1)),
         hash_data: rows[0].get(2),
         market_id: rows[0].get(3),
         account: rows[0].get(4),
-        side: OrderSide::from(rows[0].get::<usize,&str>(5usize)),//rows[0].get(4),
-        price: U256::from_str_radix(rows[0].get::<usize,&str>(6usize),10).unwrap(),
-        amount: U256::from_str_radix(rows[0].get::<usize,&str>(7usize),10).unwrap(),
-        status: order::Status::from(rows[0].get::<usize,&str>(8usize)),
-        available_amount: U256::from_str_radix(rows[0].get::<usize,&str>(9usize),10).unwrap(),
-        matched_amount: U256::from_str_radix(rows[0].get::<usize,&str>(10usize),10).unwrap(),
-        canceled_amount: U256::from_str_radix(rows[0].get::<usize,&str>(11usize),10).unwrap(),
+        side: OrderSide::from(rows[0].get::<usize, &str>(5usize)), //rows[0].get(4),
+        price: U256::from_str_radix(rows[0].get::<usize, &str>(6usize), 10).unwrap(),
+        amount: U256::from_str_radix(rows[0].get::<usize, &str>(7usize), 10).unwrap(),
+        status: order::Status::from(rows[0].get::<usize, &str>(8usize)),
+        available_amount: U256::from_str_radix(rows[0].get::<usize, &str>(9usize), 10).unwrap(),
+        matched_amount: U256::from_str_radix(rows[0].get::<usize, &str>(10usize), 10).unwrap(),
+        canceled_amount: U256::from_str_radix(rows[0].get::<usize, &str>(11usize), 10).unwrap(),
         updated_at: rows[0].get(12),
         created_at: rows[0].get(13),
     };
     Ok(order)
 }
 
-pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(id_or_index: T) -> Result<OrderInfo,String> {
+pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(
+    id_or_index: T,
+) -> Result<OrderInfo, String> {
     let filter_str = match id_or_index.into() {
         IdOrIndex::Id(id) => {
-            format!(" id=\'{}\'",id)
-        },
+            format!(" id=\'{}\'", id)
+        }
         IdOrIndex::Index(index) => {
-            format!(" index=\'{}\'",index)
+            format!(" index=\'{}\'", index)
         }
     };
     let sql = format!(
@@ -261,40 +258,50 @@ pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(id_or_index: T) -> Result<Ord
          canceled_amount,\
          cast(updated_at as text) ,\
          cast(created_at as text) \
-         from chemix_orders where {} ",filter_str
+         from chemix_orders where {} ",
+        filter_str
     );
     let rows = crate::query(sql.as_str()).unwrap();
     let order = OrderInfo {
         id: rows[0].get(0),
-        index: U256::from(rows[0].get::<usize,i32>(1)),
+        index: U256::from(rows[0].get::<usize, i32>(1)),
         hash_data: rows[0].get(2),
         market_id: rows[0].get(3),
         account: rows[0].get(4),
-        side: OrderSide::from(rows[0].get::<usize,&str>(5usize)),//rows[0].get(4),
-        price: U256::from_str_radix(rows[0].get::<usize,&str>(6usize),10).unwrap(),
-        amount: U256::from_str_radix(rows[0].get::<usize,&str>(7usize),10).unwrap(),
-        status: order::Status::from(rows[0].get::<usize,&str>(8usize)),
-        available_amount: U256::from_str_radix(rows[0].get::<usize,&str>(9usize),10).unwrap(),
-        matched_amount: U256::from_str_radix(rows[0].get::<usize,&str>(10usize),10).unwrap(),
-        canceled_amount: U256::from_str_radix(rows[0].get::<usize,&str>(11usize),10).unwrap(),
+        side: OrderSide::from(rows[0].get::<usize, &str>(5usize)), //rows[0].get(4),
+        price: U256::from_str_radix(rows[0].get::<usize, &str>(6usize), 10).unwrap(),
+        amount: U256::from_str_radix(rows[0].get::<usize, &str>(7usize), 10).unwrap(),
+        status: order::Status::from(rows[0].get::<usize, &str>(8usize)),
+        available_amount: U256::from_str_radix(rows[0].get::<usize, &str>(9usize), 10).unwrap(),
+        matched_amount: U256::from_str_radix(rows[0].get::<usize, &str>(10usize), 10).unwrap(),
+        canceled_amount: U256::from_str_radix(rows[0].get::<usize, &str>(11usize), 10).unwrap(),
         updated_at: rows[0].get(12),
         created_at: rows[0].get(13),
     };
     Ok(order)
 }
 
-
-
-pub fn list_users_orders(account: &str, status1: order::Status,status2: order::Status,limit: u32) -> Vec<EngineOrderTmp1> {
-    let sql = format!("select id,index,\
+pub fn list_users_orders(
+    account: &str,
+    status1: order::Status,
+    status2: order::Status,
+    limit: u32,
+) -> Vec<EngineOrderTmp1> {
+    let sql = format!(
+        "select id,index,\
     account,\
     price,\
     available_amount,\
     side,\
     status,\
     cast(created_at as text) from chemix_orders \
-    where account='{}' and (status=\'{}\' or status=\'{}\') order by created_at DESC limit {}", account, status1.as_str(),status2.as_str(),limit);
-    info!("list_users_orders raw sql {}",sql);
+    where account='{}' and (status=\'{}\' or status=\'{}\') order by created_at DESC limit {}",
+        account,
+        status1.as_str(),
+        status2.as_str(),
+        limit
+    );
+    info!("list_users_orders raw sql {}", sql);
     let mut orders = Vec::<EngineOrderTmp1>::new();
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
@@ -306,18 +313,16 @@ pub fn list_users_orders(account: &str, status1: order::Status,status2: order::S
 
         let info = EngineOrderTmp1 {
             id: row.get(0),
-            index: U256::from(row.get::<usize,i32>(1)),
+            index: U256::from(row.get::<usize, i32>(1)),
             account: row.get(2),
-            price: U256::from_str_radix(row.get::<usize,&str>(3),10).unwrap(),
-            amount: U256::from_str_radix(row.get::<usize,&str>(4),10).unwrap(),
+            price: U256::from_str_radix(row.get::<usize, &str>(3), 10).unwrap(),
+            amount: U256::from_str_radix(row.get::<usize, &str>(4), 10).unwrap(),
             side,
             status,
             created_at: row.get(7),
         };
         orders.push(info);
     }
-    orders.sort_by(|a,b|{
-        a.price.partial_cmp(&b.price).unwrap()
-    });
+    orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
     orders
 }

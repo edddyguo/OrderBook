@@ -1,38 +1,28 @@
 mod util;
 
+extern crate core;
 extern crate ethers_contract_abigen;
 extern crate num;
 extern crate rand;
 extern crate rsmq_async;
-extern crate core;
 
-use ethers::{prelude::*, types::U256};
+use ethers::prelude::*;
 
 //use ethers::providers::Ws;
-use ethers_contract_abigen::Address;
 
-use rsmq_async::{Rsmq, RsmqConnection};
-
-use std::fs::File;
-use std::io::BufReader;
-
-use std::str::FromStr;
-use log::{error, info, warn};
+use log::{error, warn};
 
 use tokio::time;
-use crate::num::ToPrimitive;
 
 use rand::Rng;
-use crate::abi::Abi;
-use std::{convert::TryFrom, path::Path, sync::Arc, time::Duration};
-use std::ops::{Div, Mul};
-use clap::{App, Arg};
-use common::utils::math::MathOperation;
-use common::env;
-use chemix_chain::chemix::ChemixContractClient;
 
-use common::types::order::{Side, Status as OrderStatus};
-use common::types::trade::Status as TradeStatus;
+use chemix_chain::chemix::ChemixContractClient;
+use clap::{App, Arg};
+use common::env;
+use common::utils::math::MathOperation;
+
+use common::types::order::Side;
+
 use common::types::order::Side as OrderSide;
 use common::types::order::Side::{Buy, Sell};
 
@@ -42,9 +32,19 @@ abigen!(
     //"../contract/chemix_trade_abi.json",
     event_derives(serde::Deserialize, serde::Serialize)
 );
-async fn new_order(client: ChemixContractClient, base_token: &str, quote_token: &str, side: Side, price: f64, amount: f64) {
+async fn new_order(
+    client: ChemixContractClient,
+    base_token: &str,
+    quote_token: &str,
+    side: Side,
+    price: f64,
+    amount: f64,
+) {
     loop {
-        match client.new_order(side.clone(), base_token, quote_token, price, amount).await {
+        match client
+            .new_order(side.clone(), base_token, quote_token, price, amount)
+            .await
+        {
             Ok(_) => {
                 break;
             }
@@ -54,7 +54,7 @@ async fn new_order(client: ChemixContractClient, base_token: &str, quote_token: 
                     tokio::time::sleep(time::Duration::from_millis(5000)).await;
                 } else {
                     //tmp code
-                    error!("{}",error);
+                    error!("{}", error);
                     unreachable!()
                 }
             }
@@ -63,7 +63,12 @@ async fn new_order(client: ChemixContractClient, base_token: &str, quote_token: 
 }
 
 //讨论：取消不需要两个token，全局的index
-async fn cancel_order(client: ChemixContractClient, base_token: &str, quote_token: &str, index: u32) {
+async fn cancel_order(
+    client: ChemixContractClient,
+    base_token: &str,
+    quote_token: &str,
+    index: u32,
+) {
     loop {
         match client.cancel_order(base_token, quote_token, index).await {
             Ok(_) => {
@@ -75,7 +80,7 @@ async fn cancel_order(client: ChemixContractClient, base_token: &str, quote_toke
                     tokio::time::sleep(time::Duration::from_millis(5000)).await;
                 } else {
                     //tmp code
-                    error!("{}",error);
+                    error!("{}", error);
                     unreachable!()
                 }
             }
@@ -100,14 +105,23 @@ async fn auto_take_order(client: ChemixContractClient, base_token: &str, quote_t
         let amount = (base_amount + amount_add).to_fix(8);
         println!(
             "[newOrder]: side {} price {},amount {}",
-            side.as_str(), price, amount
+            side.as_str(),
+            price,
+            amount
         );
 
-        new_order(client.clone(), base_token, quote_token, side.clone(), price, amount).await;
+        new_order(
+            client.clone(),
+            base_token,
+            quote_token,
+            side.clone(),
+            price,
+            amount,
+        )
+        .await;
         tokio::time::sleep(time::Duration::from_millis(1000)).await;
     }
 }
-
 
 //test1,0x613548d151E096131ece320542d19893C4B8c901
 //let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
@@ -126,17 +140,19 @@ async fn main() -> anyhow::Result<()> {
     let matches = App::new("bot")
         .version("1.0")
         .about("Does awesome things")
-        .arg(Arg::new("pri_key")
-            .required(true)
-            .index(1))
-        .arg(Arg::new("base_token")
-            .about("base token contract address")
-            .required(true)
-            .index(2))
-        .arg(Arg::new("quote_token")
-            .about("quote token contract address")
-            .required(true)
-            .index(3))
+        .arg(Arg::new("pri_key").required(true).index(1))
+        .arg(
+            Arg::new("base_token")
+                .about("base token contract address")
+                .required(true)
+                .index(2),
+        )
+        .arg(
+            Arg::new("quote_token")
+                .about("quote token contract address")
+                .required(true)
+                .index(3),
+        )
         .subcommand(
             App::new("buy")
                 .arg(
@@ -145,25 +161,17 @@ async fn main() -> anyhow::Result<()> {
                         .required(true)
                         .index(1),
                 )
-                .arg(
-                    Arg::new("amount")
-                        .required(true)
-                        .index(2)
-                )
+                .arg(Arg::new("amount").required(true).index(2)),
         )
         .subcommand(
             App::new("sell")
-                    .arg(
+                .arg(
                     Arg::new("price")
                         .about("token price")
                         .required(true)
                         .index(1),
-                    )
-                    .arg(
-                        Arg::new("amount")
-                        .required(true)
-                        .index(2)
-                    )
+                )
+                .arg(Arg::new("amount").required(true).index(2)),
         )
         .subcommand(
             App::new("cancel").arg(
@@ -188,14 +196,30 @@ async fn main() -> anyhow::Result<()> {
             let price = price_str.to_string().parse::<f64>().unwrap();
             let amount_str = sub_matches.value_of("amount").unwrap();
             let amount = amount_str.to_string().parse::<f64>().unwrap();
-            new_order(client, base_token, quote_token, OrderSide::Buy, price, amount).await;
+            new_order(
+                client,
+                base_token,
+                quote_token,
+                OrderSide::Buy,
+                price,
+                amount,
+            )
+            .await;
         }
         Some(("sell", sub_matches)) => {
             let price_str = sub_matches.value_of("price").unwrap();
             let price = price_str.to_string().parse::<f64>().unwrap();
             let amount_str = sub_matches.value_of("amount").unwrap();
             let amount = amount_str.to_string().parse::<f64>().unwrap();
-            new_order(client, base_token, quote_token, OrderSide::Sell, price, amount).await;
+            new_order(
+                client,
+                base_token,
+                quote_token,
+                OrderSide::Sell,
+                price,
+                amount,
+            )
+            .await;
         }
         Some(("cancel", sub_matches)) => {
             let index_str = sub_matches.value_of("index").unwrap();
@@ -206,7 +230,9 @@ async fn main() -> anyhow::Result<()> {
             //generate_all_token(output_path, component_path,token_canister);
             auto_take_order(client, base_token, quote_token).await;
         }
-        _ => { panic!("subcommand not support") }
+        _ => {
+            panic!("subcommand not support")
+        }
     }
 
     Ok(())

@@ -7,7 +7,7 @@ use anyhow::Result;
 use ethers::prelude::*;
 use std::time::Duration;
 //use ethers::providers::Ws;
-use ethers_providers::{Middleware, Provider, StreamExt,Http};
+use ethers_providers::{Http, Middleware, Provider, StreamExt};
 #[macro_use]
 extern crate log;
 
@@ -15,15 +15,12 @@ extern crate log;
 extern crate lazy_static;
 use std::sync::Mutex;
 
-
 lazy_static! {
-    static ref PROVIDER_HTTP: Mutex<Provider<Http>> = Mutex::new( {
+    static ref PROVIDER_HTTP: Mutex<Provider<Http>> = Mutex::new({
         let host = "http://58.33.12.252:8548";
         Provider::<Http>::try_from(host).unwrap()
     });
 }
-
-
 
 //let ws = Ws::connect("wss://localhost:8545").await?;
 
