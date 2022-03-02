@@ -14,7 +14,7 @@ use ethers_core::types::U256;
 use chemix_models::api::list_markets as list_markets2;
 use chemix_models::order::{list_available_orders, list_users_orders, EngineOrderTmp2, get_user_number, get_order_num, get_order_volume};
 use chemix_models::trade::{get_current_price, get_trade_volume, list_trades};
-use common::utils::time::time2unix;
+use common::utils::time::{get_current_time, time2unix};
 use serde::{Deserialize, Serialize};
 use chemix_models::TimeScope;
 use chemix_models::TimeScope::TwentyFour;
@@ -50,6 +50,7 @@ struct DexProfile {
     TVL: f64,
     tradingPairs: u8,
     price: f64,
+    snapshot_time: String
 }
 
 #[derive(Serialize)]
@@ -128,11 +129,50 @@ async fn dex_info(web::Path(()): web::Path<()>) -> impl Responder {
 * }
 *@apiSampleRequest http://139.196.155.96:7010/chemix/listMarkets
  * */
+
+#[derive(Serialize, Debug, Default)]
+pub struct MarketInfoTmp1 {
+    pub id: String,
+    pub base_token_address: String,
+    base_token_symbol: String,
+    pub base_contract_decimal: i32,
+    base_front_decimal: i32,
+    pub quote_token_address: String,
+    quote_token_symbol: String,
+    pub quote_contract_decimal: i32,
+    quote_front_decimal: i32,
+    seven_day_volume: f64,
+    twenty_four_hour_volume: f64,
+    snapshot_time: String,
+}
+
 #[get("/chemix/listMarkets")]
 async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
-    let _markets = Vec::<Markets>::new();
-    let test1 = list_markets2();
-    respond_json(200, "".to_string(), serde_json::to_string(&test1).unwrap())
+    let mut markets = Vec::<MarketInfoTmp1>::new();
+    let db_markets = list_markets2();
+    let now = get_current_time();
+    for db_market in db_markets {
+        let seven_day_volume = get_order_volume(TimeScope::SevenDay,db_market.id.clone());
+        let twenty_four_hour_volume = get_order_volume(TimeScope::TwentyFour,db_market.id.clone());
+        let data = MarketInfoTmp1 {
+            id:db_market.id,
+            base_token_address: db_market.base_token_address,
+            base_token_symbol: db_market.base_token_symbol,
+            base_contract_decimal: db_market.base_contract_decimal,
+            base_front_decimal: db_market.base_front_decimal,
+            quote_token_address: db_market.quote_token_address,
+            quote_token_symbol: db_market.quote_token_symbol,
+            quote_contract_decimal: db_market.quote_contract_decimal,
+            quote_front_decimal: db_market.quote_front_decimal,
+            seven_day_volume:u256_to_f64(seven_day_volume, 15),
+            twenty_four_hour_volume:u256_to_f64(twenty_four_hour_volume, 15),
+            snapshot_time: now.clone()
+        };
+        markets.push(data);
+    }
+
+    let volume = get_order_volume(TimeScope::NoLimit,"BTC-USDT".to_string());
+    respond_json(200, "".to_string(), serde_json::to_string(&markets).unwrap())
 }
 
 /***
@@ -393,6 +433,7 @@ async fn dex_profile() -> impl Responder {
         TVL: u256_to_f64(TVL_u256, 15),
         tradingPairs: 1,
         price: u256_to_f64(price, 15),
+        snapshot_time: get_current_time()
     };
     respond_json(
         200,

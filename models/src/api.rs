@@ -7,13 +7,13 @@ use serde::Serialize;
 pub struct MarketInfo {
     pub id: String,
     pub base_token_address: String,
-    base_token_symbol: String,
+    pub base_token_symbol: String,
     pub base_contract_decimal: i32,
-    base_front_decimal: i32,
+    pub base_front_decimal: i32,
     pub quote_token_address: String,
-    quote_token_symbol: String,
+    pub quote_token_symbol: String,
     pub quote_contract_decimal: i32,
-    quote_front_decimal: i32,
+    pub quote_front_decimal: i32,
 }
 
 pub fn list_markets() -> Vec<MarketInfo> {
