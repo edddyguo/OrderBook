@@ -1,7 +1,9 @@
+#![feature(slice_group_by)]
+
 mod queue;
 
 use ethers::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 //use ethers::providers::Ws;
 
@@ -24,8 +26,8 @@ use std::sync::{Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::time;
 
-use chemix_models::order::{get_last_order, BookOrder};
-use chemix_models::trade::{list_trades, update_trade, TradeInfo};
+use chemix_models::order::{get_last_order, BookOrder, get_order, IdOrIndex};
+use chemix_models::trade::{list_trades, update_trade, TradeInfo, update_trade_by_hash, list_trades2};
 use common::utils::algorithm::{sha2562, u8_arr_from_str};
 use common::utils::math::u256_to_f64;
 use common::utils::time::get_current_time;
@@ -42,7 +44,7 @@ use chemix_models::thaws::Thaws;
 
 use common::types::order::{Side as OrderSide, Side};
 use common::types::thaw::Status as ThawStatus;
-use common::types::trade::Status as TradeStatus;
+use common::types::trade::{Status as TradeStatus, Status};
 
 #[macro_use]
 extern crate lazy_static;
@@ -107,7 +109,7 @@ fn gen_settle_trades(db_trades: Vec<TradeInfo>) -> Vec<SettleValues3> {
                 base_settle_values.insert(k.to_owned(), v.to_owned());
             }
             Some(mut tmp1) => {
-                tmp1 = &mut tmp1.add(v);
+                *tmp1 = tmp1.add(v);
             }
         };
     let mut update_quote_settle_values =
@@ -116,7 +118,7 @@ fn gen_settle_trades(db_trades: Vec<TradeInfo>) -> Vec<SettleValues3> {
                 quote_settle_values.insert(k.to_owned(), v.to_owned());
             }
             Some(mut tmp1) => {
-                tmp1 = &mut tmp1.add(v);
+                *tmp1 = tmp1.add(v);
             }
         };
 
@@ -209,6 +211,127 @@ fn gen_settle_trades(db_trades: Vec<TradeInfo>) -> Vec<SettleValues3> {
 }
 
 
+fn update_depth(depth_ori: &mut AddBook2, x: &TradeInfo){
+        let amount = I256::try_from(x.amount).unwrap();
+        //maker吃掉的部分都做减法
+        match x.taker_side {
+            Side::Buy => {
+                match depth_ori.asks.get_mut(&x.price) {
+                    None => {
+                        depth_ori.asks.insert(x.price, -amount);
+                    }
+                    Some(mut tmp1) => {
+                        *tmp1 = tmp1.sub(amount);
+                    }
+                };
+            },
+            Side::Sell => {
+                match depth_ori.bids.get_mut(&x.price) {
+                    None => {
+                        depth_ori.bids.insert(x.price, -amount);
+                    }
+                    Some(mut tmp1) => {
+                        *tmp1 = tmp1.sub(amount);
+                    }
+                };
+            }
+        }
+}
+
+fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String,AddBook> {
+    let mut all_market_depth = HashMap::<String,AddBook2>::new();
+    let mut iters = trades.group_by(|a,b| {
+        a.market_id == b.market_id
+    });
+    for iter in iters.into_iter() {
+        //todo:底层封装
+
+        let market_id = iter[0].market_id.clone();
+        let mut market_AddBook2 = AddBook2 {
+            asks: HashMap::new(),
+            bids: HashMap::new()
+        };
+
+        let mut taker_order_ids =  HashSet::<String>::new();
+        //maker吃掉的部分都做减法
+        for trade in iter{
+            taker_order_ids.insert(trade.taker_order_id.clone());
+            update_depth(&mut market_AddBook2,trade);
+        }
+
+        //taker剩余的部分为插入
+        for taker_order_id in taker_order_ids {
+            let taker_order = get_order(IdOrIndex::Id(taker_order_id.clone())).unwrap();
+            let matched_trades = list_trades2(taker_order_id.clone(),taker_order.hash_data.clone());
+            let mut matched_amount = U256::from(0);
+            for matched_trade in matched_trades {
+                matched_amount += matched_trade.amount;
+            }
+
+            let remain = taker_order.amount - matched_amount;
+            match taker_order.side {
+                Side::Buy => {
+                    let stat = market_AddBook2
+                        .bids
+                        .entry(taker_order.price)
+                        .or_insert(I256::from(0i32));
+                    *stat += I256::from_raw(remain);
+                },
+                Side::Sell => {
+                    let stat = market_AddBook2
+                        .asks
+                        .entry(taker_order.price)
+                        .or_insert(I256::from(0i32));
+                    *stat += I256::from_raw(remain);
+                }
+            }
+        }
+        all_market_depth.insert(market_id,market_AddBook2);
+    }
+
+    let mut all_market_depth2 = HashMap::<String,AddBook>::new();
+    for (market_id,depth_raw) in all_market_depth.iter() {
+        let asks2 = depth_raw
+            .asks
+            .iter()
+            .map(|(x, y)| {
+                let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
+                // let user_volume = u256_to_f64(y.to_owned(), BaseTokenDecimal);
+                let user_volume = if y < &I256::from(0u32) {
+                    u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
+                } else {
+                    u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
+                };
+
+                (user_price, user_volume)
+            })
+            .filter(|(p, v)| p != &0.0 && v != &0.0)
+            .collect::<Vec<(f64, f64)>>();
+
+        let bids2 = depth_raw
+            .bids
+            .iter()
+            .map(|(x, y)| {
+                let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
+                let user_volume = if y < &I256::from(0u32) {
+                    u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
+                } else {
+                    u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
+                };
+                (user_price, user_volume)
+            })
+            .filter(|(p, v)| p != &0.0 && v != &0.0)
+            .collect::<Vec<(f64, f64)>>();
+
+        all_market_depth2.insert(market_id.to_string(),AddBook {
+            asks: asks2,
+            bids: bids2,
+        });
+    }
+    all_market_depth2
+}
+
+
 fn gen_depth_from_thaws(pending_thaws: Vec<Thaws>) -> AddBook{
     let mut add_depth = AddBook2 {
         asks: HashMap::<U256, I256>::new(),
@@ -286,51 +409,140 @@ fn gen_depth_from_thaws(pending_thaws: Vec<Thaws>) -> AddBook{
 }
 
 async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
-    let _last_height: U64 = U64::from(200u64);
+    let mut last_height: U64 = U64::from(200u64);
     let arc_queue = Arc::new(RwLock::new(queue));
     let arc_queue = arc_queue.clone();
     let arc_queue2 = arc_queue.clone();
 
-    let chemix_storage = ENV_CONF.chemix_storage.to_owned().unwrap();
+    let chemix_vault = ENV_CONF.chemix_vault.to_owned().unwrap();
     //test1
     //let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
-    let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
+    //let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
+    let pri_key =  ENV_CONF.chemix_relayer_prikey.to_owned().unwrap();
 
     let chemix_main_client =
-        ChemixContractClient::new(pri_key, chemix_storage.to_str().unwrap());
+        ChemixContractClient::new(pri_key.to_str().unwrap(), chemix_vault.to_str().unwrap());
     let chemix_main_client_arc = Arc::new(RwLock::new(chemix_main_client));
     let chemix_main_client_receiver = chemix_main_client_arc.clone();
+    let chemix_main_client_sender = chemix_main_client_arc.clone();
     let thaw_client = chemix_main_client_arc.clone();
     let _battel_client = chemix_main_client_arc.clone();
     let ws_url = ENV_CONF.chain_ws.to_owned().unwrap();
     let rpc_url = ENV_CONF.chain_rpc.to_owned().unwrap();
 
-    let _watcher = Node::<Ws>::new(ws_url.to_str().unwrap()).await;
-    let _provider_http = Node::<Http>::new(rpc_url.to_str().unwrap());
+    let watcher = Node::<Ws>::new(ws_url.to_str().unwrap()).await;
+    let provider_http = Node::<Http>::new(rpc_url.to_str().unwrap());
 
     rayon::scope(|s| {
         //监听所有的settle和thaw事件并更新确认状态
         s.spawn(move |_| {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
-                //todo 过滤所有的thaws和battle，更新confirm状态
-                /***
-                for cancel_order in cancel_orders {
-                    let order = get_order(Index(cancel_order.order_index.as_u32())).unwrap();
+                //todo 过滤所有的thaws和battle，更新confirm状态,并且推ws消息（解冻，depth、aggtrade）
+                let mut stream = watcher.gen_watcher().await.unwrap();
+                while let Some(block) = stream.next().await {
+                    info!("block {}", block);
+                    //last_height = last_height.add(1i32);
+                    let current_height = provider_http.get_block(block).await.unwrap().unwrap();
+                    //todo: 处理块高异常的情况,get block from http
+                    //assert_eq!(last_height.add(1u64), current_height);
+                    info!("new_orders_event {:?}", current_height);
 
-                    let update_info = UpdateOrder {
-                        id: order.id,
-                        status: OrderStatus::Canceled,
-                        available_amount: U256::from(0i32),
-                        matched_amount: order.matched_amount,
-                        canceled_amount: order.available_amount,
-                        updated_at: get_current_time(),
-                    };
-                    //todo: 批量更新
-                    update_order(&update_info);
+                    let new_settlements = chemix_main_client_sender
+                        .clone()
+                        .write()
+                        .unwrap()
+                        .filter_settlement_event(current_height)
+                        .await
+                        .unwrap();
+                    if new_settlements.is_empty() {
+                        info!(
+                            "Not found settlement orders created at height {}",
+                            current_height
+                        );
+                    } else {
+                        //let mut agg_trades = Vec::<LastTrade2>::new();
+                        info!("Get settlement event {:?}",new_settlements);
+                        let mut agg_trades = HashMap::<String,Vec<LastTrade2>>::new();
+                        let mut add_depth = HashMap::<String,AddBook2>::new();
+                        //目前来说一个区块里只有一个清算
+                        for hash_data in new_settlements {
+                            //todo: limit
+                            let db_trades = list_trades(None,None,None,Some(hash_data.clone()),10000);
+                            //todo: update status 可以根据状态一次update
+                            update_trade_by_hash(TradeStatus::Confirmed,hash_data);
+                            //todo: push ws aggTrade
+                            //todo: push ws depth
+                            for x in db_trades.clone(){
+                                let user_price = u256_to_f64(x.price, QuoteTokenDecimal);
+                                let user_amount = u256_to_f64(x.amount, BaseTokenDecimal);
+                                if user_price != 0.0 && user_amount != 0.0 {
+                                    match agg_trades.get_mut(x.market_id.as_str()) {
+                                        None => {
+                                            agg_trades.insert(x.market_id.clone(),vec![LastTrade2 {
+                                                price: user_price,
+                                                amount: user_amount,
+                                                height: x.block_height as u32,
+                                                taker_side: x.taker_side.clone(),
+                                            }]);
+                                        },
+                                        Some(trades) => {
+                                            trades.push(LastTrade2 {
+                                                price: user_price,
+                                                amount: user_amount,
+                                                height: x.block_height as u32,
+                                                taker_side: x.taker_side.clone(),
+                                            });
+                                        }
+                                    }
+                                }
+
+                            }
+                            let arc_queue = arc_queue.clone();
+                            let new_trade_queue = arc_queue.read().unwrap().NewTrade.clone();
+                            info!("__0001");
+                            if !agg_trades.is_empty() {
+                                let json_str = serde_json::to_string(&agg_trades).unwrap();
+                                arc_queue.write().unwrap().client
+                                    .send_message(new_trade_queue.as_str(), json_str, None)
+                                    .await
+                                    .expect("failed to send message");
+                            }
+                            info!("__0002");
+                            let arc_queue = arc_queue.clone();
+                            let new_depth_queue = arc_queue.read().unwrap().UpdateBook.clone();
+                            let all_markets_depth = gen_depth_from_trades(db_trades.clone());
+                            let json_str = serde_json::to_string(&all_markets_depth).unwrap();
+                            arc_queue.write().unwrap().client
+                                .send_message(new_depth_queue.as_str(), json_str, None)
+                                .await
+                                .expect("failed to send message");
+                        }
+
+
+
+                    }
+                    /***
+                    let new_orders = chemix_main_client_sender
+                        .clone()
+                        .write()
+                        .unwrap()
+                        .filter_new_order_event(current_height)
+                        .await
+                        .unwrap();
+                    info!("new_orders_event {:?}", new_orders);
+
+                    if new_orders.is_empty() {
+                        info!("Not found new order created at height {}", current_height);
+                    } else {
+                        event_sender
+                            .send(new_orders)
+                            .expect("failed to send orders");
+                    }
+
+                     */
+                    last_height = current_height;
                 }
-
-                 */
             });
         });
         //execute thaw balance
@@ -484,7 +696,7 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                     //market_orders的移除或者减少
                     let _u256_zero = U256::from(0i32);
                     //fix: 10000是经验值，放到外部参数注入
-                    let db_trades = list_trades(None, None,Some(TradeStatus::Matched), 10000);
+                    let db_trades = list_trades(None, None,Some(TradeStatus::Matched), None,200);
                     if db_trades.is_empty() {
                         info!("Have no matched trade need launch,and wait 5 seconds for next check");
                         tokio::time::sleep(time::Duration::from_millis(5000)).await;
@@ -496,10 +708,10 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                     let settle_trades = gen_settle_trades(db_trades.clone());
                     info!("settle_trades {:?} ",settle_trades);
 
-                    let hash_data = u8_arr_from_str(last_order.hash_data);
+                    let hash_data = u8_arr_from_str(last_order.hash_data.clone());
                     info!("__0000");
 
-                    let mut agg_trades = Vec::new();
+                    //let mut agg_trades = Vec::new();
                     if !settle_trades.is_empty() {
                         let chemix_main_client2 = chemix_main_client_receiver.clone();
                         let mut receipt = Default::default();
@@ -526,46 +738,14 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                             }
                         //todo: update confirm
 
+
                         let height = receipt.block_number.unwrap().to_string().parse::<u32>().unwrap();
                         let txid = receipt.transaction_hash.to_string();
                         for db_trade in db_trades.clone() {
-                            update_trade(db_trade.id.as_str(),TradeStatus::Launched,height,txid.as_str());
+                            update_trade(db_trade.id.as_str(),TradeStatus::Launched,height,txid.as_str(),&last_order.hash_data);
                         }
 
-                        agg_trades = db_trades.iter().map(|x| {
-                            let user_price = u256_to_f64(x.price, QuoteTokenDecimal);
-                            let user_amount = u256_to_f64(x.amount, BaseTokenDecimal);
-                            LastTrade2 {
-                                price: user_price,
-                                amount: user_amount,
-                                height,
-                                taker_side: x.taker_side.clone(),
-                            }
-                        }
-                        ).filter(|x| {
-                            x.price != 0.0 && x.amount != 0.0
-                        }).collect::<Vec<LastTrade2>>();
                     }
-
-                    //todo:update_trade launched
-
-
-                    info!("finished compute  agg_trades {:?}",agg_trades);
-
-
-                    //let channel_update_book = channel_update_book.clone();
-                    //let channel_new_trade = channel_new_trade.clone();
-                    let arc_queue = arc_queue.clone();
-                    let new_trade_queue = arc_queue.read().unwrap().NewTrade.clone();
-                    info!("__0001");
-                        if !agg_trades.is_empty() {
-                            let json_str = serde_json::to_string(&agg_trades).unwrap();
-                            arc_queue.write().unwrap().client
-                                .send_message(new_trade_queue.as_str(), json_str, None)
-                                .await
-                                .expect("failed to send message");
-                        }
-                    info!("__0002");
                 }
             });
 

@@ -32,6 +32,7 @@ create table chemix_trades(
   id text PRIMARY KEY,
   block_height integer , --admin处理的trade的序列号
   transaction_hash text,
+  hash_data  text ,
   status text , --"matched","confirm"
   market_id text ,
   maker  text ,
@@ -51,28 +52,6 @@ create index idx_local_chemix_trades_maker_order_id on chemix_trades (maker_orde
 create index idx_local_chemix_trades_quotation  on chemix_trades (market_id, created_at);
 create index idx_local_chemix_trades_delete on chemix_trades (status,transaction_hash,created_at);
 
-create table chemix_trades_tmp(
-  id text PRIMARY KEY,
-  transaction_id integer ,
-  transaction_hash text,
-  status text ,
-  market_id text ,
-  maker  text ,
-  taker  text ,
-  price text ,
-  amount text ,
-  taker_side text ,
-  maker_order_id  text ,
-  taker_order_id text ,
-  updated_at timestamp ,
-  created_at timestamp
-);
-create index idx_local_chemix_trades_tmp_quotation on chemix_trades_tmp (market_id,created_at);
-create index idx_local_chemix_trades_tmp_recent on chemix_trades_tmp (market_id);
-create index idx_local_chemix_trades_tmp_launch on chemix_trades_tmp (created_at,status);
-create index idx_local_chemix_trades_tmp_status on chemix_trades_tmp (status);
-create index idx_local_chemix_trades_tmp_txid on chemix_trades_tmp (transaction_id);
-create index idx_local_chemix_trades_tmp_txhash on chemix_trades_tmp (transaction_hash,status);
 
 -- orders table
 create table chemix_orders(

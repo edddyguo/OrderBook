@@ -160,11 +160,32 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
     let mut values: Vec<String> = vec![];
     let value = value as &dyn Any;
 
+    /***
+
+     id               | text                        |           | not null |
+ block_height     | integer                     |           |          |
+ transaction_hash | text                        |           |          |
+ hash_data        | text                        |           |          |
+ status           | text                        |           |          |
+ market_id        | text                        |           |          |
+ maker            | text                        |           |          |
+ taker            | text                        |           |          |
+ price            | text                        |           |          |
+ amount           | text                        |           |          |
+ taker_side       | text                        |           |          |
+ maker_order_id   | text                        |           |          |
+ taker_order_id   | text                        |           |          |
+ updated_at       | timestamp without time zone |           |          |
+ created_at       | timestamp without time zone
+
+    */
+
     match value.downcast_ref::<TradeInfo>() {
         Some(trade) => {
             values.push(trade.id.string4sql());
             values.push(trade.block_height.to_string());
             values.push(trade.transaction_hash.string4sql());
+            values.push(trade.hash_data.string4sql());
             values.push(trade.status.as_str().to_string().string4sql());
             values.push(trade.market_id.string4sql());
             values.push(trade.maker.string4sql());

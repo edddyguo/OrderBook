@@ -19,6 +19,7 @@ use tokio::sync::{mpsc, RwLock};
 use tokio::time;
 use warp::http::Method;
 use warp::{ws::Message, Filter, Rejection};
+use serde::{Serialize,Deserialize};
 
 mod handler;
 mod ws;
@@ -31,6 +32,20 @@ pub struct Client {
     pub topics: Vec<String>,
     pub user_address: Option<String>,
     pub sender: Option<mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
+}
+
+#[derive(Clone, Serialize, Debug,Deserialize)]
+pub struct LastTrade2 {
+    price: f64,
+    amount: f64,
+    height: u32,
+    taker_side: String,
+}
+
+#[derive(Clone, Serialize,Deserialize)]
+pub struct AddBook {
+    pub asks: Vec<(f64, f64)>,
+    pub bids: Vec<(f64, f64)>,
 }
 
 fn with_clients(
@@ -174,14 +189,19 @@ async fn main() {
                 .await
                 .expect("cannot receive message");
             if let Some(message) = message {
-                //println!("receive new message {:?}", message);
-                let event = Event {
-                    topic: format!("{}@depth", "BTC-USDT"),
-                    //topic: format!("human"),
-                    user_id: None,
-                    message: message.message.clone(),
-                };
-                handler::publish_handler(event, clients.clone()).await;
+                println!("receive new message {:?}", message);
+                let markets_depth: HashMap<String,AddBook> =
+                    serde_json::from_str(message.message.as_str()).unwrap();
+                for market_depth in markets_depth {
+                    let event = Event {
+                        topic: format!("{}@depth", market_depth.0),
+                        //topic: format!("human"),
+                        user_id: None,
+                        message: serde_json::to_string(&market_depth.1).unwrap(),
+                    };
+                    handler::publish_handler(event, clients.clone()).await;
+                }
+
                 rsmq.delete_message(channel_update_book.as_str(), &message.id)
                     .await;
             } else {
@@ -192,15 +212,25 @@ async fn main() {
                 .receive_message::<String>(channel_new_trade.as_str(), None)
                 .await
                 .expect("cannot receive message");
+
             if let Some(message) = message {
                 //println!("receive new message {:?}", message);
-                let event = Event {
-                    topic: format!("{}@aggTrade", "BTC-USDT"),
-                    //topic: format!("human"),
-                    user_id: None,
-                    message: message.message.clone(),
-                };
-                handler::publish_handler(event, clients.clone()).await;
+
+                let last_trades: HashMap<String,Vec<LastTrade2>> =
+                    serde_json::from_str(message.message.as_str()).unwrap();
+                //遍历所有交易对逐个发送
+                for last_trade in last_trades {
+                    let json_str = serde_json::to_string(&last_trade.1).unwrap();
+                    let event = Event {
+                        topic: format!("{}@aggTrade", last_trade.0),
+                        //topic: format!("human"),
+                        user_id: None,
+                        message: json_str,
+                    };
+                    handler::publish_handler(event, clients.clone()).await;
+                }
+
+
                 rsmq.delete_message(channel_new_trade.as_str(), &message.id)
                     .await;
             } else {
