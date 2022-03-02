@@ -452,20 +452,23 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                 };
 
                 //todo: 放在luanch模块在交易确认后推送？
-                let arc_queue = arc_queue.clone();
-                let update_book_queue = arc_queue.read().unwrap().UpdateBook.clone();
-
-                let rt = Runtime::new().unwrap();
-                rt.block_on(async move {
-                    let json_str = serde_json::to_string(&book2).unwrap();
-                    arc_queue
-                        .write()
-                        .unwrap()
-                        .client
-                        .send_message(update_book_queue.as_str(), json_str, None)
-                        .await
-                        .expect("failed to send message");
-                });
+                if db_trades.is_empty() {
+                    let mut market_add_depth = HashMap::new();
+                    market_add_depth.insert(MARKET.id.clone(),book2);
+                    let arc_queue = arc_queue.clone();
+                    let update_book_queue = arc_queue.read().unwrap().UpdateBook.clone();
+                    let rt = Runtime::new().unwrap();
+                    rt.block_on(async move {
+                        let json_str = serde_json::to_string(&market_add_depth).unwrap();
+                        arc_queue
+                            .write()
+                            .unwrap()
+                            .client
+                            .send_message(update_book_queue.as_str(), json_str, None)
+                            .await
+                            .expect("failed to send message");
+                    });
+                }
             }
         });
     });
