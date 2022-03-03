@@ -76,9 +76,23 @@ pub struct EnigneSettleValues {
 }
 
 lazy_static! {
+    static ref MARKET: MarketInfo = {
+            let matches = App::new("engine")
+        .version("1.0")
+        .about("Does awesome things")
+        .arg(Arg::new("market_id")
+            .about("Sets the pem file to use")
+            .required(true)
+            .index(1))
+        .get_matches();
+    let market_id : &str = matches.value_of("market_id").unwrap();
+    let market = get_markets(market_id);
+        market
+    };
+
     static ref BOOK: Mutex<EngineBook> = Mutex::new({
-        let available_sell : Vec<EngineOrder> = list_available_orders("BTC-USDT",OrderSide::Sell);
-        let available_buy : Vec<EngineOrder> = list_available_orders("BTC-USDT",OrderSide::Buy);
+        let available_sell : Vec<EngineOrder> = list_available_orders(MARKET.id.as_str(),OrderSide::Sell);
+        let available_buy : Vec<EngineOrder> = list_available_orders(MARKET.id.as_str(),OrderSide::Buy);
 
         //todo: 统一数据结构
         let mut available_sell2 = available_sell.iter().map(|x|{
@@ -122,19 +136,7 @@ lazy_static! {
         }
     });
 
-    static ref MARKET: MarketInfo = {
-            let matches = App::new("engine")
-        .version("1.0")
-        .about("Does awesome things")
-        .arg(Arg::new("market_id")
-            .about("Sets the pem file to use")
-            .required(true)
-            .index(1))
-        .get_matches();
-    let market_id : &str = matches.value_of("market_id").unwrap();
-    let market = get_markets(market_id);
-        market
-    };
+
 }
 
 #[derive(Clone, Serialize)]
@@ -332,7 +334,7 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                         order.id.clone(),
                         order.index.clone(),
                         order.hash_data.clone(),
-                        "BTC-USDT".to_string(),
+                        MARKET.id.clone(),
                         order.account.clone(),
                         order.side.clone(),
                         order.price.clone(),

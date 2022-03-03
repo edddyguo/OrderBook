@@ -71,6 +71,7 @@ pub fn match_order(
                     let matched_amount = std::cmp::min(taker_order.amount, marker_order.amount);
 
                     trades.push(TradeInfo::new(
+                        crate::MARKET.id.clone(),
                         taker_order.account.clone(),
                         marker_order.account.clone(),
                         marker_order.price.clone(),
@@ -134,6 +135,7 @@ pub fn match_order(
                     let matched_amount = std::cmp::min(taker_order.amount, marker_order.amount);
 
                     trades.push(TradeInfo::new(
+                                crate::MARKET.id.clone(),
                         taker_order.account.clone(),
                         marker_order.account.clone(),
                         marker_order.price.clone(),

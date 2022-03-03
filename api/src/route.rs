@@ -170,8 +170,6 @@ async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
         };
         markets.push(data);
     }
-
-    let volume = get_order_volume(TimeScope::NoLimit,"BTC-USDT".to_string());
     respond_json(200, "".to_string(), serde_json::to_string(&markets).unwrap())
 }
 
@@ -293,13 +291,15 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
     let quote_decimal = 15u32;
     let trades = list_trades(
         None,
-        Some(info.symbol),
+        Some(info.symbol.clone()),
         Some(TradeStatus::Launched),
+        None,
         info.limit,
     )
     .iter()
     .map(|x| trade::Trade {
         id: x.id.clone(),
+        market_id: info.symbol.clone(),
         price: u256_to_f64(x.price, quote_decimal),
         amount: u256_to_f64(x.amount, base_decimal),
         height: x.block_height as u32,
@@ -476,6 +476,7 @@ async fn echo(req_body: String) -> impl Responder {
  * */
 #[derive(Deserialize, Serialize, Debug)]
 struct ListOrdersRequest {
+    market_id: String,
     account: String,
     limit: u32,
 }
@@ -495,7 +496,7 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
     let orders = orders
         .iter()
         .map(|x| EngineOrderTmp2 {
-            id: "BTC-USDT".to_string(),
+            id: info.market_id.clone(),
             index: x.index.to_string(),
             account: x.account.clone(),
             price: u256_to_f64(x.price, quote_decimal),
@@ -529,6 +530,7 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
 #[derive(Deserialize, Serialize, Debug)]
 struct RecentTradesRequest {
     account: String,
+    market_id: String,
     limit: u32,
 }
 
@@ -537,7 +539,7 @@ async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> imp
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     let account = info.account.clone().to_lowercase();
-    let trades = list_trades(Some(account.clone()), None, None, info.limit);
+    let trades = list_trades(Some(account.clone()), None, Some(TradeStatus::Confirmed), None,info.limit);
     let trades = trades
         .iter()
         .map(|x| {
@@ -548,6 +550,7 @@ async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> imp
             };
             trade::Trade {
                 id: x.id.clone(),
+                market_id: info.market_id.clone(),
                 price: u256_to_f64(x.price, quote_decimal),
                 amount: u256_to_f64(x.amount, base_decimal),
                 height: 12345u32,

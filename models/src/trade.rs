@@ -30,6 +30,7 @@ pub struct TradeInfo {
 
 impl TradeInfo {
     pub fn new(
+        market_id: String,
         taker: String,
         maker: String,
         price: U256,
@@ -45,7 +46,7 @@ impl TradeInfo {
             transaction_hash: "".to_string(),
             hash_data: "".to_string(),
             status: TradeStatus::Matched,
-            market_id: "BTC-USDT".to_string(),
+            market_id,
             taker,
             maker,
             price,
@@ -118,6 +119,9 @@ pub fn list_trades(
         (Some(account), None, None,None) => {
             format!(" where taker='{}' or maker='{}' ", account, account)
         }
+        (Some(account), Some(market_id), Some(status),None) => {
+            format!(" where (taker='{}' or maker='{}') and status='{}' and market_id='{}' ", account, account,status.as_str(),market_id.as_str())
+        }
         (None, Some(id), Some(status),None) => {
             format!(
                 " where market_id='{}' and status='{}' ",
@@ -168,6 +172,7 @@ pub fn list_trades(
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
         let side_str: String = row.get(10);
+        //side要结合是taker还是marker来判断
         let side = order::Side::from(side_str.as_str());
         let info = TradeInfo {
             id: row.get(0),
