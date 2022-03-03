@@ -206,7 +206,12 @@ impl ChemixContractClient {
     pub async fn filter_new_cancel_order_created_event(
         &mut self,
         height: U64,
+        base_token: String,
+        quote_token:String
     ) -> Result<Vec<CancelOrderState2>> {
+        let base_token = Address::from_str(base_token.as_str()).unwrap();
+        let quote_token = Address::from_str(quote_token.as_str()).unwrap();
+
         let contract = ChemixStorage::new(self.contract_addr, self.client.clone());
         let canceled_orders: Vec<NewCancelOrderCreatedFilter> = contract
             .new_cancel_order_created_filter()
@@ -216,6 +221,9 @@ impl ChemixContractClient {
             .unwrap();
         let new_orders2 = canceled_orders
             .iter()
+            .filter(|x| {
+                x.base_token == base_token && x.quote_token == quote_token
+            })
             .map(|x| CancelOrderState2 {
                 base_token: x.base_token,
                 quote_token: x.quote_token,
@@ -315,7 +323,9 @@ impl ChemixContractClient {
     }
 
     //fixme:更合适的区分两份合约
-    pub async fn filter_new_order_event(&mut self, height: U64) -> Result<Vec<BookOrder>> {
+    pub async fn filter_new_order_event(&mut self, height: U64,base_token: String,quote_token:String) -> Result<Vec<BookOrder>> {
+        let base_token = Address::from_str(base_token.as_str()).unwrap();
+        let quote_token = Address::from_str(quote_token.as_str()).unwrap();
         let contract = ChemixStorage::new(self.contract_addr, self.client.clone());
         let new_orders: Vec<NewOrderCreatedFilter> = contract
             .new_order_created_filter()
@@ -333,9 +343,19 @@ impl ChemixContractClient {
             self.last_index = Some(last_order.order_index);
             self.last_hash_data = Some(last_order.hash_data);
         }
-
+        /***
+         .filter(|(_, client)| {
+            let lowercase_client_topic = client.topics.iter().map(|x| x.to_lowercase()).collect::<Vec<String>>();
+            lowercase_client_topic.contains(&body.topic.to_lowercase())
+        })
+           emit NewOrderCreated(baseToken, quoteToken, newHashData, orderUser, orderType,
+                index, limitPrice, orderAmount, numPower);
+        */
         let new_orders2 = new_orders
             .iter()
+            .filter(|x| {
+                x.base_token == base_token && x.quote_token == quote_token
+            })
             .map(|x| {
                 let now = Local::now().timestamp_millis() as u64;
                 let order_json = format!("{}{}", serde_json::to_string(&x).unwrap(), now);

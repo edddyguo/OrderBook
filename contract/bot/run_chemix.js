@@ -30,8 +30,8 @@ async function main() {
     let signer = await ethers.getSigners();
     //let account1 = signer[0].address;
     //let chemix_signer = signer[0];
-    let account1 = signer[1].address;
-    let chemix_signer = signer[1];
+    let account1 = signer[0].address;
+    let chemix_signer = signer[0];
 
     const issueAmountDefault = BigInt(100_000_000_000_000_000_000_000_000_000) //100_000_000_000
     var options = { gasPrice: 10000000000, gasLimit: 850000, value: 0 };
@@ -89,16 +89,47 @@ async function main() {
          * deployTokenProxy:   0x10CC9D986b8E0a75a1bAbDE209dAEA04872eAA40
          * deployVault:   0x65974E9518cD02Ee99A624366070c85DEe3E36E1
          * deployChemiMain:   0x5304A6d27Cde3427E486b899ab269CA8088e16FC
+         *
+         * 0301:pro
+         * deployTokenA:   0x92177d3e7be191Eb7537299ae1f266de5d2fE939
+         * deployTokenB:   0x0eDf2C0379Dba54dDf980cc58666F3698C76f640
+         * deployStorage:   0x1464c2aD3402dF09504899870fE87c30b5357FAC
+         * deployTokenProxy:   0x4B195824436613d4f3Ab55e2a3f61a6f4B5E29b7
+         * deployVault:   0x237577E6e314cD8F4AbC1d49aF997b93d0D37B4c
+         * deployChemiMain:   0xc7949C68Fc0012F12f3628a409A29f6Ed35d73aC
+         *
+         *
+         *
+         * 0301:pro2
+         * deployTokenA:   0x93E139a29b5bfe61Ae34B1D8E526C4Db1A8291ef
+         * deployTokenB:   0x0ffB2710A3e25370C987fA52e906459d4c03e105
+         * deployStorage:   0xf225989a42Fa37f67235c755526034Da1e0Da0db
+         * deployTokenProxy:   0xdB0bb1Aab12d92deDF56a6D55Efcd51289248D10
+         * deployVault:   0x45999bf52039320f976b2E541E56c6D8663CFdF2
+         * deployChemiMain:   0x24B0e07EBf1cFfa4710a996877307538864E934E
+         *
+         * deployTokenA:   0x1785f0481CA0a369061802548444b3162B19070b
+         * deployTokenB:   0x937Eb6B6d2803e627B06270B732866B9B0E5E71d
+         * deployTokenC:   0x75cee65DCf0EA58801779FF716156eEB0bebb2C8
+         * deployTokenCHE:   0x0702f6Ce4d63c0F81458F20b566eaC652EA669BF
+         * deployStorage:   0xAB07D57aa144c9BCf897E1de54A66629C8F22ba7
+         * deployTokenProxy:   0x34d291987a6EaA505015f8b62EDB7b6425BC7183
+         * deployVault:   0x9Cb7A3d38641ccC23bFa96Ae12ba6ccA25a886Ee
+         * deployChemiMain:   0x9568cd934AcA5C2a21E161928C94Ea1EE4e7A5B5
+         *
          * **/
 
 
 
-    const contractTokenA = await ethers.getContractAt("BaseToken1",'0x7DBF554b459cFb39C7B92e6AA2FA85Bb1B9aCcF1',chemix_signer)
-    const contractTokenB = await ethers.getContractAt("QuoteToken1",'0xAf4984736dAe2e795A8199C01341DA46460a6096',chemix_signer)
-    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0x241f5bC6CEA90e5c6fd81252804b3A9d714E6c39',chemix_signer)
-    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0x10CC9D986b8E0a75a1bAbDE209dAEA04872eAA40',chemix_signer)
-    const contractVault = await ethers.getContractAt("Vault",'0x65974E9518cD02Ee99A624366070c85DEe3E36E1',chemix_signer)
-    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0x5304A6d27Cde3427E486b899ab269CA8088e16FC',chemix_signer)
+    const contractTokenA = await ethers.getContractAt("BaseToken1",'0x1785f0481CA0a369061802548444b3162B19070b',chemix_signer)
+    const contractTokenB = await ethers.getContractAt("QuoteToken1",'0x937Eb6B6d2803e627B06270B732866B9B0E5E71d',chemix_signer)
+    const contractTokenC = await ethers.getContractAt("TokenC",'0x75cee65DCf0EA58801779FF716156eEB0bebb2C8',chemix_signer)
+    const contractTokenCHE = await ethers.getContractAt("TokenCHE",'0x0702f6Ce4d63c0F81458F20b566eaC652EA669BF',chemix_signer)
+
+    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0xAB07D57aa144c9BCf897E1de54A66629C8F22ba7',chemix_signer)
+    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0x34d291987a6EaA505015f8b62EDB7b6425BC7183',chemix_signer)
+    const contractVault = await ethers.getContractAt("Vault",'0x9Cb7A3d38641ccC23bFa96Ae12ba6ccA25a886Ee',chemix_signer)
+    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0x9568cd934AcA5C2a21E161928C94Ea1EE4e7A5B5',chemix_signer)
 
 
 
@@ -177,8 +208,12 @@ async function main() {
 
 
     console.log('start create pair TokenA-TokenB');
-    let create_result = await contractChemixMain.createPair(contractTokenA.address,contractTokenB.address,options);
-    console.log('create pair result ',create_result);
+    let create_result_A_B = await contractChemixMain.createPair(contractTokenA.address,contractTokenB.address,options);
+    console.log('create pair result ',create_result_A_B);
+
+    console.log('start create pair TokenC-TokenCHE');
+    let create_result_CCC_CHE = await contractChemixMain.createPair(contractTokenC.address,contractTokenCHE.address,options);
+    console.log('create pair result ',create_result_CCC_CHE);
 
 
     //issue tokenA to account1
@@ -187,6 +222,13 @@ async function main() {
     console.log('tokenAIssueAcc1Res ',tokenAIssueAcc1Res);
     let tokenBIssueAcc1Res = await contractTokenB.issue(issueAmountDefault,options);
     console.log('tokenAIssueAcc2Res ',tokenBIssueAcc1Res);
+    console.log("deployTokenC:  ", contractTokenC.address);
+    let tokenCIssueAcc1Res = await contractTokenC.issue(issueAmountDefault,options);
+    console.log('tokenCIssueAcc1Res ',tokenCIssueAcc1Res);
+
+    console.log("deployTokenCHE:  ", contractTokenCHE.address);
+    let tokenCHEIssueAcc1Res = await contractTokenCHE.issue(issueAmountDefault,options);
+    console.log('tokenCHEIssueAcc1Res ',tokenCHEIssueAcc1Res);
 
     let balanceAcc1 = await contractTokenA.balanceOf(account1,options);
     console.log('balanceA ',balanceAcc1);
@@ -199,11 +241,20 @@ async function main() {
     console.log('acc1ApproveTokenARes ',acc1ApproveTokenARes);
     let acc1ApproveTokenBRes = await contractTokenB.approve(contractTokenProxy.address,balanceBcc1,options);
     console.log('acc1ApproveTokenBRes ',acc1ApproveTokenBRes);
+    let acc1ApproveTokenCRes = await contractTokenC.approve(contractTokenProxy.address,balanceAcc1,options);
+    console.log('acc1ApproveTokenCRes ',acc1ApproveTokenCRes);
+    let acc1ApproveTokenCHERes = await contractTokenCHE.approve(contractTokenProxy.address,balanceBcc1,options);
+    console.log('acc1ApproveTokenCHERes ',acc1ApproveTokenCHERes);
 
     let allowanceA = await contractTokenA.allowance(account1,contractTokenProxy.address,options);
     console.log('allowanceA ',allowanceA);
     let allowanceB = await contractTokenB.allowance(account1,contractTokenProxy.address,options);
     console.log('allowanceB ',allowanceB);
+
+    let allowanceC = await contractTokenC.allowance(account1,contractTokenProxy.address,options);
+    console.log('allowanceC ',allowanceC);
+    let allowanceCHE = await contractTokenCHE.allowance(account1,contractTokenProxy.address,options);
+    console.log('allowanceCHE ',allowanceCHE);
     //
 
 

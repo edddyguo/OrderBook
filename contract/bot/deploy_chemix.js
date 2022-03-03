@@ -44,6 +44,17 @@ async function main() {
     console.log("deployTokenA:  ", deployTokenA.address);
     console.log("deployTokenB:  ", deployTokenB.address);
 
+
+    const TokenC = await hre.ethers.getContractFactory("TokenC",chemix_signer);
+    const TokenCHE = await hre.ethers.getContractFactory("TokenCHE",chemix_signer);
+    const deployTokenC = await TokenC.deploy();
+    const deployTokenCHE = await TokenCHE.deploy();
+    await deployTokenC.deployed();
+    await deployTokenCHE.deployed();
+    console.log("deployTokenC:  ", deployTokenC.address);
+    console.log("deployTokenCHE:  ", deployTokenCHE.address)
+
+
     const chemixStorage = await hre.ethers.getContractFactory("ChemixStorage",chemix_signer);
     const tokenProxy = await hre.ethers.getContractFactory("TokenProxy",chemix_signer);
     const vault = await hre.ethers.getContractFactory("Vault",chemix_signer);

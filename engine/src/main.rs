@@ -250,7 +250,7 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                         .clone()
                         .write()
                         .unwrap()
-                        .filter_new_cancel_order_created_event(current_height)
+                        .filter_new_cancel_order_created_event(current_height,crate::MARKET.base_token_address.clone(),crate::MARKET.quote_token_address.clone())
                         .await
                         .unwrap();
                     info!("new_cancel_orders_event {:?}", new_cancel_orders);
@@ -279,7 +279,7 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                                 order.id.clone(),
                                 Address::from_str(order.account.as_str()).unwrap(),
                                 order.market_id,
-                                order.amount,
+                                order.available_amount,
                                 order.price,
                                 order.side.clone(),
                             ));
@@ -291,7 +291,7 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                         .clone()
                         .write()
                         .unwrap()
-                        .filter_new_order_event(current_height)
+                        .filter_new_order_event(current_height,crate::MARKET.base_token_address.clone(),crate::MARKET.quote_token_address.clone())
                         .await
                         .unwrap();
                     info!("new_orders_event {:?}", new_orders);

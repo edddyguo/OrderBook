@@ -198,19 +198,19 @@ async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
  * */
 #[derive(Deserialize, Serialize)]
 struct DepthRequest {
-    symbol: String,
+    market_id: String,
     limit: u32,
 }
 
 #[get("/chemix/depth")]
 async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
-    format!("symbol222 {}, limit:{}", info.symbol, info.limit);
+    format!("symbol222 {}, limit:{}", info.market_id, info.limit);
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     //todo:错误码
-    let mut available_buy_orders = list_available_orders(info.symbol.as_str(), OrderSide::Buy);
+    let mut available_buy_orders = list_available_orders(info.market_id.as_str(), OrderSide::Buy);
     let mut available_sell_orders =
-        list_available_orders(info.symbol.as_str(), OrderSide::Sell);
+        list_available_orders(info.market_id.as_str(), OrderSide::Sell);
     available_buy_orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap().reverse());
 
     available_sell_orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
@@ -281,7 +281,7 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
  * */
 #[derive(Deserialize, Serialize)]
 struct AggTradesRequest {
-    symbol: String,
+    market_id: String,
     limit: u32,
 }
 
@@ -291,7 +291,7 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
     let quote_decimal = 15u32;
     let trades = list_trades(
         None,
-        Some(info.symbol.clone()),
+        Some(info.market_id.clone()),
         Some(TradeStatus::Launched),
         None,
         info.limit,
@@ -299,7 +299,7 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
     .iter()
     .map(|x| trade::Trade {
         id: x.id.clone(),
-        market_id: info.symbol.clone(),
+        market_id: info.market_id.clone(),
         price: u256_to_f64(x.price, quote_decimal),
         amount: u256_to_f64(x.amount, base_decimal),
         height: x.block_height as u32,
@@ -332,7 +332,7 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
  * */
 #[derive(Deserialize, Serialize)]
 struct KlinesRequest {
-    symbol: String,
+    market_id: String,
     limit: u32,
     interval: u32,
 }
@@ -539,7 +539,7 @@ async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> imp
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     let account = info.account.clone().to_lowercase();
-    let trades = list_trades(Some(account.clone()), None, Some(TradeStatus::Confirmed), None,info.limit);
+    let trades = list_trades(Some(account.clone()), Some(info.market_id.clone()), Some(TradeStatus::Confirmed), None,info.limit);
     let trades = trades
         .iter()
         .map(|x| {
