@@ -189,3 +189,50 @@ pub fn list_thaws(status: ThawStatus) -> Vec<Thaws> {
     }
     thaws
 }
+
+//flag足够，该flag在此时全部launched
+pub fn list_thaws2(flag: String) -> Vec<Thaws> {
+    let sql = format!(
+        "select order_id,\
+    account,\
+    market_id,\
+    transaction_hash,\
+    block_height,\
+    thaws_hash,\
+    side,\
+    status,\
+    amount,\
+    price,\
+    cast(updated_at as text),\
+    cast(created_at as text) from chemix_thaws \
+    where thaws_hash='{}' order by created_at DESC",
+        flag.as_str()
+    );
+    let mut thaws = Vec::<Thaws>::new();
+    info!("list_thaws sql {}", sql);
+    let rows = crate::query(sql.as_str()).unwrap();
+    for row in rows {
+        let side_str: String = row.get(6);
+        let side = OrderSide::from(side_str.as_str());
+
+        let status_str: String = row.get(7);
+        let status = ThawStatus::from(status_str.as_str());
+
+        let info = Thaws {
+            order_id: row.get::<usize, &str>(0).to_string(),
+            account: Address::from_str(row.get::<usize, &str>(1)).unwrap(),
+            market_id: row.get::<usize, &str>(2).to_string(),
+            transaction_hash: row.get::<usize, &str>(3).to_string(),
+            block_height: row.get::<usize, i32>(4),
+            thaws_hash: row.get::<usize, &str>(5).to_string(),
+            side,
+            status,
+            amount: U256::from_str_radix(row.get::<usize, &str>(8), 10).unwrap(),
+            price: U256::from_str_radix(row.get::<usize, &str>(9), 10).unwrap(),
+            updated_at: row.get::<usize, &str>(10).to_string(),
+            created_at: row.get::<usize, &str>(11).to_string(),
+        };
+        thaws.push(info);
+    }
+    thaws
+}

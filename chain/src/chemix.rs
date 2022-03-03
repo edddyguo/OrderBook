@@ -382,55 +382,23 @@ impl ChemixContractClient {
     }
 
     //thaws
-    /****
-    pub async fn filter_thaws_event(&mut self, height: U64) -> Result<Vec<BookOrder>> {
-        let contract = ChemixStorage::new(self.contract_addr, self.client.clone());
-        let new_orders: Vec<NewOrderCreatedFilter> = contract
+    pub async fn filter_thaws_event(&mut self, height: U64) -> Result<Vec<String>> {
+        let contract = Vault::new(self.contract_addr, self.client.clone());
+        let new_orders: Vec<ThawBalanceFilter> = contract
             .thaw_balance_filter()
             .from_block(height)
             .query()
             .await
             .unwrap();
 
-        if !new_orders.is_empty() {
-            info!(
-                " new_order_created_filter len {:?} at height {},order_user={:?}",
-                new_orders, height, new_orders[0].order_user
-            );
-            let last_order = &new_orders[new_orders.len() - 1];
-            self.last_index = Some(last_order.order_index);
-            self.last_hash_data = Some(last_order.hash_data);
-        }
-
-        let new_orders2 = new_orders
+        let thaws_flag = new_orders
             .iter()
             .map(|x| {
-                let now = Local::now().timestamp_millis() as u64;
-                let order_json = format!("{}{}", serde_json::to_string(&x).unwrap(), now);
-                let order_id = sha256(order_json);
-                let side = match x.side {
-                    true => order::Side::Buy,
-                    false => order::Side::Sell,
-                };
-                let account = format!("{:?}", x.order_user);
-                let hash_data_str = u8_arr_to_str(x.hash_data);
-
-                BookOrder {
-                    id: order_id,
-                    account,
-                    index: x.order_index,
-                    hash_data: hash_data_str.clone(),
-                    side,
-                    price: x.limit_price,
-                    amount: x.order_amount,
-                    created_at: now,
-                }
+                u8_arr_to_str(x.flag)
             })
-            .collect::<Vec<BookOrder>>();
-        Ok(new_orders2)
+            .collect::<Vec<String>>();
+        Ok(thaws_flag)
     }
-
-     */
 
     fn approve() {
         todo!()
