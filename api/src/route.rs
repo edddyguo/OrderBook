@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use chemix_models::snapshot::get_snapshot;
 use chemix_models::TimeScope;
 use chemix_models::TimeScope::TwentyFour;
+use chemix_models::tokens::get_token;
 
 use common::utils::math::u256_to_f64;
 
@@ -144,6 +145,8 @@ pub struct MarketInfoTmp1 {
     quote_front_decimal: i32,
     seven_day_volume: f64,
     twenty_four_hour_volume: f64,
+    cvt_url: String,
+    show_cvt: bool,
     snapshot_time: String,
 }
 
@@ -155,6 +158,7 @@ async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
     for db_market in db_markets {
         let seven_day_volume = get_order_volume(TimeScope::SevenDay,&db_market.id);
         let twenty_four_hour_volume = get_order_volume(TimeScope::TwentyFour,&db_market.id);
+        let token = get_token(db_market.base_token_symbol.as_str());
         let data = MarketInfoTmp1 {
             id:db_market.id,
             base_token_address: db_market.base_token_address,
@@ -167,6 +171,8 @@ async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
             quote_front_decimal: db_market.quote_front_decimal,
             seven_day_volume:u256_to_f64(seven_day_volume, 15),
             twenty_four_hour_volume:u256_to_f64(twenty_four_hour_volume, 15),
+            cvt_url: token.cvt_url,
+            show_cvt: token.show_cvt,
             snapshot_time: now.clone()
         };
         markets.push(data);

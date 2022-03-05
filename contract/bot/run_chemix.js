@@ -29,8 +29,8 @@ async function main() {
     let signer = await ethers.getSigners();
     //let account1 = signer[0].address;
     //let chemix_signer = signer[0];
-    let account1 = signer[1].address;
-    let chemix_signer = signer[1];
+    let account1 = signer[0].address;
+    let chemix_signer = signer[0];
 
     const issueAmountDefault = BigInt(100_000_000_000_000_000_000_000_000_000) //100_000_000_000
     var options = {gasPrice: 2000000000, gasLimit: 2950000, value: 0};
@@ -176,22 +176,22 @@ async function main() {
     //issue tokenB to account1
     let tokenAIssueAcc1Res = await contractTokenWBTC.issue(issueAmountDefault, options);
     console.log('tokenAIssueAcc1Res ', tokenAIssueAcc1Res);
-    await contractTokenWBTC.transfer(account2, issueAmountDefault);
+    await contractTokenWBTC.transfer(account_tj, issueAmountDefault);
 
     let tokenBIssueAcc1Res = await contractTokenUSDT.issue(issueAmountDefault, options);
     console.log('tokenAIssueAcc2Res ', tokenBIssueAcc1Res);
-    await contractTokenUSDT.transfer(account2, issueAmountDefault);
+    await contractTokenUSDT.transfer(account_tj, issueAmountDefault);
 
     console.log("deployTokenC:  ", contractTokenWETH.address);
     let tokenCIssueAcc1Res = await contractTokenWETH.issue(issueAmountDefault, options);
     console.log('tokenCIssueAcc1Res ', tokenCIssueAcc1Res);
-    await contractTokenWETH.transfer(account2, issueAmountDefault);
+    await contractTokenWETH.transfer(account_tj, issueAmountDefault);
 
 
     console.log("deployTokenCHE:  ", contractTokenCEC.address);
     let tokenCHEIssueAcc1Res = await contractTokenCEC.issue(issueAmountDefault, options);
     console.log('tokenCHEIssueAcc1Res ', tokenCHEIssueAcc1Res);
-    await contractTokenCEC.transfer(account2, issueAmountDefault);
+    await contractTokenCEC.transfer(account_tj, issueAmountDefault);
 
 
     let balanceAcc1 = await contractTokenWBTC.balanceOf(account1, options);
