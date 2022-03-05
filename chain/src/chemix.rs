@@ -6,7 +6,7 @@ use common::env;
 use common::env::CONF;
 use common::types::order::Side;
 use common::types::*;
-use common::utils::algorithm::{sha256, u8_arr_from_str, u8_arr_to_str};
+use common::utils::algorithm::{sha256, u8_arr_to_str};
 use common::utils::math::MathOperation;
 use ethers::prelude::*;
 use ethers::types::Address;

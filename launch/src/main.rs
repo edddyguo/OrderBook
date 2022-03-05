@@ -44,7 +44,7 @@ use chemix_models::thaws::{list_thaws2, Thaws};
 
 use common::types::order::{Side as OrderSide, Side};
 use common::types::thaw::Status as ThawStatus;
-use common::types::trade::{Status as TradeStatus, Status};
+use common::types::trade::{Status as TradeStatus};
 
 #[macro_use]
 extern crate lazy_static;
@@ -108,7 +108,7 @@ fn gen_settle_trades(db_trades: Vec<TradeInfo>) -> Vec<SettleValues3> {
             None => {
                 base_settle_values.insert(k.to_owned(), v.to_owned());
             }
-            Some(mut tmp1) => {
+            Some(tmp1) => {
                 *tmp1 = tmp1.add(v);
             }
         };
@@ -117,7 +117,7 @@ fn gen_settle_trades(db_trades: Vec<TradeInfo>) -> Vec<SettleValues3> {
             None => {
                 quote_settle_values.insert(k.to_owned(), v.to_owned());
             }
-            Some(mut tmp1) => {
+            Some(tmp1) => {
                 *tmp1 = tmp1.add(v);
             }
         };
@@ -220,7 +220,7 @@ fn update_depth(depth_ori: &mut AddBook2, x: &TradeInfo){
                     None => {
                         depth_ori.asks.insert(x.price, -amount);
                     }
-                    Some(mut tmp1) => {
+                    Some(tmp1) => {
                         *tmp1 = tmp1.sub(amount);
                     }
                 };
@@ -230,7 +230,7 @@ fn update_depth(depth_ori: &mut AddBook2, x: &TradeInfo){
                     None => {
                         depth_ori.bids.insert(x.price, -amount);
                     }
-                    Some(mut tmp1) => {
+                    Some(tmp1) => {
                         *tmp1 = tmp1.sub(amount);
                     }
                 };
@@ -240,7 +240,7 @@ fn update_depth(depth_ori: &mut AddBook2, x: &TradeInfo){
 
 fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String,AddBook> {
     let mut all_market_depth = HashMap::<String,AddBook2>::new();
-    let mut iters = trades.group_by(|a,b| {
+    let iters = trades.group_by(|a,b| {
         a.market_id == b.market_id
     });
     for iter in iters.into_iter() {
@@ -413,7 +413,7 @@ async fn deal_launched_trade(new_settlements: Vec<String>,arc_queue: Arc<RwLock<
     //let mut agg_trades = Vec::<LastTrade2>::new();
     info!("Get settlement event {:?}",new_settlements);
     let mut agg_trades = HashMap::<String,Vec<LastTrade2>>::new();
-    let mut add_depth = HashMap::<String,AddBook2>::new();
+    let _add_depth = HashMap::<String,AddBook2>::new();
     //目前来说一个区块里只有一个清算
     for hash_data in new_settlements {
         //todo: limit
@@ -474,7 +474,7 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>,arc_queue: Arc<RwLock<Q
         //推解冻信息
         ////flag足够，该flag在此时全部launched
         let pending_thaws = list_thaws2(new_thaw_flag);
-        let mut iters = pending_thaws.group_by(|a, b| {
+        let iters = pending_thaws.group_by(|a, b| {
             a.market_id == b.market_id
         });
 
@@ -556,7 +556,7 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
     let mut last_height: U64 = U64::from(200u64);
     let arc_queue = Arc::new(RwLock::new(queue));
     let arc_queue = arc_queue.clone();
-    let arc_queue2 = arc_queue.clone();
+    let _arc_queue2 = arc_queue.clone();
 
     let chemix_vault = ENV_CONF.chemix_vault.to_owned().unwrap();
     //test1
@@ -569,7 +569,7 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
     let chemix_main_client_arc = Arc::new(RwLock::new(chemix_main_client));
     let chemix_main_client_receiver = chemix_main_client_arc.clone();
     let chemix_main_client_sender = chemix_main_client_arc.clone();
-    let chemix_main_client_sender2 = chemix_main_client_arc.clone();
+    let _chemix_main_client_sender2 = chemix_main_client_arc.clone();
 
     let thaw_client = chemix_main_client_arc.clone();
     let _battel_client = chemix_main_client_arc.clone();

@@ -9,16 +9,16 @@ use actix_cors::Cors;
 use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder};
 use log::info;
 use std::env;
-use ethers_core::types::U256;
+
 
 use chemix_models::api::list_markets as list_markets2;
-use chemix_models::order::{list_available_orders, list_users_orders, EngineOrderTmp2, get_user_number, get_order_num, get_order_volume};
-use chemix_models::trade::{get_current_price, get_trade_volume, list_trades};
+use chemix_models::order::{list_available_orders, list_users_orders, EngineOrderTmp2, get_order_volume};
+use chemix_models::trade::{list_trades};
 use common::utils::time::{get_current_time, time2unix};
 use serde::{Deserialize, Serialize};
 use chemix_models::snapshot::get_snapshot;
 use chemix_models::TimeScope;
-use chemix_models::TimeScope::TwentyFour;
+
 use chemix_models::tokens::get_token;
 
 use common::utils::math::u256_to_f64;

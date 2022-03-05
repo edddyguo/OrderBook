@@ -1,9 +1,9 @@
 extern crate rustc_serialize;
 
-use ethers_core::types::U256;
+
 //#[derive(Serialize)]
 use serde::Serialize;
-use crate::struct2array;
+
 
 /***
 create table chemix_tokens(
