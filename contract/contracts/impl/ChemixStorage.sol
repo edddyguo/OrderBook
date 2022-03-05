@@ -39,7 +39,7 @@ contract ChemixStorage is
     mapping(uint256 => OrderState) allOrder;
     mapping(uint256 => CancelOrderState) allCancelOrder;
 
-    mapping(address => address) getPair;
+    mapping(address => mapping(address => bytes32) ) getPair;
 
     uint256 mOrderIndex = 0;
     uint256 mCancelIndex = 0;
@@ -106,7 +106,7 @@ contract ChemixStorage is
         view
         returns (bool)
     {
-        return (getPair[baseToken] == quoteToken);
+        return (getPair[baseToken][quoteToken] != 0x00 );
     }
 
     function checkHashData(
@@ -127,8 +127,9 @@ contract ChemixStorage is
         external
         requiresAuthorization
     {
-        require(getPair[baseToken] != quoteToken, "Chemix: Pair already exit.");
-        getPair[baseToken] = quoteToken;
+        require(getPair[baseToken][quoteToken] != 0x00, "Chemix: Pair already exit.");
+        bytes32 hashPair = keccak256(abi.encodePacked(baseToken, quoteToken));
+        getPair[baseToken][quoteToken] = hashPair;
         emit PairCreated(baseToken, quoteToken);
     }
 
@@ -144,7 +145,7 @@ contract ChemixStorage is
         external
         requiresAuthorization
     {
-        require(getPair[baseToken] == quoteToken, "Chemix: Pair not exit.");
+        require(getPair[baseToken][quoteToken] == 0x00, "Chemix: Pair not exit.");
         uint256 index = mOrderIndex;
         bytes32 preOrderHash = bytes32(0);
         if(mOrderIndex > 0){
@@ -176,7 +177,7 @@ contract ChemixStorage is
         external
         requiresAuthorization
     {
-        require(getPair[baseToken] == quoteToken, "Chemix: Pair not exit.");
+        require(getPair[baseToken][quoteToken] != 0x00, "Chemix: Pair not exit.");
         uint256 index = mCancelIndex;
         bytes32 preCancelHash = bytes32(0);
         if(mCancelIndex > 0){

@@ -420,6 +420,23 @@ impl ChemixContractClient {
         Ok(thaws_flag)
     }
 
+    pub async fn vault_balance_of(&mut self,token: String,from: String) -> Result<(U256,U256)> {
+        let contract = Vault::new(self.contract_addr, self.client.clone());
+        let token = Address::from_str(token.as_str()).unwrap();
+        let from = Address::from_str(from.as_str()).unwrap();
+        let value = contract.balance_of(token,from).call().await?;
+        info!("vault_balance_of result  {:?}", value);
+        Ok(value)
+    }
+
+    pub async fn vault_total_withdraw_volume(&self,token: String) -> Result<U256> {
+        let contract = Vault::new(self.contract_addr, self.client.clone());
+        let token = Address::from_str(token.as_str()).unwrap();
+        let value = contract.total_withdraw(token).call().await?;
+        info!("vault_balance_of result  {:?}", value);
+        Ok(value)
+    }
+
     fn approve() {
         todo!()
     }

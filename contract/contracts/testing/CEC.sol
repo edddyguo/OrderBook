@@ -23,14 +23,14 @@ import { TestToken } from "./TestToken.sol";
 
 
 /* solium-disable-next-line */
-contract QuoteToken2 is TestToken {
+contract ChemixPlatform is TestToken {
     function decimals() public pure override returns (uint8) {
         return 15;
     }
     function symbol() public pure override returns (string memory) {
-        return "QuoteToken2";
+        return "CEC";
     }
     function name() public pure override returns (string memory) {
-        return "Test QuoteToken2";
+        return "Name CEC";
     }
 }

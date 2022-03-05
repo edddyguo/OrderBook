@@ -283,14 +283,21 @@ pub fn update_trade_by_hash(status: TradeStatus,hash_data: String) {
     info!("success update trade {} rows", execute_res);
 }
 
-pub fn get_current_price(market_id: String) -> U256 {
+pub fn get_current_price(market_id: &str) -> U256 {
     let sql =format!("select price from chemix_trades where market_id='{}' order by created_at desc limit 1;",market_id);
     let rows = crate::query(sql.as_str()).unwrap();
     U256::from_str_radix(rows[0].get::<usize, &str>(0), 10).unwrap()
 }
 
+pub fn get_current_price2(market_id: &str) -> Option<U256> {
+    let sql =format!("select price from chemix_trades where market_id='{}' order by created_at desc limit 1;",market_id);
+    let rows = crate::query(sql.as_str()).unwrap();
+    if rows.is_empty() {return Some(U256::from(0i32));}
+    Some(U256::from_str_radix(rows[0].get::<usize, &str>(0), 10).unwrap())
+}
 
-pub fn get_trade_volume(scope: TimeScope,market_id: String) -> U256{
+
+pub fn get_trade_volume(scope: TimeScope,market_id: &str) -> U256{
     //select amount from chemix_orders where created_at > NOW() - INTERVAL '7 day' and  market_id='BTC-USDT';
     let filter_str  = match scope {
         TimeScope::NoLimit => {

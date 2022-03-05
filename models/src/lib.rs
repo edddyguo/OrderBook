@@ -3,6 +3,8 @@ pub mod chain;
 pub mod order;
 pub mod thaws;
 pub mod trade;
+pub mod snapshot;
+pub mod tokens;
 
 #[macro_use]
 extern crate jsonrpc_client_core;
@@ -35,7 +37,7 @@ use crate::thaws::Thaws;
 extern crate rustc_serialize;
 use serde::Deserialize;
 use serde::Serialize;
-
+use crate::snapshot::Snapshot;
 
 
 #[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
@@ -160,26 +162,6 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
     let mut values: Vec<String> = vec![];
     let value = value as &dyn Any;
 
-    /***
-
-     id               | text                        |           | not null |
- block_height     | integer                     |           |          |
- transaction_hash | text                        |           |          |
- hash_data        | text                        |           |          |
- status           | text                        |           |          |
- market_id        | text                        |           |          |
- maker            | text                        |           |          |
- taker            | text                        |           |          |
- price            | text                        |           |          |
- amount           | text                        |           |          |
- taker_side       | text                        |           |          |
- maker_order_id   | text                        |           |          |
- taker_order_id   | text                        |           |          |
- updated_at       | timestamp without time zone |           |          |
- created_at       | timestamp without time zone
-
-    */
-
     match value.downcast_ref::<TradeInfo>() {
         Some(trade) => {
             values.push(trade.id.string4sql());
@@ -235,6 +217,30 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
             values.push(thaw.price.to_string());
             values.push(thaw.updated_at.string4sql());
             values.push(thaw.created_at.string4sql());
+        }
+        None => (),
+    };
+
+    /***
+        pub traders: i32,
+    pub transactions: i32,
+    pub order_volume: U256,
+    pub withdraw: i32,
+    pub trade_volume: U256,
+    pub trading_pairs: i32,
+    pub cec_price: U256,
+    pub snapshot_time: i64
+    */
+    match value.downcast_ref::<Snapshot>() {
+        Some(dash) => {
+            values.push(dash.traders.to_string().string4sql());
+            values.push(dash.transactions.to_string().string4sql());
+            values.push(dash.order_volume.to_string().string4sql());
+            values.push(dash.withdraw.to_string().string4sql());
+            values.push(dash.trade_volume.to_string().string4sql());
+            values.push(dash.trading_pairs.to_string().string4sql());
+            values.push(dash.cec_price.to_string().string4sql());
+            values.push(dash.snapshot_time.to_string().string4sql());
         }
         None => (),
     };

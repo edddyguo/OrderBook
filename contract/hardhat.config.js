@@ -53,6 +53,8 @@ module.exports = {
         '0xb89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43',
         // 0xca9B361934fc7A7b07814D34423d665268111726 chemix-test3
         '0xb0a09e85dad814ccc7231982401cca5accc3a46bc68349b403a7a129517cc266',
+        //0xF668b864756a2fB53b679bb13e0F9AB2d9C5fEE0  chemix-test4
+        '3bf8a9797398ee2dcdd550bad07b73c41a9af7c94be3aa97cdebde8c0efef00b'
       ]
     }
 

@@ -23,14 +23,14 @@ import { TestToken } from "./TestToken.sol";
 
 
 /* solium-disable-next-line */
-contract BaseToken2 is TestToken {
+contract TetherToken is TestToken {
     function decimals() public pure override returns (uint8) {
-        return 18;
+        return 15;
     }
     function symbol() public pure override returns (string memory) {
-        return "BaseToken2";
+        return "USDT";
     }
     function name() public pure override returns (string memory) {
-        return "Test BaseToken2";
+        return "Name USDT";
     }
 }

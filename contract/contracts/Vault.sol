@@ -75,6 +75,7 @@ contract Vault is
 
     // Map from token address to total amount of that token attributed to some account.
     mapping (address => uint256) public totalBalances;
+    mapping (address => uint256) public totalWithdraw;
 
     // ============ Constructor ============
 
@@ -198,6 +199,22 @@ contract Vault is
         emit ThawBalance(flag);
     }
 
+
+    function totalWithdrawOfToken(
+        address token
+    )
+    external
+    view
+    returns (uint256)
+    {
+        // The actual balance could be greater than totalBalances[token] because anyone
+        // can send tokens to the contract's address which cannot be accounted for
+        //assert(TokenInteract.balanceOf(token, address(this)) >= totalBalances[token]);
+        return totalWithdraw[token];
+    }
+
+
+
     /**
      * Transfers a certain amount of funds to an address.
      *
@@ -225,6 +242,10 @@ contract Vault is
 
         // Final validation
         validateBalance(token);
+
+        //sum withdraw amount of token
+        totalWithdraw[token] = totalWithdraw[token].add(amount);
+
         emit WithdrawFromVault(token, to, amount);
         return true;
     }

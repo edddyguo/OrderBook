@@ -337,7 +337,7 @@ pub fn get_order_num(scope: TimeScope) -> u32{
 
 }
 //
-pub fn get_order_volume(scope: TimeScope,market_id: String) -> U256{
+pub fn get_order_volume(scope: TimeScope,market_id: &str) -> U256{
     //select amount from chemix_orders where created_at > NOW() - INTERVAL '7 day' and  market_id='BTC-USDT';
     let filter_str  = match scope {
         TimeScope::NoLimit => {

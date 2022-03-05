@@ -35,26 +35,26 @@ async function main() {
     let account1 = signer[0].address;
     let chemix_signer = signer[0];
 
-    const tokenA = await hre.ethers.getContractFactory("BaseToken1",chemix_signer);
-    const tokenB = await hre.ethers.getContractFactory("QuoteToken1",chemix_signer);
-    const deployTokenA = await tokenA.deploy();
-    const deployTokenB = await tokenB.deploy();
-    await deployTokenA.deployed();
-    await deployTokenB.deployed();
-    console.log("deployTokenA:  ", deployTokenA.address);
-    console.log("deployTokenB:  ", deployTokenB.address);
+    const tokenCEC = await hre.ethers.getContractFactory("ChemixPlatform",chemix_signer);
+    const tokenUSDT = await hre.ethers.getContractFactory("TetherToken",chemix_signer);
+    const TokenWBTC = await hre.ethers.getContractFactory("WrapedBitcoin",chemix_signer);
+    const TokenWETH = await hre.ethers.getContractFactory("WrapedEtherum",chemix_signer);
 
+    //deploy token
+    const deployTokenCEC = await tokenCEC.deploy();
+    const deployTokenUSDT = await tokenUSDT.deploy();
+    const deployTokenWBTC = await TokenWBTC.deploy();
+    const deployTokenWETH = await TokenWETH.deploy();
+    await deployTokenCEC.deployed();
+    await deployTokenUSDT.deployed();
+    await deployTokenWBTC.deployed();
+    await deployTokenWETH.deployed();
+    console.log("deployTokenCEC:  ", deployTokenCEC.address);
+    console.log("deployTokenUSDT:  ", deployTokenUSDT.address);
+    console.log("deployTokenWBTC:  ", deployTokenWBTC.address);
+    console.log("deployTokenWETH:  ", deployTokenWETH.address);
 
-    const TokenC = await hre.ethers.getContractFactory("TokenC",chemix_signer);
-    const TokenCHE = await hre.ethers.getContractFactory("TokenCHE",chemix_signer);
-    const deployTokenC = await TokenC.deploy();
-    const deployTokenCHE = await TokenCHE.deploy();
-    await deployTokenC.deployed();
-    await deployTokenCHE.deployed();
-    console.log("deployTokenC:  ", deployTokenC.address);
-    console.log("deployTokenCHE:  ", deployTokenCHE.address)
-
-
+    //deploy chemix
     const chemixStorage = await hre.ethers.getContractFactory("ChemixStorage",chemix_signer);
     const tokenProxy = await hre.ethers.getContractFactory("TokenProxy",chemix_signer);
     const vault = await hre.ethers.getContractFactory("Vault",chemix_signer);

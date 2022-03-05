@@ -3,8 +3,11 @@ create table chemix_tokens(
  symbol text primary key,
  name text,
  address text ,
- decimals integer ,
  front_decimals integer,
+ base_contract_decimal integer,
+ cvt_url text,
+ show_cvt boolean,
+ updated_at timestamp,
  created_at timestamp
 );
 create unique index idx_local_chemix_tokens_address on chemix_tokens (address);
@@ -127,28 +130,17 @@ create table chemix_transactions(
 create unique index idx_local_chemix_transactions_pendingtx2 on chemix_transactions (created_at, status, transaction_hash);
 
 
-
-
-create table chemix_market_quotation_tmp(
-  market_id text PRIMARY KEY,
-  price  text default 0,
-  ratio  text default 0,
-  volume text default 0,
-  CNYC_price text default 0,
-  maxprice text default 0,
-  minprice text default 0,
-  min_CNYC_price text default 0,
-  max_CNYC_price text default 0,
-  symbol  text default '',
+create table chemix_snapshot(
+  traders int default 0,
+  transactions  int default 0,
+  order_volume text default '',
+  withdraw text default '',
+  trade_volume text default '',
+  trading_pairs int default 0,
+  cec_price text default '',
+  snapshot_time bigint,
   updated_at  timestamp default now(),
   created_at  timestamp default now()
 );
 
-create table chemix_order_book_tmp(
-  market_id text default 0,
-  precision  int default 0,
-  order_book text default '',
-  updated_at  timestamp default now(),
-  created_at  timestamp default now()
-);
 create index idx_local_chemix_order_book_tmp_market_book on chemix_order_book_tmp (market_id,precision);
