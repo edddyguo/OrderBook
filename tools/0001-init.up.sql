@@ -142,5 +142,3 @@ create table chemix_snapshot(
   updated_at  timestamp default now(),
   created_at  timestamp default now()
 );
-
-create index idx_local_chemix_order_book_tmp_market_book on chemix_order_book_tmp (market_id,precision);

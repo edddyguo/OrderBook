@@ -22,6 +22,8 @@ async function main() {
 
     let account_tj = "0x3bB395b668Ff9Cb84e55aadFC8e646Dd9184Da9d"
 
+    let account_pj = "0x0a23e267605571ac62f199ebb3f0f649dbf20f7d";
+
 
     const issueAmountDefault = BigInt(100_000_000_000_000_000_000_000_000_000) //100_000_000_000
     var options = { gasPrice: 10000000000, gasLimit: 850000, value: 0 };
@@ -29,6 +31,7 @@ async function main() {
     let signer = await ethers.getSigners();
     let account1 = signer[1].address;
     let chemix_signer = signer[1];
+    //let account1 = account_pj;
 
     /***
      * 21:47
@@ -43,30 +46,7 @@ async function main() {
      * */
 
     /****
-     * dev
-     * deployTokenA:   0x38F52517e6642fB1933E7A6A3a34fEa35372eD32
-     * deployTokenB:   0x719d36AB3752aa2d0311637B79B480C00A8f83fC
-     * deployStorage:   0x2b5a5390170805878c44e3813EbC1f0e48aB2953
-     * deployTokenProxy:   0xdFC403273AE6dc9993f58E8e2d15D48D4AAA5Ff5
-     * deployVault:   0xA45dd22d573314Fd85b5935B542C236A2dB72534
-     * deployChemiMain:   0xEba68dCF72f4601220c4CB576132f7FE3AE25853
-     *
-     * 0227
-     * deployTokenA:   0x0C304A4B59107ADd1bb422a27741Db7151559c32
-     * deployTokenB:   0x8Db8FFbe335F99778CCbB8DdCa9e210fFd0D54Af
-     * deployStorage:   0x53c14905Ba0452eEC44c6AA9Dd294a296aA8dE2c
-     * deployTokenProxy:   0x36a4bD8E1dE94A130334397C70aE36641f386Bc3
-     * deployVault:   0x1098B7A05c932B0e8b3957f4a8B33cee9Efd724A
-     * deployChemiMain:   0x413a559aafA36809F77896Be70284A4C13542f93
-     *
-     * 0228
-     * deployTokenA:   0x12B4e1E58D2EEc9B984A18D7275359E269726Dc2
-     * deployTokenB:   0x1B1D8299C787046dE1Be0CCb80aBfeb7Bf126809
-     * deployStorage:   0xE5b11BF87f01f952e7Cd268ec710aF0aaE7Ac1aF
-     * deployTokenProxy:   0x51751e8d9cB87F8a8A677fF539B2cd4fa45bd435
-     * deployVault:   0x5E5849cF979e4984c7785B47A353ddbcA4d82377
-     * deployChemiMain:   0xDc776C3FF24A3b4DD11eDB7BCa2474De73856b22
-     *
+
      * pro
      * deployTokenA:   0x7DBF554b459cFb39C7B92e6AA2FA85Bb1B9aCcF1
      * deployTokenB:   0xAf4984736dAe2e795A8199C01341DA46460a6096
@@ -74,24 +54,55 @@ async function main() {
      * deployTokenProxy:   0x10CC9D986b8E0a75a1bAbDE209dAEA04872eAA40
      * deployVault:   0x65974E9518cD02Ee99A624366070c85DEe3E36E1
      * deployChemiMain:   0x5304A6d27Cde3427E486b899ab269CA8088e16FC
+     *
+     *pro2
+     * deployTokenA:   0x93E139a29b5bfe61Ae34B1D8E526C4Db1A8291ef
+     * deployTokenB:   0x0ffB2710A3e25370C987fA52e906459d4c03e105
+     * deployStorage:   0xf225989a42Fa37f67235c755526034Da1e0Da0db
+     * deployTokenProxy:   0xdB0bb1Aab12d92deDF56a6D55Efcd51289248D10
+     * deployVault:   0x45999bf52039320f976b2E541E56c6D8663CFdF2
+     * deployChemiMain:   0x24B0e07EBf1cFfa4710a996877307538864E934E
+     *
+     * deployTokenC:   0x04F2b8d54e4885233e690E9910C57E69e8545C19
+     * deployTokenCHE:   0x196B8542FaA5055Cd6c38c8CB563a3749B1bF2Ef
+     *
+     *
+     * deployTokenA:   0x1785f0481CA0a369061802548444b3162B19070b
+     * deployTokenB:   0x937Eb6B6d2803e627B06270B732866B9B0E5E71d
+     * deployTokenC:   0x75cee65DCf0EA58801779FF716156eEB0bebb2C8
+     * deployTokenCHE:   0x0702f6Ce4d63c0F81458F20b566eaC652EA669BF
+     * deployStorage:   0xAB07D57aa144c9BCf897E1de54A66629C8F22ba7
+     * deployTokenProxy:   0x34d291987a6EaA505015f8b62EDB7b6425BC7183
+     * deployVault:   0x9Cb7A3d38641ccC23bFa96Ae12ba6ccA25a886Ee
+     * deployChemiMain:   0x9568cd934AcA5C2a21E161928C94Ea1EE4e7A5B5
      * */
 
 
-    const contractTokenA = await ethers.getContractAt("BaseToken1",'0x7DBF554b459cFb39C7B92e6AA2FA85Bb1B9aCcF1')
-    const contractTokenB = await ethers.getContractAt("QuoteToken1",'0xAf4984736dAe2e795A8199C01341DA46460a6096')
-    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0xE5b11BF87f01f952e7Cd268ec710aF0aaE7Ac1aF')
-    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0x51751e8d9cB87F8a8A677fF539B2cd4fa45bd435')
-    const contractVault = await ethers.getContractAt("Vault",'0x65974E9518cD02Ee99A624366070c85DEe3E36E1')
-    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0xDc776C3FF24A3b4DD11eDB7BCa2474De73856b22')
+    const contractTokenWBTC = await ethers.getContractAt("WrapedBitcoin", '0xD5A0e5F666336732D3dad0552e2E6ae23D937913', chemix_signer)
+    const contractTokenUSDT = await ethers.getContractAt("TetherToken", '0x88497793A8fA0d1418087282d491872363E56Ac8', chemix_signer)
 
+    const contractChemixStorage = await ethers.getContractAt("ChemixStorage", '0x87852231D018212905a15CDE4155666143C079f7', chemix_signer)
+    const contractTokenProxy = await ethers.getContractAt("TokenProxy", '0x0459768c278ecf3b47114dE7dFcA70497397dAdd', chemix_signer)
+    const contractVault = await ethers.getContractAt("Vault", '0x5984F8E1dEDadB954ca69d9EBDF9d9a24368539a', chemix_signer)
+    const contractChemixMain = await ethers.getContractAt("ChemixMain", '0xD8CBcc11eDaaAB8b93DEe65bdaD14983cA197B42', chemix_signer)
+
+
+    /****
+    const contractTokenA = await ethers.getContractAt("BaseToken1",'0x93E139a29b5bfe61Ae34B1D8E526C4Db1A8291ef')
+    const contractTokenB = await ethers.getContractAt("QuoteToken1",'0x0ffB2710A3e25370C987fA52e906459d4c03e105')
+    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0xf225989a42Fa37f67235c755526034Da1e0Da0db')
+    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0xdB0bb1Aab12d92deDF56a6D55Efcd51289248D10')
+    const contractVault = await ethers.getContractAt("Vault",'0x45999bf52039320f976b2E541E56c6D8663CFdF2')
+    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0x24B0e07EBf1cFfa4710a996877307538864E934E')
+    ***/
     //check pai
 
 
     console.log('balanceOfB account1 result ',account1);
 
-    let A_alanceOf = await contractVault.balanceOf(contractTokenA.address,account1,options);
+    let A_alanceOf = await contractVault.balanceOf(contractTokenWBTC.address,account1,options);
     console.log('balanceOfA account1 result ',A_alanceOf);
-    let B_alanceOf = await contractVault.balanceOf(contractTokenB.address,account1,options);
+    let B_alanceOf = await contractVault.balanceOf(contractTokenUSDT.address,account1,options);
     console.log('balanceOfB account1 result ',B_alanceOf);
 
     //let balanceAcc_erc20_A = await contractTokenA.balanceOf(account_tj,options);

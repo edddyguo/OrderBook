@@ -1,6 +1,7 @@
 extern crate rustc_serialize;
 
 use ethers_core::types::U256;
+use postgres::Row;
 //#[derive(Serialize)]
 use serde::Serialize;
 use crate::struct2array;
@@ -28,27 +29,29 @@ pub struct Snapshot {
     pub snapshot_time: i64
 }
 
-
-pub fn get_snapshot() -> Option<Snapshot> {
-
+//取当前和一天之前的快照
+pub fn get_snapshot() -> Option<(Snapshot,Snapshot)> {
     let sql = format!("select traders,transactions,order_volume,withdraw,\
-    trade_volume,trading_pairs,cec_price,snapshot_time from chemix_snapshot ");
+    trade_volume,trading_pairs,cec_price,snapshot_time from chemix_snapshot order by created_at desc limit 24");
     let execute_res = crate::query(sql.as_str()).unwrap();
     info!("get_snapshot: raw sql {}", sql);
     if execute_res.is_empty(){
         return None;
     }
+    let gen_snapshot = |row:&Row| {
+        Snapshot {
+            traders: row.get(0),
+            transactions: row.get(1),
+            order_volume: U256::from_str_radix(row.get::<usize, &str>(2), 10).unwrap(),
+            withdraw: U256::from_str_radix(row.get::<usize, &str>(3), 10).unwrap(),
+            trade_volume: U256::from_str_radix(row.get::<usize, &str>(4), 10).unwrap(),
+            trading_pairs: row.get(5),
+            cec_price: U256::from_str_radix(row.get::<usize, &str>(6), 10).unwrap(),
+            snapshot_time: row.get(7),
+        }
+    };
+    Some((gen_snapshot(execute_res.first().unwrap()),gen_snapshot(execute_res.last().unwrap())))
 
-    Some(Snapshot {
-        traders: execute_res[0].get(0),
-        transactions: execute_res[0].get(1),
-        order_volume: U256::from_str_radix(execute_res[0].get::<usize, &str>(2), 10).unwrap(),
-        withdraw: U256::from_str_radix(execute_res[0].get::<usize, &str>(3), 10).unwrap(),
-        trade_volume: U256::from_str_radix(execute_res[0].get::<usize, &str>(4), 10).unwrap(),
-        trading_pairs: execute_res[0].get(5),
-        cec_price: U256::from_str_radix(execute_res[0].get::<usize, &str>(6), 10).unwrap(),
-        snapshot_time: execute_res[0].get(7),
-    })
 }
 
 pub fn insert_snapshot(data: Snapshot) {
@@ -66,50 +69,3 @@ pub fn insert_snapshot(data: Snapshot) {
         let execute_res = crate::execute(sql.as_str()).unwrap();
         info!("success insert {} rows", execute_res);
 }
-
-
-/***
-pub struct Dash {
-    pub cumulative_traders: i32,
-    pub cumulative_transactions: i32,
-    pub cumulative_tvl: U256,
-    pub one_day_traders: i32,
-    pub one_day_volume: U256,
-    pub one_day_transactions: i32,
-    pub one_day_tvl: U256,
-    pub trading_pairs: i32,
-    pub cec_price: U256,
-    pub snapshot_time: i64,
-}
-*/
-/****
-pub fn update_dash(dash_info: Dash) {
-    let sql = format!(
-        "UPDATE chemix_dash SET (cumulative_traders,\
-        cumulative_transactions,\
-        cumulative_tvl,\
-        one_day_traders,\
-        one_day_volume,\
-        one_day_transactions,\
-        one_day_tvl,\
-        trading_pairs,\
-        cec_price,\
-        snapshot_time\
-        )=('{}','{}',{},'{}','{}','{}','{}','{}','{}','{}')",
-        dash_info.cumulative_traders,
-        dash_info.cumulative_transactions,
-        dash_info.cumulative_tvl,
-        dash_info.one_day_traders,
-        dash_info.one_day_volume,
-        dash_info.one_day_transactions,
-        dash_info.one_day_tvl,
-        dash_info.trading_pairs,
-        dash_info.cec_price,
-        dash_info.snapshot_time
-    );
-    info!("start update trade {} ", sql);
-    let execute_res = crate::execute(sql.as_str()).unwrap();
-    info!("success update trade {} rows", execute_res);
-}
-
- */

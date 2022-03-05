@@ -16,6 +16,7 @@ use chemix_models::order::{list_available_orders, list_users_orders, EngineOrder
 use chemix_models::trade::{get_current_price, get_trade_volume, list_trades};
 use common::utils::time::{get_current_time, time2unix};
 use serde::{Deserialize, Serialize};
+use chemix_models::snapshot::get_snapshot;
 use chemix_models::TimeScope;
 use chemix_models::TimeScope::TwentyFour;
 
@@ -50,7 +51,7 @@ struct DexProfile {
     TVL: f64,
     tradingPairs: u8,
     price: f64,
-    snapshot_time: String
+    snapshot_time: u64
 }
 
 #[derive(Serialize)]
@@ -152,8 +153,8 @@ async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
     let db_markets = list_markets2();
     let now = get_current_time();
     for db_market in db_markets {
-        let seven_day_volume = get_order_volume(TimeScope::SevenDay,db_market.id.clone());
-        let twenty_four_hour_volume = get_order_volume(TimeScope::TwentyFour,db_market.id.clone());
+        let seven_day_volume = get_order_volume(TimeScope::SevenDay,&db_market.id);
+        let twenty_four_hour_volume = get_order_volume(TimeScope::TwentyFour,&db_market.id);
         let data = MarketInfoTmp1 {
             id:db_market.id,
             base_token_address: db_market.base_token_address,
@@ -388,52 +389,42 @@ async fn klines(web::Query(info): web::Query<KlinesRequest>) -> impl Responder {
 * }
 *@apiSampleRequest http://139.196.155.96:7010/dashBoard/profile
  * */
+
 #[get("/dashBoard/profile")]
 async fn dex_profile() -> impl Responder {
-    let base_token_decimal = U256::from(10u128).pow(U256::from(18u32));
-    let quote_token_decimal = U256::from(10u128).pow(U256::from(15u32));
-    //todo： 定时落表写到db
-    info!("_0001");
-    //for循环计算所有market
-    let cumulativeOrder_TVL = {
-        let volume = get_order_volume(TimeScope::NoLimit,"BTC-USDT".to_string());
-        let price = get_current_price("BTC-USDT".to_string());
-        volume * price / base_token_decimal
-    };
-    info!("_0002");
-    let TVL_u256 = {
-        let volume = get_order_volume(TimeScope::TwentyFour,"BTC-USDT".to_string());
-        let price = get_current_price("BTC-USDT".to_string());
-        volume * price / base_token_decimal
-    };
-    info!("_0003");
-    let tradingVolume = {
-        let volume = get_trade_volume(TimeScope::TwentyFour,"BTC-USDT".to_string());
-        let price = get_current_price("BTC-USDT".to_string());
-        volume * price / base_token_decimal
-    };
-    info!("_0004");
-    let cumulativeTransactions = get_order_num(TimeScope::NoLimit);
-    info!("_0004.1");
-    let cumulativeTraders = get_user_number(TimeScope::NoLimit);
-    info!("_0004.3");
-    let numberOfTraders = get_user_number(TimeScope::TwentyFour);
-    info!("_0004.4");
-    let numberOfTransactions = get_order_num(TimeScope::TwentyFour);;
-    let tradingPairs = 1;
-    let price = get_current_price("BTC-USDT".to_string());
-    info!("_0005");
+    let cec_token_decimal = 15u32;
+    //todo: 还未生成快照的时间点
+    //current_and_yesterday_sanpshot
+    let cays = get_snapshot().unwrap();
+    let price = cays.0.cec_price;
+    let currentTVL = cays.0.order_volume -  cays.0.withdraw;
+    let cumulativeTransactions= cays.0.transactions as u32;
+    let cumulativeTraders = cays.0.traders as u32;
+    let tradingPairs = cays.0.trading_pairs as u8;
+    let current_transcations = cays.0.transactions as u32;
+    let snapshot_time = cays.0.snapshot_time as u64;
+    let current_trade_volume = cays.0.trade_volume;
+
+
+    let yesterday_traders = cays.1.traders as u32;
+    let yesterday_trader_volume = cays.1.trade_volume;
+    let yesterday_transcations = cays.1.transactions as u32;
+    let yesterdayTVL = cays.1.order_volume -  cays.1.withdraw;
+
+
+
+
     let profile = DexProfile {
-        cumulativeTVL: u256_to_f64(cumulativeOrder_TVL, 15),
-        cumulativeTransactions: cumulativeTransactions,
-        cumulativeTraders: cumulativeTraders,
-        numberOfTraders: numberOfTraders,
-        tradingVolume: u256_to_f64(cumulativeOrder_TVL, 15),
-        numberOfTransactions: numberOfTransactions,
-        TVL: u256_to_f64(TVL_u256, 15),
-        tradingPairs: 1,
-        price: u256_to_f64(price, 15),
-        snapshot_time: get_current_time()
+        cumulativeTVL: u256_to_f64(currentTVL, cec_token_decimal),
+        cumulativeTransactions,
+        cumulativeTraders,
+        numberOfTraders: cumulativeTraders - yesterday_traders,
+        tradingVolume: u256_to_f64(current_trade_volume - yesterday_trader_volume, cec_token_decimal),
+        numberOfTransactions: current_transcations - yesterday_transcations,
+        TVL: u256_to_f64(currentTVL - yesterdayTVL, cec_token_decimal),
+        tradingPairs,
+        price: u256_to_f64(price, cec_token_decimal),
+        snapshot_time,
     };
     respond_json(
         200,

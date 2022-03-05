@@ -1,5 +1,5 @@
-const { ethers, upgrades, network} = require("hardhat");
-const { expect } = require('chai')
+const {ethers, upgrades, network} = require("hardhat");
+const {expect} = require('chai')
 const {defaultHardhatNetworkHdAccountsConfigParams} = require("hardhat/internal/core/config/default-config");
 const {getAccountPath} = require("ethers/lib/utils");
 const {networks} = require("../hardhat.config"); //断言模块
@@ -26,15 +26,14 @@ async function main() {
     let account_tj = "0x3bB395b668Ff9Cb84e55aadFC8e646Dd9184Da9d"
 
 
-
     let signer = await ethers.getSigners();
     //let account1 = signer[0].address;
     //let chemix_signer = signer[0];
-    let account1 = signer[0].address;
-    let chemix_signer = signer[0];
+    let account1 = signer[1].address;
+    let chemix_signer = signer[1];
 
     const issueAmountDefault = BigInt(100_000_000_000_000_000_000_000_000_000) //100_000_000_000
-    var options = { gasPrice: 10000000000, gasLimit: 850000, value: 0 };
+    var options = {gasPrice: 2000000000, gasLimit: 2950000, value: 0};
 
     /***
      * 21:47
@@ -49,227 +48,211 @@ async function main() {
      * */
 
     //dev
-        /**
-         * deployTokenA:   0x78F8D152Dc041E6Aa027342A12D19EF9ecf5038a
-         * deployTokenB:   0xCB40288aF19767c0652013D3072e0Dd983d0cFFE
-         * deployStorage:   0x7fAb33f49eB76730962762E2B3eAb8C5ca6936EE
-         * deployTokenProxy:   0x0b4E525C0A237D2A9Fe8E6173B3D709e605aC141
-         * deployVault:   0x36E1C5B7DBa8ab55E4e82bD627d3D81e5D0FaD99
-         * deployChemiMain:   0xCcC6515C3d15b4Fd8ef2c6654d18eB81af5aB7F2
-         *
-         *
-         * deployTokenA:   0x38F52517e6642fB1933E7A6A3a34fEa35372eD32
-         * deployTokenB:   0x719d36AB3752aa2d0311637B79B480C00A8f83fC
-         * deployStorage:   0x2b5a5390170805878c44e3813EbC1f0e48aB2953
-         * deployTokenProxy:   0xdFC403273AE6dc9993f58E8e2d15D48D4AAA5Ff5
-         * deployVault:   0xA45dd22d573314Fd85b5935B542C236A2dB72534
-         * deployChemiMain:   0xEba68dCF72f4601220c4CB576132f7FE3AE25853
-         *
-         * 0227
-         * deployTokenA:   0x0C304A4B59107ADd1bb422a27741Db7151559c32
-         * deployTokenB:   0x8Db8FFbe335F99778CCbB8DdCa9e210fFd0D54Af
-         * deployStorage:   0x53c14905Ba0452eEC44c6AA9Dd294a296aA8dE2c
-         * deployTokenProxy:   0x36a4bD8E1dE94A130334397C70aE36641f386Bc3
-         * deployVault:   0x1098B7A05c932B0e8b3957f4a8B33cee9Efd724A
-         * deployChemiMain:   0x413a559aafA36809F77896Be70284A4C13542f93
-         *
-         *
-         * 0228
-         * deployTokenA:   0x12B4e1E58D2EEc9B984A18D7275359E269726Dc2
-         * deployTokenB:   0x1B1D8299C787046dE1Be0CCb80aBfeb7Bf126809
-         * deployStorage:   0xE5b11BF87f01f952e7Cd268ec710aF0aaE7Ac1aF
-         * deployTokenProxy:   0x51751e8d9cB87F8a8A677fF539B2cd4fa45bd435
-         * deployVault:   0x5E5849cF979e4984c7785B47A353ddbcA4d82377
-         * deployChemiMain:   0xDc776C3FF24A3b4DD11eDB7BCa2474De73856b22
-         *
-         * 0228:pro
-         * deployTokenA:   0x7DBF554b459cFb39C7B92e6AA2FA85Bb1B9aCcF1
-         * deployTokenB:   0xAf4984736dAe2e795A8199C01341DA46460a6096
-         * deployStorage:   0x241f5bC6CEA90e5c6fd81252804b3A9d714E6c39
-         * deployTokenProxy:   0x10CC9D986b8E0a75a1bAbDE209dAEA04872eAA40
-         * deployVault:   0x65974E9518cD02Ee99A624366070c85DEe3E36E1
-         * deployChemiMain:   0x5304A6d27Cde3427E486b899ab269CA8088e16FC
-         *
-         * 0301:pro
-         * deployTokenA:   0x92177d3e7be191Eb7537299ae1f266de5d2fE939
-         * deployTokenB:   0x0eDf2C0379Dba54dDf980cc58666F3698C76f640
-         * deployStorage:   0x1464c2aD3402dF09504899870fE87c30b5357FAC
-         * deployTokenProxy:   0x4B195824436613d4f3Ab55e2a3f61a6f4B5E29b7
-         * deployVault:   0x237577E6e314cD8F4AbC1d49aF997b93d0D37B4c
-         * deployChemiMain:   0xc7949C68Fc0012F12f3628a409A29f6Ed35d73aC
-         *
-         *
-         *
-         * 0301:pro2
-         * deployTokenA:   0x93E139a29b5bfe61Ae34B1D8E526C4Db1A8291ef
-         * deployTokenB:   0x0ffB2710A3e25370C987fA52e906459d4c03e105
-         * deployStorage:   0xf225989a42Fa37f67235c755526034Da1e0Da0db
-         * deployTokenProxy:   0xdB0bb1Aab12d92deDF56a6D55Efcd51289248D10
-         * deployVault:   0x45999bf52039320f976b2E541E56c6D8663CFdF2
-         * deployChemiMain:   0x24B0e07EBf1cFfa4710a996877307538864E934E
-         *
-         * deployTokenA:   0x1785f0481CA0a369061802548444b3162B19070b
-         * deployTokenB:   0x937Eb6B6d2803e627B06270B732866B9B0E5E71d
-         * deployTokenC:   0x75cee65DCf0EA58801779FF716156eEB0bebb2C8
-         * deployTokenCHE:   0x0702f6Ce4d63c0F81458F20b566eaC652EA669BF
-         * deployStorage:   0xAB07D57aa144c9BCf897E1de54A66629C8F22ba7
-         * deployTokenProxy:   0x34d291987a6EaA505015f8b62EDB7b6425BC7183
-         * deployVault:   0x9Cb7A3d38641ccC23bFa96Ae12ba6ccA25a886Ee
-         * deployChemiMain:   0x9568cd934AcA5C2a21E161928C94Ea1EE4e7A5B5
-         *
-         * **/
+    /**
+     *
+     *
+     * pro
+     *
+     * dev:
+     * deployTokenCEC:   0x3ab24b4147C63DD711445D1a08cd951c3e3a2B30
+     * deployTokenUSDT:   0x6BF4842015fc751a8e115aA59F9de0F3A8bb683b
+     * deployTokenWBTC:   0xBfb07d8B202e4c4b4e54C17Bc7eE929c297560C0
+     * deployTokenWETH:   0x16De11b7B2b64DA139203A5792d18C723a2A274f
+     * deployStorage:   0x4a6Ea5c8eDC62bCB2d2A55bba2e7A9f52B8CAb56
+     * deployTokenProxy:   0xADf477A879c721F1fdf012581526aab748e8dc1b
+     * deployVault:   0x52F68D60F82e9b539c1b18A09F43fE557Dc4Ff93
+     * deployChemiMain:   0xcAAd62f33E6da11858f6E7228B2160F5F575Dd9D
+     *
+     *
+     * Solidity compilation finished successfully
+     * deployTokenCEC:   0x7CDD8A127660BA96217CE200be0bfEACf13254dA
+     * deployTokenUSDT:   0x88497793A8fA0d1418087282d491872363E56Ac8
+     * deployTokenWBTC:   0xD5A0e5F666336732D3dad0552e2E6ae23D937913
+     * deployTokenWETH:   0xF3a293B1b4DAeb1c599A9Ac50A29c97E4C44d43B
+     * deployStorage:   0x87852231D018212905a15CDE4155666143C079f7
+     * deployTokenProxy:   0x0459768c278ecf3b47114dE7dFcA70497397dAdd
+     * deployVault:   0x5984F8E1dEDadB954ca69d9EBDF9d9a24368539a
+     * deployChemiMain:   0xD8CBcc11eDaaAB8b93DEe65bdaD14983cA197B42
+     * storageAccessRes:   {
+     * **/
 
 
+    const contractTokenCEC = await ethers.getContractAt("ChemixPlatform", '0x7CDD8A127660BA96217CE200be0bfEACf13254dA', chemix_signer)
+    const contractTokenUSDT = await ethers.getContractAt("TetherToken", '0x88497793A8fA0d1418087282d491872363E56Ac8', chemix_signer)
+    const contractTokenWBTC = await ethers.getContractAt("WrapedBitcoin", '0xD5A0e5F666336732D3dad0552e2E6ae23D937913', chemix_signer)
+    const contractTokenWETH = await ethers.getContractAt("WrapedEtherum", '0xF3a293B1b4DAeb1c599A9Ac50A29c97E4C44d43B', chemix_signer)
 
-    const contractTokenA = await ethers.getContractAt("BaseToken1",'0x1785f0481CA0a369061802548444b3162B19070b',chemix_signer)
-    const contractTokenB = await ethers.getContractAt("QuoteToken1",'0x937Eb6B6d2803e627B06270B732866B9B0E5E71d',chemix_signer)
-    const contractTokenC = await ethers.getContractAt("TokenC",'0x75cee65DCf0EA58801779FF716156eEB0bebb2C8',chemix_signer)
-    const contractTokenCHE = await ethers.getContractAt("TokenCHE",'0x0702f6Ce4d63c0F81458F20b566eaC652EA669BF',chemix_signer)
-
-    const contractChemixStorage = await ethers.getContractAt("ChemixStorage",'0xAB07D57aa144c9BCf897E1de54A66629C8F22ba7',chemix_signer)
-    const contractTokenProxy = await ethers.getContractAt("TokenProxy",'0x34d291987a6EaA505015f8b62EDB7b6425BC7183',chemix_signer)
-    const contractVault = await ethers.getContractAt("Vault",'0x9Cb7A3d38641ccC23bFa96Ae12ba6ccA25a886Ee',chemix_signer)
-    const contractChemixMain = await ethers.getContractAt("ChemixMain",'0x9568cd934AcA5C2a21E161928C94Ea1EE4e7A5B5',chemix_signer)
-
+    const contractChemixStorage = await ethers.getContractAt("ChemixStorage", '0x87852231D018212905a15CDE4155666143C079f7', chemix_signer)
+    const contractTokenProxy = await ethers.getContractAt("TokenProxy", '0x0459768c278ecf3b47114dE7dFcA70497397dAdd', chemix_signer)
+    const contractVault = await ethers.getContractAt("Vault", '0x5984F8E1dEDadB954ca69d9EBDF9d9a24368539a', chemix_signer)
+    const contractChemixMain = await ethers.getContractAt("ChemixMain", '0xD8CBcc11eDaaAB8b93DEe65bdaD14983cA197B42', chemix_signer)
 
 
-    let authorizeSettle_res = await contractVault.authorizeSettle(account1,options);
-    console.log('authorizeSettle_res result ',authorizeSettle_res);
+    let authorizeSettle_res = await contractVault.authorizeSettle(account1, options);
+    console.log('authorizeSettle_res result ', authorizeSettle_res);
 
-    let authorizeFronzenAddr = await contractVault.authorizeFronzen(account1,options);
-    console.log('authorizeFronzenAddr result ',authorizeFronzenAddr);
+    let authorizeFronzenAddr = await contractVault.authorizeFronzen(account1, options);
+    console.log('authorizeFronzenAddr result ', authorizeFronzenAddr);
 
-    let grantSettleAddr_result2 = await contractVault.grantSettleAddr(account1,options);
-    console.log('grantSettleAddr_result result ',grantSettleAddr_result2);
+    let grantSettleAddr_result2 = await contractVault.grantSettleAddr(account1, options);
+    console.log('grantSettleAddr_result result ', grantSettleAddr_result2);
 
 
-    let grantFronzenAddr_result2 = await contractVault.grantFronzenAddr(account1,options);
-    console.log('grantSettleAddr_result result ',grantSettleAddr_result2);
+    let grantFronzenAddr_result2 = await contractVault.grantFronzenAddr(account1, options);
+    console.log('grantSettleAddr_result result ', grantSettleAddr_result2);
 
     //check pair
 
-    let authorizeCreatePair = await contractChemixMain.authorizeCreatePair(account1,options);
-    console.log('check_pair1 result ',authorizeCreatePair);
+    let authorizeCreatePair = await contractChemixMain.authorizeCreatePair(account1, options);
+    console.log('check_pair1 result ', authorizeCreatePair);
 
-    let check_pair_result = await contractChemixStorage.checkPairExist(contractTokenA.address,contractTokenB.address,options);
-    console.log('check_pair2 result ',check_pair_result);
+    let check_pair_result = await contractChemixStorage.checkPairExist(contractTokenWBTC.address, contractTokenUSDT.address, options);
+    console.log('check_pair2 result ', check_pair_result);
 
 
+    let A_alanceOf = await contractVault.balanceOf(contractTokenWBTC.address, account1, options);
+    console.log('balanceOfA result ', A_alanceOf);
+    let B_alanceOf = await contractVault.balanceOf(contractTokenUSDT.address, account1, options);
+    console.log('balanceOfB result ', B_alanceOf);
 
-    let A_alanceOf = await contractVault.balanceOf(contractTokenA.address,account1,options);
-    console.log('balanceOfA result ',A_alanceOf);
-    let B_alanceOf = await contractVault.balanceOf(contractTokenB.address,account1,options);
-    console.log('balanceOfB result ',B_alanceOf);
-
-    let balanceAcc_erc20_A = await contractTokenA.balanceOf(account1,options);
-    console.log('balanceA ',balanceAcc_erc20_A);
-    let balanceAcc_erc20_B = await contractTokenB.balanceOf(account1,options);
-    console.log('balanceB ',balanceAcc_erc20_B);
+    let balanceAcc_erc20_A = await contractTokenWBTC.balanceOf(account1, options);
+    console.log('balanceA ', balanceAcc_erc20_A);
+    let balanceAcc_erc20_B = await contractTokenUSDT.balanceOf(account1, options);
+    console.log('balanceB ', balanceAcc_erc20_B);
 
     //grantCreatePairAddr
     /***
-    let grantCreatePairAddr_result = await contractChemixMain.grantCreatePairAddr(account1,options);
-    console.log('grantCreatePairAddr result ',grantCreatePairAddr_result);
+     let grantCreatePairAddr_result = await contractChemixMain.grantCreatePairAddr(account1,options);
+     console.log('grantCreatePairAddr result ',grantCreatePairAddr_result);
 
-    //grantSettleAddr
-    let grantSettleAddr_result = await contractVault.grantSettleAddr(account2,options);
-    console.log('grantSettleAddr_result result ',grantSettleAddr_result);
+     //grantSettleAddr
+     let grantSettleAddr_result = await contractVault.grantSettleAddr(account2,options);
+     console.log('grantSettleAddr_result result ',grantSettleAddr_result);
      ***/
 
     /***
-    let authorizeSettle_res = await contractVault.authorizeSettle(account2,options);
-    console.log('authorizeSettle_res result ',authorizeSettle_res);
+     let authorizeSettle_res = await contractVault.authorizeSettle(account2,options);
+     console.log('authorizeSettle_res result ',authorizeSettle_res);
 
 
 
 
 
-    //approve
-    let acc1ApproveTokenARes2 = await contractTokenA.approve(contractTokenProxy.address,balanceAcc_erc20_A,options);
-    //console.log('acc1ApproveTokenARes ',acc1ApproveTokenARes2);
-    let acc1ApproveTokenBRes2 = await contractTokenB.approve(contractTokenProxy.address,balanceAcc_erc20_B,options);
-   // console.log('acc1ApproveTokenBRes ',acc1ApproveTokenBRes2);
+     //approve
+     let acc1ApproveTokenARes2 = await contractTokenWBTC.approve(contractTokenProxy.address,balanceAcc_erc20_A,options);
+     //console.log('acc1ApproveTokenARes ',acc1ApproveTokenARes2);
+     let acc1ApproveTokenBRes2 = await contractTokenUSDT.approve(contractTokenProxy.address,balanceAcc_erc20_B,options);
+     // console.log('acc1ApproveTokenBRes ',acc1ApproveTokenBRes2);
 
-    let allowanceA2 = await contractTokenA.allowance(account_tj,contractTokenProxy.address,options);
-    console.log('allowanceA ',allowanceA2);
-    let allowanceB2 = await contractTokenB.allowance(account_tj,contractTokenProxy.address,options);
-    console.log('allowanceB ',allowanceB2);
+     let allowanceA2 = await contractTokenWBTC.allowance(account_tj,contractTokenProxy.address,options);
+     console.log('allowanceA ',allowanceA2);
+     let allowanceB2 = await contractTokenUSDT.allowance(account_tj,contractTokenProxy.address,options);
+     console.log('allowanceB ',allowanceB2);
      ***/
-    let grantCreatePairAddr_result = await contractChemixMain.grantCreatePairAddr(account1,options);
-    console.log('grantCreatePairAddr result ',grantCreatePairAddr_result);
+    let grantCreatePairAddr_result = await contractChemixMain.grantCreatePairAddr(account1, options);
+    console.log('grantCreatePairAddr result ', grantCreatePairAddr_result);
 
     //grantSettleAddr
-    let grantSettleAddr_result = await contractVault.grantSettleAddr(account1,options);
-    console.log('grantSettleAddr_result result ',grantSettleAddr_result);
+    let grantSettleAddr_result = await contractVault.grantSettleAddr(account1, options);
+    console.log('grantSettleAddr_result result ', grantSettleAddr_result);
 
 
-    let grantFronzenAddr_result = await contractVault.grantFronzenAddr(account1,options);
-    console.log('grantSettleAddr_result result ',grantFronzenAddr_result);
+    let grantFronzenAddr_result = await contractVault.grantFronzenAddr(account1, options);
+    console.log('grantSettleAddr_result result ', grantFronzenAddr_result);
 
 
     console.log('start create pair TokenA-TokenB');
-    let create_result_A_B = await contractChemixMain.createPair(contractTokenA.address,contractTokenB.address,options);
-    console.log('create pair result ',create_result_A_B);
-
+    let create_result_A_B = await contractChemixMain.createPair(contractTokenWBTC.address, contractTokenUSDT.address, options);
+    console.log('create pair result ', create_result_A_B);
     console.log('start create pair TokenC-TokenCHE');
-    let create_result_CCC_CHE = await contractChemixMain.createPair(contractTokenC.address,contractTokenCHE.address,options);
-    console.log('create pair result ',create_result_CCC_CHE);
+    let create_result_CCC_CHE = await contractChemixMain.createPair(contractTokenWETH.address, contractTokenUSDT.address, options);
+    console.log('create pair result ', create_result_CCC_CHE);
+    await contractChemixMain.createPair(contractTokenCEC.address, contractTokenUSDT.address, options);
+    await contractChemixMain.createPair(contractTokenWBTC.address, contractTokenCEC.address, options);
+    await contractChemixMain.createPair(contractTokenWETH.address, contractTokenCEC.address, options);
 
 
     //issue tokenA to account1
     //issue tokenB to account1
-    let tokenAIssueAcc1Res = await contractTokenA.issue(issueAmountDefault,options);
-    console.log('tokenAIssueAcc1Res ',tokenAIssueAcc1Res);
-    let tokenBIssueAcc1Res = await contractTokenB.issue(issueAmountDefault,options);
-    console.log('tokenAIssueAcc2Res ',tokenBIssueAcc1Res);
-    console.log("deployTokenC:  ", contractTokenC.address);
-    let tokenCIssueAcc1Res = await contractTokenC.issue(issueAmountDefault,options);
-    console.log('tokenCIssueAcc1Res ',tokenCIssueAcc1Res);
+    let tokenAIssueAcc1Res = await contractTokenWBTC.issue(issueAmountDefault, options);
+    console.log('tokenAIssueAcc1Res ', tokenAIssueAcc1Res);
+    await contractTokenWBTC.transfer(account2, issueAmountDefault);
 
-    console.log("deployTokenCHE:  ", contractTokenCHE.address);
-    let tokenCHEIssueAcc1Res = await contractTokenCHE.issue(issueAmountDefault,options);
-    console.log('tokenCHEIssueAcc1Res ',tokenCHEIssueAcc1Res);
+    let tokenBIssueAcc1Res = await contractTokenUSDT.issue(issueAmountDefault, options);
+    console.log('tokenAIssueAcc2Res ', tokenBIssueAcc1Res);
+    await contractTokenUSDT.transfer(account2, issueAmountDefault);
 
-    let balanceAcc1 = await contractTokenA.balanceOf(account1,options);
-    console.log('balanceA ',balanceAcc1);
-    let balanceBcc1 = await contractTokenB.balanceOf(account1,options);
-    console.log('balanceB ',balanceBcc1);
+    console.log("deployTokenC:  ", contractTokenWETH.address);
+    let tokenCIssueAcc1Res = await contractTokenWETH.issue(issueAmountDefault, options);
+    console.log('tokenCIssueAcc1Res ', tokenCIssueAcc1Res);
+    await contractTokenWETH.transfer(account2, issueAmountDefault);
 
+
+    console.log("deployTokenCHE:  ", contractTokenCEC.address);
+    let tokenCHEIssueAcc1Res = await contractTokenCEC.issue(issueAmountDefault, options);
+    console.log('tokenCHEIssueAcc1Res ', tokenCHEIssueAcc1Res);
+    await contractTokenCEC.transfer(account2, issueAmountDefault);
+
+
+    let balanceAcc1 = await contractTokenWBTC.balanceOf(account1, options);
+    console.log('balanceA ', balanceAcc1);
+    let balanceBcc1 = await contractTokenUSDT.balanceOf(account1, options);
+    console.log('balanceB ', balanceBcc1);
+
+
+    try {
+        await contractTokenCEC.approve(contractTokenProxy.address, balanceBcc1+100, options)
+    } catch (e) {
+        console.log("", e)
+    }
 
     //approve
-    let acc1ApproveTokenARes = await contractTokenA.approve(contractTokenProxy.address,balanceAcc1,options);
-    console.log('acc1ApproveTokenARes ',acc1ApproveTokenARes);
-    let acc1ApproveTokenBRes = await contractTokenB.approve(contractTokenProxy.address,balanceBcc1,options);
-    console.log('acc1ApproveTokenBRes ',acc1ApproveTokenBRes);
-    let acc1ApproveTokenCRes = await contractTokenC.approve(contractTokenProxy.address,balanceAcc1,options);
-    console.log('acc1ApproveTokenCRes ',acc1ApproveTokenCRes);
-    let acc1ApproveTokenCHERes = await contractTokenCHE.approve(contractTokenProxy.address,balanceBcc1,options);
-    console.log('acc1ApproveTokenCHERes ',acc1ApproveTokenCHERes);
+    let acc1ApproveTokenARes = await contractTokenWBTC.approve(contractTokenProxy.address, balanceAcc1, options);
+    console.log('acc1ApproveTokenARes ', acc1ApproveTokenARes);
+    let acc1ApproveTokenBRes = await contractTokenUSDT.approve(contractTokenProxy.address, balanceBcc1, options);
+    console.log('acc1ApproveTokenBRes ', acc1ApproveTokenBRes);
+    let acc1ApproveTokenCRes = await contractTokenWETH.approve(contractTokenProxy.address, balanceAcc1, options);
+    console.log('acc1ApproveTokenCRes ', acc1ApproveTokenCRes);
+    let acc1ApproveTokenCHERes = await contractTokenCEC.approve(contractTokenProxy.address, balanceBcc1, options);
+    console.log('acc1ApproveTokenCHERes ', acc1ApproveTokenCHERes);
 
-    let allowanceA = await contractTokenA.allowance(account1,contractTokenProxy.address,options);
-    console.log('allowanceA ',allowanceA);
-    let allowanceB = await contractTokenB.allowance(account1,contractTokenProxy.address,options);
-    console.log('allowanceB ',allowanceB);
+    let allowanceA = await contractTokenWBTC.allowance(account1, contractTokenProxy.address, options);
+    console.log('allowanceA ', allowanceA);
+    let allowanceB = await contractTokenUSDT.allowance(account1, contractTokenProxy.address, options);
+    console.log('allowanceB ', allowanceB);
 
-    let allowanceC = await contractTokenC.allowance(account1,contractTokenProxy.address,options);
-    console.log('allowanceC ',allowanceC);
-    let allowanceCHE = await contractTokenCHE.allowance(account1,contractTokenProxy.address,options);
-    console.log('allowanceCHE ',allowanceCHE);
+    let allowanceC = await contractTokenWETH.allowance(account1, contractTokenProxy.address, options);
+    console.log('allowanceC ', allowanceC);
+    let allowanceCHE = await contractTokenCEC.allowance(account1, contractTokenProxy.address, options);
+    console.log('allowanceCHE ', allowanceCHE);
     //
 
 
+    let authorizeCreatePair1 = await contractChemixMain.authorizeCreatePair(account1, options);
+    console.log('check_pair1 authorizeCreatePair ', authorizeCreatePair1);
 
-    //const contractTokenA = await ethers.getContractAt("TokenA",'0xF20e4447DF5D02A9717a1c9a25B8d2FBF973bE56')
+    let check_pair_result1 = await contractChemixStorage.checkPairExist(contractTokenWBTC.address, contractTokenUSDT.address, options);
+    console.log('check_pair_wbtc_usdt result ', check_pair_result1);
+    let check_pair_result2 = await contractChemixStorage.checkPairExist(contractTokenWETH.address, contractTokenUSDT.address, options);
+    console.log('check_pair_weth_usdt result ', check_pair_result2);
+    let check_pair_result3 = await contractChemixStorage.checkPairExist(contractTokenCEC.address, contractTokenUSDT.address, options);
+    console.log('check_pair_cec_usdt result ', check_pair_result3);
+    let check_pair_result4 = await contractChemixStorage.checkPairExist(contractTokenWBTC.address, contractTokenCEC.address, options);
+    console.log('check_pair_wbtc_cec result ', check_pair_result4);
+    let check_pair_result5 = await contractChemixStorage.checkPairExist(contractTokenWETH.address, contractTokenCEC.address, options);
+    console.log('check_pair_weth_cec result ', check_pair_result5);
 
+
+    //const contractTokenWBTC = await ethers.getContractAt("TokenA",'0xF20e4447DF5D02A9717a1c9a25B8d2FBF973bE56')
 
 
     //function newOrder(uint _id,string memory _baseToken, string memory _quoteToken ,uint _amount, uint _price) external returns (string memory){
     /***
-    let result = await DemoUpgrade.newOrder(1,"BTC","USDT","buy",3,4);
-    console.log('result  ',result);
-    //0x3b0536683133b13f50f1778971752086ad00d9340e564d790b9c534e0cdd76fc
-    let result2 = await DemoUpgrade.listOrders(1);
-    console.log('orders  ',result2);
+     let result = await DemoUpgrade.newOrder(1,"BTC","USDT","buy",3,4);
+     console.log('result  ',result);
+     //0x3b0536683133b13f50f1778971752086ad00d9340e564d790b9c534e0cdd76fc
+     let result2 = await DemoUpgrade.listOrders(1);
+     console.log('orders  ',result2);
      ***/
 
     //1、createpair
