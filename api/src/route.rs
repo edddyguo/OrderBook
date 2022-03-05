@@ -10,14 +10,15 @@ use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder}
 use log::info;
 use std::env;
 
-
 use chemix_models::api::list_markets as list_markets2;
-use chemix_models::order::{list_available_orders, list_users_orders, EngineOrderTmp2, get_order_volume};
-use chemix_models::trade::{list_trades};
+use chemix_models::order::{
+    get_order_volume, list_available_orders, list_users_orders, EngineOrderTmp2,
+};
+use chemix_models::snapshot::get_snapshot;
+use chemix_models::trade::list_trades;
+use chemix_models::TimeScope;
 use common::utils::time::{get_current_time, time2unix};
 use serde::{Deserialize, Serialize};
-use chemix_models::snapshot::get_snapshot;
-use chemix_models::TimeScope;
 
 use chemix_models::tokens::get_token;
 
@@ -52,7 +53,7 @@ struct DexProfile {
     TVL: f64,
     tradingPairs: u8,
     price: f64,
-    snapshot_time: u64
+    snapshot_time: u64,
 }
 
 #[derive(Serialize)]
@@ -156,11 +157,11 @@ async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
     let db_markets = list_markets2();
     let now = get_current_time();
     for db_market in db_markets {
-        let seven_day_volume = get_order_volume(TimeScope::SevenDay,&db_market.id);
-        let twenty_four_hour_volume = get_order_volume(TimeScope::TwentyFour,&db_market.id);
+        let seven_day_volume = get_order_volume(TimeScope::SevenDay, &db_market.id);
+        let twenty_four_hour_volume = get_order_volume(TimeScope::TwentyFour, &db_market.id);
         let token = get_token(db_market.base_token_symbol.as_str());
         let data = MarketInfoTmp1 {
-            id:db_market.id,
+            id: db_market.id,
             base_token_address: db_market.base_token_address,
             base_token_symbol: db_market.base_token_symbol,
             base_contract_decimal: db_market.base_contract_decimal,
@@ -169,15 +170,19 @@ async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
             quote_token_symbol: db_market.quote_token_symbol,
             quote_contract_decimal: db_market.quote_contract_decimal,
             quote_front_decimal: db_market.quote_front_decimal,
-            seven_day_volume:u256_to_f64(seven_day_volume, 15),
-            twenty_four_hour_volume:u256_to_f64(twenty_four_hour_volume, 15),
+            seven_day_volume: u256_to_f64(seven_day_volume, 15),
+            twenty_four_hour_volume: u256_to_f64(twenty_four_hour_volume, 15),
             cvt_url: token.cvt_url,
             show_cvt: token.show_cvt,
-            snapshot_time: now.clone()
+            snapshot_time: now.clone(),
         };
         markets.push(data);
     }
-    respond_json(200, "".to_string(), serde_json::to_string(&markets).unwrap())
+    respond_json(
+        200,
+        "".to_string(),
+        serde_json::to_string(&markets).unwrap(),
+    )
 }
 
 /***
@@ -215,7 +220,8 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     //todo:错误码
-    let mut available_buy_orders = list_available_orders(info.market_id.as_str(), OrderSide::Buy);
+    let mut available_buy_orders =
+        list_available_orders(info.market_id.as_str(), OrderSide::Buy);
     let mut available_sell_orders =
         list_available_orders(info.market_id.as_str(), OrderSide::Sell);
     available_buy_orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap().reverse());
@@ -403,29 +409,28 @@ async fn dex_profile() -> impl Responder {
     //current_and_yesterday_sanpshot
     let cays = get_snapshot().unwrap();
     let price = cays.0.cec_price;
-    let currentTVL = cays.0.order_volume -  cays.0.withdraw;
-    let cumulativeTransactions= cays.0.transactions as u32;
+    let currentTVL = cays.0.order_volume - cays.0.withdraw;
+    let cumulativeTransactions = cays.0.transactions as u32;
     let cumulativeTraders = cays.0.traders as u32;
     let tradingPairs = cays.0.trading_pairs as u8;
     let current_transcations = cays.0.transactions as u32;
     let snapshot_time = cays.0.snapshot_time as u64;
     let current_trade_volume = cays.0.trade_volume;
 
-
     let yesterday_traders = cays.1.traders as u32;
     let yesterday_trader_volume = cays.1.trade_volume;
     let yesterday_transcations = cays.1.transactions as u32;
-    let yesterdayTVL = cays.1.order_volume -  cays.1.withdraw;
-
-
-
+    let yesterdayTVL = cays.1.order_volume - cays.1.withdraw;
 
     let profile = DexProfile {
         cumulativeTVL: u256_to_f64(currentTVL, cec_token_decimal),
         cumulativeTransactions,
         cumulativeTraders,
         numberOfTraders: cumulativeTraders - yesterday_traders,
-        tradingVolume: u256_to_f64(current_trade_volume - yesterday_trader_volume, cec_token_decimal),
+        tradingVolume: u256_to_f64(
+            current_trade_volume - yesterday_trader_volume,
+            cec_token_decimal,
+        ),
         numberOfTransactions: current_transcations - yesterday_transcations,
         TVL: u256_to_f64(currentTVL - yesterdayTVL, cec_token_decimal),
         tradingPairs,
@@ -536,7 +541,13 @@ async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> imp
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     let account = info.account.clone().to_lowercase();
-    let trades = list_trades(Some(account.clone()), Some(info.market_id.clone()), Some(TradeStatus::Confirmed), None,info.limit);
+    let trades = list_trades(
+        Some(account.clone()),
+        Some(info.market_id.clone()),
+        Some(TradeStatus::Confirmed),
+        None,
+        info.limit,
+    );
     let trades = trades
         .iter()
         .map(|x| {

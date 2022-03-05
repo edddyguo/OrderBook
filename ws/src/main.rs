@@ -15,11 +15,11 @@ use std::env;
 use std::sync::Arc;
 
 use chemix_chain::chemix::ThawBalances2;
+use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, RwLock};
 use tokio::time;
 use warp::http::Method;
 use warp::{ws::Message, Filter, Rejection};
-use serde::{Serialize,Deserialize};
 
 mod handler;
 mod ws;
@@ -34,7 +34,7 @@ pub struct Client {
     pub sender: Option<mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
 }
 
-#[derive(Clone, Serialize, Debug,Deserialize)]
+#[derive(Clone, Serialize, Debug, Deserialize)]
 pub struct LastTrade2 {
     price: f64,
     amount: f64,
@@ -42,7 +42,7 @@ pub struct LastTrade2 {
     taker_side: String,
 }
 
-#[derive(Clone, Serialize,Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct AddBook {
     pub asks: Vec<(f64, f64)>,
     pub bids: Vec<(f64, f64)>,
@@ -190,7 +190,7 @@ async fn main() {
                 .expect("cannot receive message");
             if let Some(message) = message {
                 println!("receive new message {:?}", message);
-                let markets_depth: HashMap<String,AddBook> =
+                let markets_depth: HashMap<String, AddBook> =
                     serde_json::from_str(message.message.as_str()).unwrap();
                 for market_depth in markets_depth {
                     let event = Event {
@@ -216,7 +216,7 @@ async fn main() {
             if let Some(message) = message {
                 //println!("receive new message {:?}", message);
 
-                let last_trades: HashMap<String,Vec<LastTrade2>> =
+                let last_trades: HashMap<String, Vec<LastTrade2>> =
                     serde_json::from_str(message.message.as_str()).unwrap();
                 //遍历所有交易对逐个发送
                 for last_trade in last_trades {
@@ -229,7 +229,6 @@ async fn main() {
                     };
                     handler::publish_handler(event, clients.clone()).await;
                 }
-
 
                 rsmq.delete_message(channel_new_trade.as_str(), &message.id)
                     .await;
@@ -249,7 +248,7 @@ async fn main() {
                     serde_json::from_str(message.message.as_str()).unwrap();
                 for thaw in thaw_infos {
                     let event = Event {
-                        topic: format!("{:?}@thaws",thaw.from),
+                        topic: format!("{:?}@thaws", thaw.from),
                         //topic: format!("human"),
                         user_id: None,
                         message: serde_json::to_string(&thaw).unwrap(),

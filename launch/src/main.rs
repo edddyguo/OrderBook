@@ -26,8 +26,10 @@ use std::sync::{Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::time;
 
-use chemix_models::order::{get_last_order, BookOrder, get_order, IdOrIndex};
-use chemix_models::trade::{list_trades, update_trade, TradeInfo, update_trade_by_hash, list_trades2};
+use chemix_models::order::{get_last_order, get_order, BookOrder, IdOrIndex};
+use chemix_models::trade::{
+    list_trades, list_trades2, update_trade, update_trade_by_hash, TradeInfo,
+};
 use common::utils::algorithm::{sha2562, u8_arr_from_str};
 use common::utils::math::u256_to_f64;
 use common::utils::time::get_current_time;
@@ -39,12 +41,12 @@ use log::info;
 
 //use common::env::CONF as ENV_CONF;
 use crate::queue::Queue;
-use common::env::CONF as ENV_CONF;
 use chemix_models::thaws::{list_thaws2, Thaws};
+use common::env::CONF as ENV_CONF;
 
 use common::types::order::{Side as OrderSide, Side};
 use common::types::thaw::Status as ThawStatus;
-use common::types::trade::{Status as TradeStatus};
+use common::types::trade::Status as TradeStatus;
 
 #[macro_use]
 extern crate lazy_static;
@@ -210,59 +212,57 @@ fn gen_settle_trades(db_trades: Vec<TradeInfo>) -> Vec<SettleValues3> {
     settle_trades
 }
 
-
-fn update_depth(depth_ori: &mut AddBook2, x: &TradeInfo){
-        let amount = I256::try_from(x.amount).unwrap();
-        //maker吃掉的部分都做减法
-        match x.taker_side {
-            Side::Buy => {
-                match depth_ori.asks.get_mut(&x.price) {
-                    None => {
-                        depth_ori.asks.insert(x.price, -amount);
-                    }
-                    Some(tmp1) => {
-                        *tmp1 = tmp1.sub(amount);
-                    }
-                };
-            },
-            Side::Sell => {
-                match depth_ori.bids.get_mut(&x.price) {
-                    None => {
-                        depth_ori.bids.insert(x.price, -amount);
-                    }
-                    Some(tmp1) => {
-                        *tmp1 = tmp1.sub(amount);
-                    }
-                };
-            }
+fn update_depth(depth_ori: &mut AddBook2, x: &TradeInfo) {
+    let amount = I256::try_from(x.amount).unwrap();
+    //maker吃掉的部分都做减法
+    match x.taker_side {
+        Side::Buy => {
+            match depth_ori.asks.get_mut(&x.price) {
+                None => {
+                    depth_ori.asks.insert(x.price, -amount);
+                }
+                Some(tmp1) => {
+                    *tmp1 = tmp1.sub(amount);
+                }
+            };
         }
+        Side::Sell => {
+            match depth_ori.bids.get_mut(&x.price) {
+                None => {
+                    depth_ori.bids.insert(x.price, -amount);
+                }
+                Some(tmp1) => {
+                    *tmp1 = tmp1.sub(amount);
+                }
+            };
+        }
+    }
 }
 
-fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String,AddBook> {
-    let mut all_market_depth = HashMap::<String,AddBook2>::new();
-    let iters = trades.group_by(|a,b| {
-        a.market_id == b.market_id
-    });
+fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, AddBook> {
+    let mut all_market_depth = HashMap::<String, AddBook2>::new();
+    let iters = trades.group_by(|a, b| a.market_id == b.market_id);
     for iter in iters.into_iter() {
         //todo:底层封装
 
         let market_id = iter[0].market_id.clone();
         let mut market_AddBook2 = AddBook2 {
             asks: HashMap::new(),
-            bids: HashMap::new()
+            bids: HashMap::new(),
         };
 
-        let mut taker_order_ids =  HashSet::<String>::new();
+        let mut taker_order_ids = HashSet::<String>::new();
         //maker吃掉的部分都做减法
-        for trade in iter{
+        for trade in iter {
             taker_order_ids.insert(trade.taker_order_id.clone());
-            update_depth(&mut market_AddBook2,trade);
+            update_depth(&mut market_AddBook2, trade);
         }
 
         //taker剩余的部分为插入
         for taker_order_id in taker_order_ids {
             let taker_order = get_order(IdOrIndex::Id(taker_order_id.clone())).unwrap();
-            let matched_trades = list_trades2(taker_order_id.clone(),taker_order.hash_data.clone());
+            let matched_trades =
+                list_trades2(taker_order_id.clone(), taker_order.hash_data.clone());
             let mut matched_amount = U256::from(0);
             for matched_trade in matched_trades {
                 matched_amount += matched_trade.amount;
@@ -276,7 +276,7 @@ fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String,AddBook> {
                         .entry(taker_order.price)
                         .or_insert(I256::from(0i32));
                     *stat += I256::from_raw(remain);
-                },
+                }
                 Side::Sell => {
                     let stat = market_AddBook2
                         .asks
@@ -286,11 +286,11 @@ fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String,AddBook> {
                 }
             }
         }
-        all_market_depth.insert(market_id,market_AddBook2);
+        all_market_depth.insert(market_id, market_AddBook2);
     }
 
-    let mut all_market_depth2 = HashMap::<String,AddBook>::new();
-    for (market_id,depth_raw) in all_market_depth.iter() {
+    let mut all_market_depth2 = HashMap::<String, AddBook>::new();
+    for (market_id, depth_raw) in all_market_depth.iter() {
         let asks2 = depth_raw
             .asks
             .iter()
@@ -323,16 +323,18 @@ fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String,AddBook> {
             .filter(|(p, v)| p != &0.0 && v != &0.0)
             .collect::<Vec<(f64, f64)>>();
 
-        all_market_depth2.insert(market_id.to_string(),AddBook {
-            asks: asks2,
-            bids: bids2,
-        });
+        all_market_depth2.insert(
+            market_id.to_string(),
+            AddBook {
+                asks: asks2,
+                bids: bids2,
+            },
+        );
     }
     all_market_depth2
 }
 
-
-fn gen_depth_from_thaws(pending_thaws: Vec<Thaws>) -> AddBook{
+fn gen_depth_from_thaws(pending_thaws: Vec<Thaws>) -> AddBook {
     let mut add_depth = AddBook2 {
         asks: HashMap::<U256, I256>::new(),
         bids: HashMap::<U256, I256>::new(),
@@ -350,7 +352,7 @@ fn gen_depth_from_thaws(pending_thaws: Vec<Thaws>) -> AddBook{
                         tmp1 = &mut tmp1.sub(amount);
                     }
                 };
-            },
+            }
             Side::Sell => {
                 match add_depth.asks.get_mut(&x.price) {
                     None => {
@@ -362,7 +364,6 @@ fn gen_depth_from_thaws(pending_thaws: Vec<Thaws>) -> AddBook{
                 };
             }
         }
-
     };
 
     for pending_thaw in pending_thaws.clone() {
@@ -408,33 +409,35 @@ fn gen_depth_from_thaws(pending_thaws: Vec<Thaws>) -> AddBook{
     }
 }
 
-
-async fn deal_launched_trade(new_settlements: Vec<String>,arc_queue: Arc<RwLock<Queue>>){
+async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock<Queue>>) {
     //let mut agg_trades = Vec::<LastTrade2>::new();
-    info!("Get settlement event {:?}",new_settlements);
-    let mut agg_trades = HashMap::<String,Vec<LastTrade2>>::new();
-    let _add_depth = HashMap::<String,AddBook2>::new();
+    info!("Get settlement event {:?}", new_settlements);
+    let mut agg_trades = HashMap::<String, Vec<LastTrade2>>::new();
+    let _add_depth = HashMap::<String, AddBook2>::new();
     //目前来说一个区块里只有一个清算
     for hash_data in new_settlements {
         //todo: limit
-        let db_trades = list_trades(None,None,None,Some(hash_data.clone()),10000);
+        let db_trades = list_trades(None, None, None, Some(hash_data.clone()), 10000);
         //todo: update status 可以根据状态一次update
-        update_trade_by_hash(TradeStatus::Confirmed,hash_data);
+        update_trade_by_hash(TradeStatus::Confirmed, hash_data);
         //todo: push ws aggTrade
         //todo: push ws depth
-        for x in db_trades.clone(){
+        for x in db_trades.clone() {
             let user_price = u256_to_f64(x.price, QuoteTokenDecimal);
             let user_amount = u256_to_f64(x.amount, BaseTokenDecimal);
             if user_price != 0.0 && user_amount != 0.0 {
                 match agg_trades.get_mut(x.market_id.as_str()) {
                     None => {
-                        agg_trades.insert(x.market_id.clone(),vec![LastTrade2 {
-                            price: user_price,
-                            amount: user_amount,
-                            height: x.block_height as u32,
-                            taker_side: x.taker_side.clone(),
-                        }]);
-                    },
+                        agg_trades.insert(
+                            x.market_id.clone(),
+                            vec![LastTrade2 {
+                                price: user_price,
+                                amount: user_amount,
+                                height: x.block_height as u32,
+                                taker_side: x.taker_side.clone(),
+                            }],
+                        );
+                    }
                     Some(trades) => {
                         trades.push(LastTrade2 {
                             price: user_price,
@@ -445,14 +448,16 @@ async fn deal_launched_trade(new_settlements: Vec<String>,arc_queue: Arc<RwLock<
                     }
                 }
             }
-
         }
         let arc_queue = arc_queue.clone();
         let new_trade_queue = arc_queue.read().unwrap().NewTrade.clone();
         info!("__0001");
         if !agg_trades.is_empty() {
             let json_str = serde_json::to_string(&agg_trades).unwrap();
-            arc_queue.write().unwrap().client
+            arc_queue
+                .write()
+                .unwrap()
+                .client
                 .send_message(new_trade_queue.as_str(), json_str, None)
                 .await
                 .expect("failed to send message");
@@ -462,21 +467,22 @@ async fn deal_launched_trade(new_settlements: Vec<String>,arc_queue: Arc<RwLock<
         let new_depth_queue = arc_queue.read().unwrap().UpdateBook.clone();
         let all_markets_depth = gen_depth_from_trades(db_trades.clone());
         let json_str = serde_json::to_string(&all_markets_depth).unwrap();
-        arc_queue.write().unwrap().client
+        arc_queue
+            .write()
+            .unwrap()
+            .client
             .send_message(new_depth_queue.as_str(), json_str, None)
             .await
             .expect("failed to send message");
     }
 }
 
-async fn deal_launched_thaws(new_thaw_flags: Vec<String>,arc_queue: Arc<RwLock<Queue>>) {
+async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<Queue>>) {
     for new_thaw_flag in new_thaw_flags {
         //推解冻信息
         ////flag足够，该flag在此时全部launched
         let pending_thaws = list_thaws2(new_thaw_flag);
-        let iters = pending_thaws.group_by(|a, b| {
-            a.market_id == b.market_id
-        });
+        let iters = pending_thaws.group_by(|a, b| a.market_id == b.market_id);
 
         for iter in iters.into_iter() {
             let market_id = get_markets(iter[0].market_id.as_str()).id;
@@ -496,16 +502,14 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>,arc_queue: Arc<RwLock<Q
                     }
                     OrderSide::Buy => {
                         info!(
-                                    "available_amount {},price {},thaw_amount {}",
-                                    pending_thaw.amount,
-                                    pending_thaw.price,
-                                    pending_thaw.amount * pending_thaw.price
-                                        / token_base_decimal
-                                );
+                            "available_amount {},price {},thaw_amount {}",
+                            pending_thaw.amount,
+                            pending_thaw.price,
+                            pending_thaw.amount * pending_thaw.price / token_base_decimal
+                        );
                         (
                             market.quote_token_address,
-                            pending_thaw.amount * pending_thaw.price
-                                / token_base_decimal,
+                            pending_thaw.amount * pending_thaw.price / token_base_decimal,
                             market.quote_contract_decimal,
                         )
                     }
@@ -540,14 +544,16 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>,arc_queue: Arc<RwLock<Q
             let add_depth = gen_depth_from_thaws(iter.to_vec());
             let new_update_book_queue = arc_queue.read().unwrap().UpdateBook.clone();
             let mut market_add_depth = HashMap::new();
-            market_add_depth.insert(market_id,add_depth);
+            market_add_depth.insert(market_id, add_depth);
 
             let json_str = serde_json::to_string(&market_add_depth).unwrap();
-            arc_queue.write().unwrap().client
+            arc_queue
+                .write()
+                .unwrap()
+                .client
                 .send_message(new_update_book_queue.as_str(), json_str, None)
                 .await
                 .expect("failed to send message");
-
         }
     }
 }
@@ -562,7 +568,7 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
     //test1
     //let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
     //let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
-    let pri_key =  ENV_CONF.chemix_relayer_prikey.to_owned().unwrap();
+    let pri_key = ENV_CONF.chemix_relayer_prikey.to_owned().unwrap();
 
     let chemix_main_client =
         ChemixContractClient::new(pri_key.to_str().unwrap(), chemix_vault.to_str().unwrap());
@@ -607,7 +613,7 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                             current_height
                         );
                     } else {
-                        deal_launched_trade(new_settlements,arc_queue.clone()).await;
+                        deal_launched_trade(new_settlements, arc_queue.clone()).await;
                     }
 
                     let new_thaws = chemix_main_client_sender
@@ -622,9 +628,8 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                     if new_thaws.is_empty() {
                         info!("Not found new order created at height {}", current_height);
                     } else {
-                        deal_launched_thaws(new_thaws,arc_queue.clone()).await;
+                        deal_launched_thaws(new_thaws, arc_queue.clone()).await;
                     }
-
 
                     last_height = current_height;
                 }

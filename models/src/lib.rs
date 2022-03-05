@@ -1,10 +1,10 @@
 pub mod api;
 pub mod chain;
 pub mod order;
-pub mod thaws;
-pub mod trade;
 pub mod snapshot;
+pub mod thaws;
 pub mod tokens;
+pub mod trade;
 
 #[macro_use]
 extern crate jsonrpc_client_core;
@@ -35,10 +35,9 @@ use crate::trade::TradeInfo;
 use crate::thaws::Thaws;
 
 extern crate rustc_serialize;
+use crate::snapshot::Snapshot;
 use serde::Deserialize;
 use serde::Serialize;
-use crate::snapshot::Snapshot;
-
 
 #[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
 pub enum TimeScope {
@@ -50,15 +49,9 @@ pub enum TimeScope {
 impl TimeScope {
     pub fn filter_str(&self) -> &'static str {
         match self {
-            TimeScope::NoLimit => {
-                ""
-            },
-            TimeScope::SevenDay => {
-                "where created_at > NOW() - INTERVAL '7 day'"
-            },
-            TimeScope::TwentyFour => {
-                "where created_at > NOW() - INTERVAL '24 hour'"
-            }
+            TimeScope::NoLimit => "",
+            TimeScope::SevenDay => "where created_at > NOW() - INTERVAL '7 day'",
+            TimeScope::TwentyFour => "where created_at > NOW() - INTERVAL '24 hour'",
         }
     }
 }

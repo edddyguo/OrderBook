@@ -128,7 +128,7 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
         match topics_req.method {
             WSMethod::SUBSCRIBE => {
                 //v.topics = topics_req.params.channel;
-                for item in topics_req.params.channel{
+                for item in topics_req.params.channel {
                     if !v.topics.contains(&item) {
                         v.topics.push(item)
                     }

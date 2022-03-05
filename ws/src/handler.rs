@@ -39,7 +39,11 @@ pub async fn publish_handler(body: Event, clients: Clients) -> Result<impl Reply
             None => true,
         })
         .filter(|(_, client)| {
-            let lowercase_client_topic = client.topics.iter().map(|x| x.to_lowercase()).collect::<Vec<String>>();
+            let lowercase_client_topic = client
+                .topics
+                .iter()
+                .map(|x| x.to_lowercase())
+                .collect::<Vec<String>>();
             lowercase_client_topic.contains(&body.topic.to_lowercase())
         })
         .for_each(|(_, client)| {

@@ -1,9 +1,7 @@
 extern crate rustc_serialize;
 
-
 //#[derive(Serialize)]
 use serde::Serialize;
-
 
 /***
 create table chemix_tokens(
@@ -27,11 +25,11 @@ pub struct Token {
     pub show_cvt: bool,
 }
 
-
 pub fn list_tokens() -> Vec<Token> {
-
-    let sql = format!("select symbol,name,address,front_decimals,\
-    base_contract_decimal,cvt_url,show_cvt from chemix_tokens ");
+    let sql = format!(
+        "select symbol,name,address,front_decimals,\
+    base_contract_decimal,cvt_url,show_cvt from chemix_tokens "
+    );
     let rows = crate::query(sql.as_str()).unwrap();
     let mut tokens = Vec::new();
     info!("get_snapshot: raw sql {}", sql);
@@ -49,10 +47,12 @@ pub fn list_tokens() -> Vec<Token> {
     tokens
 }
 
-pub fn get_token(symbol:&str) -> Token {
-
-    let sql = format!("select symbol,name,address,front_decimals,\
-    base_contract_decimal,cvt_url,show_cvt from chemix_tokens where symbol='{}'",symbol);
+pub fn get_token(symbol: &str) -> Token {
+    let sql = format!(
+        "select symbol,name,address,front_decimals,\
+    base_contract_decimal,cvt_url,show_cvt from chemix_tokens where symbol='{}'",
+        symbol
+    );
     let rows = crate::query(sql.as_str()).unwrap();
     info!("get_snapshot: raw sql {}", sql);
     Token {

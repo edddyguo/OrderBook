@@ -207,7 +207,7 @@ impl ChemixContractClient {
         &mut self,
         height: U64,
         base_token: String,
-        quote_token:String
+        quote_token: String,
     ) -> Result<Vec<CancelOrderState2>> {
         let base_token = Address::from_str(base_token.as_str()).unwrap();
         let quote_token = Address::from_str(quote_token.as_str()).unwrap();
@@ -221,9 +221,7 @@ impl ChemixContractClient {
             .unwrap();
         let new_orders2 = canceled_orders
             .iter()
-            .filter(|x| {
-                x.base_token == base_token && x.quote_token == quote_token
-            })
+            .filter(|x| x.base_token == base_token && x.quote_token == quote_token)
             .map(|x| CancelOrderState2 {
                 base_token: x.base_token,
                 quote_token: x.quote_token,
@@ -323,7 +321,12 @@ impl ChemixContractClient {
     }
 
     //fixme:更合适的区分两份合约
-    pub async fn filter_new_order_event(&mut self, height: U64,base_token: String,quote_token:String) -> Result<Vec<BookOrder>> {
+    pub async fn filter_new_order_event(
+        &mut self,
+        height: U64,
+        base_token: String,
+        quote_token: String,
+    ) -> Result<Vec<BookOrder>> {
         let base_token = Address::from_str(base_token.as_str()).unwrap();
         let quote_token = Address::from_str(quote_token.as_str()).unwrap();
         let contract = ChemixStorage::new(self.contract_addr, self.client.clone());
@@ -353,9 +356,7 @@ impl ChemixContractClient {
         */
         let new_orders2 = new_orders
             .iter()
-            .filter(|x| {
-                x.base_token == base_token && x.quote_token == quote_token
-            })
+            .filter(|x| x.base_token == base_token && x.quote_token == quote_token)
             .map(|x| {
                 let now = Local::now().timestamp_millis() as u64;
                 let order_json = format!("{}{}", serde_json::to_string(&x).unwrap(), now);
@@ -394,9 +395,7 @@ impl ChemixContractClient {
 
         let settlement_flag = new_orders
             .iter()
-            .map(|x| {
-                u8_arr_to_str(x.hash_data)
-            })
+            .map(|x| u8_arr_to_str(x.hash_data))
             .collect::<Vec<String>>();
         Ok(settlement_flag)
     }
@@ -413,23 +412,25 @@ impl ChemixContractClient {
 
         let thaws_flag = new_orders
             .iter()
-            .map(|x| {
-                u8_arr_to_str(x.flag)
-            })
+            .map(|x| u8_arr_to_str(x.flag))
             .collect::<Vec<String>>();
         Ok(thaws_flag)
     }
 
-    pub async fn vault_balance_of(&mut self,token: String,from: String) -> Result<(U256,U256)> {
+    pub async fn vault_balance_of(
+        &mut self,
+        token: String,
+        from: String,
+    ) -> Result<(U256, U256)> {
         let contract = Vault::new(self.contract_addr, self.client.clone());
         let token = Address::from_str(token.as_str()).unwrap();
         let from = Address::from_str(from.as_str()).unwrap();
-        let value = contract.balance_of(token,from).call().await?;
+        let value = contract.balance_of(token, from).call().await?;
         info!("vault_balance_of result  {:?}", value);
         Ok(value)
     }
 
-    pub async fn vault_total_withdraw_volume(&self,token: String) -> Result<U256> {
+    pub async fn vault_total_withdraw_volume(&self, token: String) -> Result<U256> {
         let contract = Vault::new(self.contract_addr, self.client.clone());
         let token = Address::from_str(token.as_str()).unwrap();
         let value = contract.total_withdraw(token).call().await?;

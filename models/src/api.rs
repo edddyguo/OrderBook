@@ -3,7 +3,7 @@ extern crate rustc_serialize;
 //#[derive(Serialize)]
 use serde::Serialize;
 
-#[derive(Serialize, Debug, Default,Clone)]
+#[derive(Serialize, Debug, Default, Clone)]
 pub struct MarketInfo {
     pub id: String,
     pub base_token_address: String,
@@ -62,7 +62,6 @@ pub fn get_markets(id: &str) -> MarketInfo {
         quote_front_decimal: execute_res[0].get(8),
     }
 }
-
 
 pub fn get_markets2(id: &str) -> Option<MarketInfo> {
     let sql = format!(

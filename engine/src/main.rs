@@ -250,7 +250,11 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                         .clone()
                         .write()
                         .unwrap()
-                        .filter_new_cancel_order_created_event(current_height,crate::MARKET.base_token_address.clone(),crate::MARKET.quote_token_address.clone())
+                        .filter_new_cancel_order_created_event(
+                            current_height,
+                            crate::MARKET.base_token_address.clone(),
+                            crate::MARKET.quote_token_address.clone(),
+                        )
                         .await
                         .unwrap();
                     info!("new_cancel_orders_event {:?}", new_cancel_orders);
@@ -291,7 +295,11 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                         .clone()
                         .write()
                         .unwrap()
-                        .filter_new_order_event(current_height,crate::MARKET.base_token_address.clone(),crate::MARKET.quote_token_address.clone())
+                        .filter_new_order_event(
+                            current_height,
+                            crate::MARKET.base_token_address.clone(),
+                            crate::MARKET.quote_token_address.clone(),
+                        )
                         .await
                         .unwrap();
                     info!("new_orders_event {:?}", new_orders);
@@ -456,7 +464,7 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                 //todo: 放在luanch模块在交易确认后推送？
                 if db_trades.is_empty() {
                     let mut market_add_depth = HashMap::new();
-                    market_add_depth.insert(MARKET.id.clone(),book2);
+                    market_add_depth.insert(MARKET.id.clone(), book2);
                     let arc_queue = arc_queue.clone();
                     let update_book_queue = arc_queue.read().unwrap().UpdateBook.clone();
                     let rt = Runtime::new().unwrap();

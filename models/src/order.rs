@@ -327,34 +327,35 @@ pub fn list_users_orders(
     orders
 }
 
-
 //
-pub fn get_order_num(scope: TimeScope) -> u32{
+pub fn get_order_num(scope: TimeScope) -> u32 {
     let scope_str = scope.filter_str();
-    let sql =format!("select cast(count(1) as integer) from chemix_orders {} ",scope_str);
+    let sql = format!(
+        "select cast(count(1) as integer) from chemix_orders {} ",
+        scope_str
+    );
     let rows = crate::query(sql.as_str()).unwrap();
     rows[0].get::<usize, i32>(0) as u32
-
 }
 //
-pub fn get_order_volume(scope: TimeScope,market_id: &str) -> U256{
+pub fn get_order_volume(scope: TimeScope, market_id: &str) -> U256 {
     //select amount from chemix_orders where created_at > NOW() - INTERVAL '7 day' and  market_id='BTC-USDT';
-    let filter_str  = match scope {
+    let filter_str = match scope {
         TimeScope::NoLimit => {
-            format!("where market_id='{}' ",market_id)
+            format!("where market_id='{}' ", market_id)
         }
         TimeScope::SevenDay => {
-            format!("{} and market_id='{}' ",scope.filter_str(), market_id)
-        },
+            format!("{} and market_id='{}' ", scope.filter_str(), market_id)
+        }
         TimeScope::TwentyFour => {
-            format!("{} and market_id='{}' ",scope.filter_str(), market_id)
+            format!("{} and market_id='{}' ", scope.filter_str(), market_id)
         }
     };
-    let sql =format!("select amount from chemix_orders {}",filter_str);
+    let sql = format!("select amount from chemix_orders {}", filter_str);
     let mut sum = U256::from(0);
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
-        sum +=  U256::from_str_radix(row.get::<usize, &str>(0), 10).unwrap()
+        sum += U256::from_str_radix(row.get::<usize, &str>(0), 10).unwrap()
     }
     sum
 }
