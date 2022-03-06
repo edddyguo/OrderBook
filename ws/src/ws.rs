@@ -127,14 +127,13 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
         //todo: match  method
         match topics_req.method {
             WSMethod::SUBSCRIBE => {
-                //v.topics = topics_req.params.channel;
                 for item in topics_req.params.channel {
                     if !v.topics.contains(&item) {
                         v.topics.push(item)
                     }
                 }
 
-                //todo:不需要hash字段
+                //hash保留字段暂时没用,
                 match topics_req.params.hash.as_str() {
                     "" => {
                         v.user_address = None;
@@ -143,7 +142,7 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
                         v.user_address = Some(topics_req.params.hash.to_lowercase());
                     }
                 }
-                println!("v----topics={:?}", v.topics);
+
                 if let Some(_sender) = &v.sender {
                     //todo: 可能要推全量数据
                 }

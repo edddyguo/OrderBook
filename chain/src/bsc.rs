@@ -42,18 +42,3 @@ impl Node<Ws> {
         Ok(self.provide.watch_blocks().await?)
     }
 }
-
-/***
-impl Node<P>{
-    fn get_block(&self, height: u64) -> Result<u64> {
-        let Http2(provide) = self::Http2;
-        Ok(provide.get_block(U64::from(height)).await??.number?.as_u64())
-    }
-
-    fn gen_watcher<P>(&self, height: u64) -> Result<u64> {
-        let Ws2(watcher) = self::Http2;
-        Ok(provide.get_block(U64::from(height)).await??.number?.as_u64())
-    }
-}
-
- */

@@ -30,13 +30,13 @@ use chemix_models::order::{get_last_order, get_order, BookOrder, IdOrIndex};
 use chemix_models::trade::{
     list_trades, list_trades2, update_trade, update_trade_by_hash, TradeInfo,
 };
-use common::utils::algorithm::{sha2562, u8_arr_from_str};
+use common::utils::algorithm::{sha256, u8_arr_from_str};
 use common::utils::math::u256_to_f64;
 use common::utils::time::get_current_time;
 
 use ethers_core::abi::ethereum_types::U64;
 
-use chemix_models::api::get_markets;
+use chemix_models::market::get_markets;
 use log::info;
 
 //use common::env::CONF as ENV_CONF;
@@ -699,7 +699,7 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                         serde_json::to_string(&thaw_infos).unwrap(),
                         get_current_time()
                     );
-                    let cancel_id = sha2562(order_json);
+                    let cancel_id = u8_arr_from_str(sha256(order_json));
                     loop {
                         match thaw_client
                             .read()
@@ -744,40 +744,6 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                             ThawStatus::Launched,
                         );
                     }
-
-                    //解冻推送前端更新余额
-                    //todo: 自己推送解冻事件，深度在ws里计算？
-                    /***
-                    let arc_queue = arc_queue2.clone();
-                    let new_thaw_queue = arc_queue.read().unwrap().ThawOrder.clone();
-                    let thaw_infos2 = thaw_infos
-                        .iter()
-                        .map(|x| ThawBalances2 {
-                            token: x.token,
-                            from: x.from,
-                            amount: u256_to_f64(x.amount, x.decimal),
-                        })
-                        .collect::<Vec<ThawBalances2>>();
-                    let json_str = serde_json::to_string(&thaw_infos2).unwrap();
-                    arc_queue
-                        .write()
-                        .unwrap()
-                        .client
-                        .send_message(new_thaw_queue.as_str(), json_str, None)
-                        .await
-                        .expect("failed to send message");
-
-                    //更新深度
-                    //todo: 是否放在confirm里面去推送
-                    let add_depth = gen_depth_from_thaws(pending_thaws);
-                    let new_update_book_queue = arc_queue.read().unwrap().UpdateBook.clone();
-                    let json_str = serde_json::to_string(&add_depth).unwrap();
-                    arc_queue.write().unwrap().client
-                        .send_message(new_update_book_queue.as_str(), json_str, None)
-                        .await
-                        .expect("failed to send message");
-
-                     */
                 }
             });
         });

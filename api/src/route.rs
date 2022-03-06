@@ -10,7 +10,7 @@ use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder}
 use log::info;
 use std::env;
 
-use chemix_models::api::list_markets as list_markets2;
+use chemix_models::market::list_markets as list_markets2;
 use chemix_models::order::{
     get_order_volume, list_available_orders, list_users_orders, EngineOrderTmp2,
 };

@@ -1,7 +1,4 @@
-/**
- 将内存和数据库的撮合状态和链余额状态进行剥离
-当前模块负责同步
- */
+
 extern crate rustc_serialize;
 
 use ethers_core::types::U256;

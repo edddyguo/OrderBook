@@ -38,8 +38,6 @@ abigen!(
 pub struct ChemixContractClient {
     client: Arc<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>,
     contract_addr: H160,
-    pub last_index: Option<U256>,
-    pub last_hash_data: Option<[u8; 32]>,
 }
 
 pub struct VaultClient {
@@ -113,8 +111,6 @@ impl ChemixContractClient {
         ChemixContractClient {
             client,
             contract_addr,
-            last_index: None,
-            last_hash_data: None,
         }
     }
 
@@ -239,7 +235,6 @@ impl ChemixContractClient {
         users: Vec<ThawBalances>,
         cancel_id: [u8; 32],
     ) -> Result<Option<TransactionReceipt>> {
-        info!("test1 {:?},{:?}", self.last_index, self.last_hash_data);
         let chemix_vault = CONF.chemix_vault.to_owned();
         let vault_address = Address::from_str(chemix_vault.unwrap().to_str().unwrap()).unwrap();
         let contract = Vault::new(vault_address, self.client.clone());
@@ -263,31 +258,6 @@ impl ChemixContractClient {
         info!("thaw_balance res = {:?}", result);
         Ok(result)
     }
-
-    /***
-    pub async fn settlement_trades(&self, base_token:&str,quote_token:&str,trades : Vec<SettleValues2>) -> Result<Option<TransactionReceipt>>{
-        info!("test1 {:?},{:?}",self.last_index,self.last_hash_data);
-        let chemix_vault = CONF.chemix_vault.to_owned();
-        let contract_addr = Address::from_str(chemix_vault.unwrap().to_str().unwrap()).unwrap();
-        let contract = Vault::new(contract_addr, self.client.clone());
-
-        let base_token_address = Address::from_str(base_token).unwrap();
-        let quote_token_address = Address::from_str(quote_token).unwrap();
-        let trades2 = trades.iter().map(|x|{
-            SettleValues {
-                user: x.user,
-                positive_or_negative_1: x.positiveOrNegative1,
-                income_base_token:  x.incomeBaseToken,
-                positive_or_negative_2: x.positiveOrNegative2,
-                income_quote_token: x.incomeQuoteToken
-            }
-        }).collect::<Vec<SettleValues>>();
-        let result : Option<TransactionReceipt> = contract.settlement(base_token_address,quote_token_address,self.last_index.unwrap(),self.last_hash_data.unwrap(),trades2).legacy().send().await?.await?;
-        info!("settlement_trades res = {:?}",result);
-        Ok(result)
-    }
-
-     */
 
     pub async fn settlement_trades2(
         &self,
@@ -337,23 +307,7 @@ impl ChemixContractClient {
             .await
             .unwrap();
 
-        if !new_orders.is_empty() {
-            info!(
-                " new_order_created_filter len {:?} at height {},order_user={:?}",
-                new_orders, height, new_orders[0].order_user
-            );
-            let last_order = &new_orders[new_orders.len() - 1];
-            self.last_index = Some(last_order.order_index);
-            self.last_hash_data = Some(last_order.hash_data);
-        }
-        /***
-         .filter(|(_, client)| {
-            let lowercase_client_topic = client.topics.iter().map(|x| x.to_lowercase()).collect::<Vec<String>>();
-            lowercase_client_topic.contains(&body.topic.to_lowercase())
-        })
-           emit NewOrderCreated(baseToken, quoteToken, newHashData, orderUser, orderType,
-                index, limitPrice, orderAmount, numPower);
-        */
+        //过滤当前所在的market_id的服务引擎
         let new_orders2 = new_orders
             .iter()
             .filter(|x| x.base_token == base_token && x.quote_token == quote_token)

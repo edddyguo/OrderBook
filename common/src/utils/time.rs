@@ -13,6 +13,5 @@ pub fn time2unix(time_str: String) -> u64 {
     let dt = Utc
         .datetime_from_str(time_str.as_str(), "%Y-%m-%d %H:%M:%S.%f")
         .unwrap();
-    //let dt: DateTime<Local> = DateTime::from_str(time_str.as_str()).unwrap();
     dt.timestamp_millis() as u64
 }

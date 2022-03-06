@@ -3,7 +3,7 @@ use std::time;
 
 use ethers_core::types::U256;
 
-use chemix_models::api::{get_markets2, list_markets};
+use chemix_models::market::{get_markets2, list_markets};
 use chemix_models::order::{get_order_num, get_order_volume, get_user_number};
 use chemix_models::trade::{get_current_price2, get_trade_volume};
 use common::utils::time::get_unix_time;
@@ -101,29 +101,7 @@ async fn gen_chemix_profile(vault_client: &ChemixContractClient) {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
-    //deal market exchange info
-    /***
-    tokio::spawn(async move {
-        loop {
-            gen_kline();
-        }
-    });
-     */
 
-    //chemix profile
-    info!("0001");
-
-    /**
-       let blocking_task = tokio::task::spawn_blocking(|| {
-        // This is running on a blocking thread.
-        // Blocking here is ok.
-    });
-
-    // We can wait for the blocking task like this:
-    // If the blocking task panics, the unwrap below will propagate the
-    // panic.
-    blocking_task.await.unwrap();
-     */
     let task1 = tokio::spawn(async move {
         let chemix_vault = ENV_CONF.chemix_vault.to_owned().unwrap();
         //test1
@@ -138,6 +116,5 @@ async fn main() -> anyhow::Result<()> {
         }
     });
     let _task1_res = tokio::join!(task1);
-    info!("0002");
     Ok(())
 }

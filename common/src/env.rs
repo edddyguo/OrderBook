@@ -16,7 +16,7 @@ pub struct EnvConf {
     pub chemix_token_proxy: Option<OsString>,
     pub chemix_vault: Option<OsString>,
     pub chemix_relayer_prikey: Option<OsString>,
-    pub chemix_bot_pri_key: Option<OsString>,
+    pub chemix_bot_prikey: Option<OsString>,
 }
 
 lazy_static! {
@@ -36,7 +36,7 @@ lazy_static! {
             chemix_token_proxy: env::var_os("CHEMIX_TOKEN_PROXY"),
             chemix_vault: env::var_os("CHEMIX_VAULT"),
             chemix_relayer_prikey: env::var_os("CHEMIX_RELAYER_PRIKEY"),
-            chemix_bot_pri_key: env::var_os("CHEMIX_BOT_PRIKEY"),
+            chemix_bot_prikey: env::var_os("CHEMIX_BOT_PRIKEY"),
         }
     };
 }

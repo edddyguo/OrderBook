@@ -1,4 +1,4 @@
-pub mod api;
+pub mod market;
 pub mod chain;
 pub mod order;
 pub mod snapshot;

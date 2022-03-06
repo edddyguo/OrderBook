@@ -92,44 +92,6 @@ create table chemix_thaws(
 );
 create index idx_local_chemix_thaws_status on chemix_thaws (status);
 
-create table chemix_orders_tmp(
-  id text  primary key,
-  trader_address text ,
-  market_id text ,
-  side text ,
-  price  text ,
-  amount  text ,
-  status text ,
-  type text ,
-  available_amount  text ,
-  confirmed_amount  text ,
-  canceled_amount  text ,
-  pending_amount  text ,
-  updated_at  timestamp,
-  created_at  timestamp,
-  signature text ,
-  expire_at  bigint
-);
-
-create index  idx_local_chemix_orders_tmp_matche on chemix_orders_tmp (market_id, side, price, available_amount);
-create index  idx_local_chemix_orders_tmp_orderbook on chemix_orders_tmp (market_id, available_amount, side);
-create index  idx_local_chemix_orders_tmp_address on chemix_orders_tmp (trader_address,status);
-
--- transactions table
-create table chemix_transactions(
-  id SERIAL PRIMARY KEY,
-  transaction_hash text,
-  market_id text ,
-  status text ,
-  contract_status text ,
-  updated_at  timestamp,
-  created_at timestamp
-);
---Update index
--- create unique index idx_local_chemix_transactions_pendingTX on chemix_transactions (created_at,status,transaction_hash,id);
-create unique index idx_local_chemix_transactions_pendingtx2 on chemix_transactions (created_at, status, transaction_hash);
-
-
 create table chemix_snapshot(
   traders int default 0,
   transactions  int default 0,

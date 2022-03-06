@@ -56,16 +56,6 @@ fn with_clients(
 
 async fn ws_service(clients: Clients) {
     let health_route = warp::path!("health").and_then(handler::health_handler);
-    let _register = warp::path("register");
-
-    /***
-    let publish = warp::path!("publish")
-        .and(warp::body::json())
-        .and(with_clients(clients.clone()))
-        .and_then(handler::publish_handler);
-
-     */
-
     let ws_route = warp::path("chemix")
         .and(warp::ws())
         .and(with_clients(clients.clone()))

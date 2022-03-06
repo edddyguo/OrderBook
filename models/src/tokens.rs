@@ -1,19 +1,5 @@
 extern crate rustc_serialize;
 
-//#[derive(Serialize)]
-use serde::Serialize;
-
-/***
-create table chemix_tokens(
- symbol text primary key,
- name text,
- address text ,
- front_decimals integer,
- base_contract_decimal integer,
- cvt_url text,
- show_cvt boolean,
-);
-*/
 #[derive(Serialize, Debug, Default)]
 pub struct Token {
     pub symbol: String,

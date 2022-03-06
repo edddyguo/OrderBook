@@ -1,6 +1,5 @@
 pub mod order;
 mod queue;
-mod trade;
 
 use anyhow::Result;
 use ethers::prelude::*;
@@ -42,15 +41,15 @@ use common::utils::time::get_current_time;
 use common::utils::time::time2unix;
 use ethers_core::abi::ethereum_types::U64;
 
-use chemix_models::api::get_markets;
 use chemix_models::order::IdOrIndex::{Id, Index};
-//use common::env::CONF as ENV_CONF;
 use crate::queue::Queue;
 use common::env::CONF as ENV_CONF;
-
 use common::types::order::Status as OrderStatus;
-
 use common::types::order::Side as OrderSide;
+use chemix_models::market::{MarketInfo,get_markets};
+use chemix_models::thaws::{insert_thaws, Thaws};
+
+
 
 #[macro_use]
 extern crate lazy_static;
@@ -60,8 +59,6 @@ extern crate log;
 
 static BaseTokenDecimal: u32 = 18;
 static QuoteTokenDecimal: u32 = 15;
-use chemix_models::api::MarketInfo;
-use chemix_models::thaws::{insert_thaws, Thaws};
 
 #[derive(Clone, Serialize, Debug)]
 struct EngineBook {

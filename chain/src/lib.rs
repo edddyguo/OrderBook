@@ -22,9 +22,6 @@ lazy_static! {
     });
 }
 
-//let ws = Ws::connect("wss://localhost:8545").await?;
-
-// Use the `tokio::main` macro for using async on the main function
 pub fn sign() -> Result<()> {
     println!("in sign");
     Ok(())
