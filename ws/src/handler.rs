@@ -1,5 +1,7 @@
+use log::info;
 use crate::{ws, Client, Clients, Result};
 use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc;
 
 use warp::{http::StatusCode, ws::Message, Reply};
 
@@ -29,7 +31,7 @@ pub async fn publish_handler(body: Event, clients: Clients) -> Result<impl Reply
         data: body.message.clone(),
     };
     let respond_str = serde_json::to_string(&respond).unwrap();
-    println!("-==========={:?}", respond_str);
+    info!("respond_str {:?}", respond_str);
     clients
         .read()
         .await
@@ -48,22 +50,20 @@ pub async fn publish_handler(body: Event, clients: Clients) -> Result<impl Reply
         })
         .for_each(|(_, client)| {
             if let Some(sender) = &client.sender {
-                println!("-==========={:?}", respond_str);
-                let _ = sender.send(Ok(Message::text(respond_str.clone())));
-                println!("+++++++{:?}", respond_str);
+                sender.send(Ok(Message::text(respond_str.clone())));
             }
         });
 
     Ok(StatusCode::OK)
 }
 
-async fn register_client(id: String, _user_id: usize, clients: Clients) {
+pub async fn register_client(id: String, client_sender: mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>, clients: Clients) {
     clients.write().await.insert(
         id,
         Client {
-            topics: vec![String::from("cats")],
+            topics: vec![String::from("")],
             user_address: None,
-            sender: None,
+            sender: Some(client_sender),
         },
     );
 }

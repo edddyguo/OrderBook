@@ -11,7 +11,7 @@ use rsmq_async::{Rsmq, RsmqConnection};
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::env;
-
+use log::info;
 use std::sync::Arc;
 
 use chemix_chain::chemix::ThawBalances2;
@@ -26,6 +26,8 @@ mod ws;
 
 type Result<T> = std::result::Result<T, Rejection>;
 type Clients = Arc<RwLock<HashMap<String, Client>>>;
+type Queues = Arc<RwLock<Rsmq>>;
+
 
 #[derive(Debug, Clone)]
 pub struct Client {
@@ -50,7 +52,7 @@ pub struct AddBook {
 
 fn with_clients(
     clients: Clients,
-) -> impl Filter<Extract = (Clients,), Error = Infallible> + Clone {
+) -> impl Filter<Extract=(Clients, ), Error=Infallible> + Clone {
     warp::any().map(move || clients.clone())
 }
 
@@ -91,174 +93,163 @@ async fn ws_service(clients: Clients) {
     warp::serve(routes).run(([0, 0, 0, 0], port)).await;
 }
 
-async fn listen_msg_queue(
-    mut rsmq: Rsmq,
+async fn listen_depth(
+    rsmq: Queues,
     clients: Clients,
     queue_name: &str,
-) -> Option<String> {
-    let message = rsmq
-        .receive_message::<String>(queue_name, None)
-        .await
-        .expect("cannot receive message");
-    if let Some(message) = message {
-        println!("receive new message {:?}", message);
-        let event = Event {
-            topic: queue_name.to_string(),
-            user_id: None,
-            message: message.message.clone(),
-        };
-        handler::publish_handler(event, clients).await;
-        rsmq.delete_message(queue_name, &message.id).await;
-        return Some(message.message);
+) {
+    loop {
+        let message = rsmq.write().await
+            .receive_message::<String>(queue_name, None)
+            .await
+            .expect("cannot receive message");
+        if let Some(message) = message {
+            info!("receive new message {:?}", message);
+            let markets_depth: HashMap<String, AddBook> =
+                serde_json::from_str(message.message.as_str()).unwrap();
+            for market_depth in markets_depth {
+                let event = Event {
+                    topic: format!("{}@depth", market_depth.0),
+                    user_id: None,
+                    message: serde_json::to_string(&market_depth.1).unwrap(),
+                };
+                handler::publish_handler(event, clients.clone()).await;
+            }
+
+            rsmq.write().await.delete_message(queue_name, &message.id)
+                .await;
+        } else {
+            tokio::time::sleep(time::Duration::from_millis(10)).await;
+        }
     }
-    return None;
+}
+
+
+async fn listen_thaws(
+    rsmq: Queues,
+    clients: Clients,
+    queue_name: &str,
+) {
+    loop {
+        let message = rsmq.write().await
+            .receive_message::<String>(queue_name, None)
+            .await
+            .expect("cannot receive message");
+        if let Some(message) = message {
+            info!("receive new message {:?}", message);
+            let thaw_infos: Vec<ThawBalances2> =
+                serde_json::from_str(message.message.as_str()).unwrap();
+            for thaw in thaw_infos {
+                let event = Event {
+                    topic: format!("{:?}@thaws", thaw.from),
+                    //topic: format!("human"),
+                    user_id: None,
+                    message: serde_json::to_string(&thaw).unwrap(),
+                };
+                handler::publish_handler(event, clients.clone()).await;
+            }
+
+            rsmq.write().await.delete_message(queue_name, &message.id)
+                .await;
+        } else {
+            tokio::time::sleep(time::Duration::from_millis(10)).await;
+        }
+    }
+}
+
+
+async fn listen_trade(
+    rsmq: Queues,
+    clients: Clients,
+    queue_name: &str,
+) {
+    loop {
+        let message = rsmq.write().await
+            .receive_message::<String>(queue_name, None)
+            .await
+            .expect("cannot receive message");
+
+        if let Some(message) = message {
+            //println!("receive new message {:?}", message);
+
+            let last_trades: HashMap<String, Vec<LastTrade2>> =
+                serde_json::from_str(message.message.as_str()).unwrap();
+            //遍历所有交易对逐个发送
+            for last_trade in last_trades {
+                let json_str = serde_json::to_string(&last_trade.1).unwrap();
+                let event = Event {
+                    topic: format!("{}@aggTrade", last_trade.0),
+                    //topic: format!("human"),
+                    user_id: None,
+                    message: json_str,
+                };
+                handler::publish_handler(event, clients.clone()).await;
+            }
+
+            rsmq.write().await.delete_message(queue_name, &message.id)
+                .await;
+        } else {
+            tokio::time::sleep(time::Duration::from_millis(10)).await;
+        }
+    }
 }
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
     let clients: Clients = Arc::new(RwLock::new(HashMap::new()));
+
+    let mut rsmq = Rsmq::new(Default::default())
+        .await
+        .expect("connection failed");
+    let queues: Queues = Arc::new(RwLock::new(rsmq));
+
     let clients_ws = clients.clone();
-    let thread1 = tokio::spawn(async move {
+    let clients_thaws = clients.clone();
+    let clients_depth = clients.clone();
+    let clients_trade = clients.clone();
+    let queues_thaws = queues.clone();
+    let queues_depth = queues.clone();
+    let queues_trade = queues.clone();
+
+
+    let ws_handle = tokio::spawn(async move {
         ws_service(clients_ws).await;
     });
 
-    // 线程2
-    let thread2 = tokio::spawn(async move {
-        let mut rsmq = Rsmq::new(Default::default())
-            .await
-            .expect("connection failed");
-
-        //let plus_one = |x: i32| -> i32 { x + 1 };
-        //let mut rsmq_arc = Arc::new(RwLock::new(rsmq));
-        loop {
-            /***
-            let listen_msg_queue =  |queue_name: &str| -> Option<String> async move {
-                let message = rsmq
-                    .receive_message::<String>(queue_name, None)
-                    .await
-                    .expect("cannot receive message");
-                if let Some(message) = message {
-                    println!("receive new message {:?}", message);
-                    let event = Event {
-                        topic: queue_name.to_string(),
-                        user_id: None,
-                        message: message.message.clone(),
-                    };
-                    handler::publish_handler(event, clients).await;
-                    rsmq.delete_message(queue_name, &message.id).await;
-                    return Some(message.message);
-                }
-                return None;
-            };
-
-             */
-
-            let channel_update_book = match env::var_os("CHEMIX_MODE") {
-                None => "update_book_local".to_string(),
-                Some(mist_mode) => {
-                    format!("update_book_{}", mist_mode.into_string().unwrap())
-                }
-            };
-
-            let channel_new_trade = match env::var_os("CHEMIX_MODE") {
-                None => "new_trade_local".to_string(),
-                Some(mist_mode) => {
-                    format!("new_trade_{}", mist_mode.into_string().unwrap())
-                }
-            };
-
-            let channel_thaw_order = match env::var_os("CHEMIX_MODE") {
-                None => "thaw_order_local".to_string(),
-                Some(mist_mode) => {
-                    format!("thaw_order_{}", mist_mode.into_string().unwrap())
-                }
-            };
-
-            let message = rsmq
-                .receive_message::<String>(channel_update_book.as_str(), None)
-                .await
-                .expect("cannot receive message");
-            if let Some(message) = message {
-                println!("receive new message {:?}", message);
-                let markets_depth: HashMap<String, AddBook> =
-                    serde_json::from_str(message.message.as_str()).unwrap();
-                for market_depth in markets_depth {
-                    let event = Event {
-                        topic: format!("{}@depth", market_depth.0),
-                        //topic: format!("human"),
-                        user_id: None,
-                        message: serde_json::to_string(&market_depth.1).unwrap(),
-                    };
-                    handler::publish_handler(event, clients.clone()).await;
-                }
-
-                rsmq.delete_message(channel_update_book.as_str(), &message.id)
-                    .await;
-            } else {
-                tokio::time::sleep(time::Duration::from_millis(10)).await;
+    //最近的解冻
+    let thaws_queue = tokio::spawn(async move {
+        let channel_thaw_order = match env::var_os("CHEMIX_MODE") {
+            None => "thaw_order_local".to_string(),
+            Some(mist_mode) => {
+                format!("thaw_order_{}", mist_mode.into_string().unwrap())
             }
-
-            let message = rsmq
-                .receive_message::<String>(channel_new_trade.as_str(), None)
-                .await
-                .expect("cannot receive message");
-
-            if let Some(message) = message {
-                //println!("receive new message {:?}", message);
-
-                let last_trades: HashMap<String, Vec<LastTrade2>> =
-                    serde_json::from_str(message.message.as_str()).unwrap();
-                //遍历所有交易对逐个发送
-                for last_trade in last_trades {
-                    let json_str = serde_json::to_string(&last_trade.1).unwrap();
-                    let event = Event {
-                        topic: format!("{}@aggTrade", last_trade.0),
-                        //topic: format!("human"),
-                        user_id: None,
-                        message: json_str,
-                    };
-                    handler::publish_handler(event, clients.clone()).await;
-                }
-
-                rsmq.delete_message(channel_new_trade.as_str(), &message.id)
-                    .await;
-            } else {
-                tokio::time::sleep(time::Duration::from_millis(10)).await;
-            }
-
-            //thaw order
-            let message = rsmq
-                .receive_message::<String>(channel_thaw_order.as_str(), None)
-                .await
-                .expect("cannot receive message");
-            if let Some(message) = message {
-                //todo: for循环推送
-                println!("receive new message {:?}", message);
-                let thaw_infos: Vec<ThawBalances2> =
-                    serde_json::from_str(message.message.as_str()).unwrap();
-                for thaw in thaw_infos {
-                    let event = Event {
-                        topic: format!("{:?}@thaws", thaw.from),
-                        //topic: format!("human"),
-                        user_id: None,
-                        message: serde_json::to_string(&thaw).unwrap(),
-                    };
-                    handler::publish_handler(event, clients.clone()).await;
-                }
-
-                rsmq.delete_message(channel_thaw_order.as_str(), &message.id)
-                    .await;
-            } else {
-                tokio::time::sleep(time::Duration::from_millis(10)).await;
-            }
-
-            //let update_book = listen_msg_queue(*rsmq_arc.write().unwrap(), clients.clone(), "updateBook").await;
-            //if new_trade.is_none() && update_book.is_none() {
-            //   tokio::time::sleep(time::Duration::from_millis(10)).await;
-            //}
-        }
+        };
+        listen_thaws(queues_thaws, clients_thaws, channel_thaw_order.as_str()).await
     });
 
-    thread1.await.unwrap();
-    thread2.await.unwrap();
+    //最近成交
+    let agg_trade_queue = tokio::spawn(async move {
+        let channel_new_trade = match env::var_os("CHEMIX_MODE") {
+            None => "new_trade_local".to_string(),
+            Some(mist_mode) => {
+                format!("new_trade_{}", mist_mode.into_string().unwrap())
+            }
+        };
+        listen_trade(queues_trade, clients_trade, channel_new_trade.as_str()).await
+    });
+
+
+    //深度的增量更新
+    let depth_queue = tokio::spawn(async move {
+        let channel_update_book = match env::var_os("CHEMIX_MODE") {
+            None => "update_book_local".to_string(),
+            Some(mist_mode) => {
+                format!("update_book_{}", mist_mode.into_string().unwrap())
+            }
+        };
+        listen_depth(queues_depth, clients_depth, channel_update_book.as_str()).await
+    });
+
+    let _tasks = tokio::join!(ws_handle,depth_queue,agg_trade_queue,thaws_queue);
 }

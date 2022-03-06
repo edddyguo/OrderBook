@@ -1,4 +1,6 @@
 extern crate rustc_serialize;
+use serde::Deserialize;
+use serde::Serialize;
 
 #[derive(Serialize, Debug, Default)]
 pub struct Token {
