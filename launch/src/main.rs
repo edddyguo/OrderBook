@@ -1,7 +1,5 @@
 #![feature(slice_group_by)]
 
-mod queue;
-
 use ethers::prelude::*;
 use std::collections::{HashMap, HashSet};
 
@@ -9,7 +7,8 @@ use std::collections::{HashMap, HashSet};
 
 use chemix_chain::chemix::{ChemixContractClient, SettleValues3, ThawBalances, ThawBalances2};
 use ethers_providers::{Http, StreamExt};
-use rsmq_async::RsmqConnection;
+use rsmq_async::{Rsmq, RsmqConnection};
+use common::queue::*;
 
 use chemix_chain::bsc::Node;
 use std::string::String;
@@ -40,7 +39,6 @@ use chemix_models::market::get_markets;
 use log::info;
 
 //use common::env::CONF as ENV_CONF;
-use crate::queue::Queue;
 use chemix_models::thaws::{list_thaws2, Thaws};
 use common::env::CONF as ENV_CONF;
 
@@ -409,7 +407,7 @@ fn gen_depth_from_thaws(pending_thaws: Vec<Thaws>) -> AddBook {
     }
 }
 
-async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock<Queue>>) {
+async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock<Rsmq>>) {
     //let mut agg_trades = Vec::<LastTrade2>::new();
     info!("Get settlement event {:?}", new_settlements);
     let mut agg_trades = HashMap::<String, Vec<LastTrade2>>::new();
@@ -449,35 +447,29 @@ async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock
                 }
             }
         }
-        let arc_queue = arc_queue.clone();
-        let new_trade_queue = arc_queue.read().unwrap().NewTrade.clone();
-        info!("__0001");
+        //push update depth
         if !agg_trades.is_empty() {
             let json_str = serde_json::to_string(&agg_trades).unwrap();
             arc_queue
                 .write()
                 .unwrap()
-                .client
-                .send_message(new_trade_queue.as_str(), json_str, None)
+                .send_message(QueueType::Trade.to_string().as_str(), json_str, None)
                 .await
                 .expect("failed to send message");
         }
-        info!("__0002");
-        let arc_queue = arc_queue.clone();
-        let new_depth_queue = arc_queue.read().unwrap().UpdateBook.clone();
+        //push agg trade
         let all_markets_depth = gen_depth_from_trades(db_trades.clone());
         let json_str = serde_json::to_string(&all_markets_depth).unwrap();
         arc_queue
             .write()
             .unwrap()
-            .client
-            .send_message(new_depth_queue.as_str(), json_str, None)
+            .send_message(QueueType::Depth.to_string().as_str(), json_str, None)
             .await
             .expect("failed to send message");
     }
 }
 
-async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<Queue>>) {
+async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<Rsmq>>) {
     for new_thaw_flag in new_thaw_flags {
         //推解冻信息
         ////flag足够，该flag在此时全部launched
@@ -522,7 +514,6 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<
                 });
             }
 
-            let new_thaw_queue = arc_queue.read().unwrap().ThawOrder.clone();
             let thaw_infos2 = thaw_infos
                 .iter()
                 .map(|x| ThawBalances2 {
@@ -532,42 +523,33 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<
                 })
                 .collect::<Vec<ThawBalances2>>();
             let json_str = serde_json::to_string(&thaw_infos2).unwrap();
+
             arc_queue
                 .write()
                 .unwrap()
-                .client
-                .send_message(new_thaw_queue.as_str(), json_str, None)
+                .send_message(QueueType::Thaws.to_string().as_str(), json_str, None)
                 .await
                 .expect("failed to send message");
 
-            //更新深度信息
+            //更新单个交易对的深度信息
             let add_depth = gen_depth_from_thaws(iter.to_vec());
-            let new_update_book_queue = arc_queue.read().unwrap().UpdateBook.clone();
             let mut market_add_depth = HashMap::new();
             market_add_depth.insert(market_id, add_depth);
-
             let json_str = serde_json::to_string(&market_add_depth).unwrap();
             arc_queue
                 .write()
                 .unwrap()
-                .client
-                .send_message(new_update_book_queue.as_str(), json_str, None)
+                .send_message(QueueType::Depth.to_string().as_str(), json_str, None)
                 .await
                 .expect("failed to send message");
         }
     }
 }
 
-async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
+async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
     let mut last_height: U64 = U64::from(200u64);
     let arc_queue = Arc::new(RwLock::new(queue));
-    let arc_queue = arc_queue.clone();
-    let _arc_queue2 = arc_queue.clone();
-
     let chemix_vault = ENV_CONF.chemix_vault.to_owned().unwrap();
-    //test1
-    //let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
-    //let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
     let pri_key = ENV_CONF.chemix_relayer_prikey.to_owned().unwrap();
 
     let chemix_main_client =
@@ -816,7 +798,7 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
-    let queue = Queue::new().await;
+    let queue = Queue::regist(vec![QueueType::Trade,QueueType::Depth,QueueType::Thaws]).await;
     listen_blocks(queue).await;
     Ok(())
 }

@@ -1,5 +1,4 @@
 pub mod order;
-mod queue;
 
 use anyhow::Result;
 use ethers::prelude::*;
@@ -9,7 +8,7 @@ use std::collections::HashMap;
 
 use chemix_chain::chemix::ChemixContractClient;
 use ethers_providers::{Http, Middleware, Provider, StreamExt};
-use rsmq_async::RsmqConnection;
+use rsmq_async::{Rsmq, RsmqConnection};
 
 use chemix_chain::bsc::Node;
 use std::string::String;
@@ -42,12 +41,12 @@ use common::utils::time::time2unix;
 use ethers_core::abi::ethereum_types::U64;
 
 use chemix_models::order::IdOrIndex::{Id, Index};
-use crate::queue::Queue;
 use common::env::CONF as ENV_CONF;
 use common::types::order::Status as OrderStatus;
 use common::types::order::Side as OrderSide;
 use chemix_models::market::{MarketInfo,get_markets};
 use chemix_models::thaws::{insert_thaws, Thaws};
+use common::queue::*;
 
 
 
@@ -200,17 +199,11 @@ async fn get_balance() -> Result<()> {
     Ok(())
 }
 
-async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
-    //let host = "https://bsc-dataseed4.ninicoin.io";
-    //let host = "https://data-seed-prebsc-2-s3.binance.org:8545";
-    //let host = "http://58.33.12.252:8548";
-    //let host = "wss://bsc-ws-node.nariox.org:443"
+async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
     //todo: 重启从上次结束的块开始扫
     let mut last_height: U64 = U64::from(200u64);
     let (event_sender, event_receiver) = mpsc::sync_channel(0);
     let arc_queue = Arc::new(RwLock::new(queue));
-    let arc_queue = arc_queue.clone();
-
     let chemix_storage = ENV_CONF.chemix_storage.to_owned().unwrap();
     //test1
     //let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
@@ -463,15 +456,13 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
                     let mut market_add_depth = HashMap::new();
                     market_add_depth.insert(MARKET.id.clone(), book2);
                     let arc_queue = arc_queue.clone();
-                    let update_book_queue = arc_queue.read().unwrap().UpdateBook.clone();
                     let rt = Runtime::new().unwrap();
                     rt.block_on(async move {
                         let json_str = serde_json::to_string(&market_add_depth).unwrap();
                         arc_queue
                             .write()
                             .unwrap()
-                            .client
-                            .send_message(update_book_queue.as_str(), json_str, None)
+                            .send_message(&QueueType::Depth.to_string(), json_str, None)
                             .await
                             .expect("failed to send message");
                     });
@@ -486,7 +477,7 @@ async fn listen_blocks(queue: Queue) -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
-    let queue = Queue::new().await;
+    let queue = Queue::regist(vec![QueueType::Depth]).await;
     info!("market {}", MARKET.base_token_address);
     info!("initial book {:#?}", crate::BOOK.lock().unwrap());
     listen_blocks(queue).await;

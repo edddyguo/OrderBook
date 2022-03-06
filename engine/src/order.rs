@@ -24,17 +24,6 @@ pub struct EventOrder {
     pub amount: f64,
 }
 
-/***
-#[derive(Clone, Serialize,Debug)]
-pub struct EngineOrder {
-    pub id: String,
-    pub side: String,
-    pub price: u64,
-    pub amount: u64,
-    pub created_at: u64,
-}
-*/
-
 pub fn match_order(
     mut taker_order: BookOrder,
     trades: &mut Vec<TradeInfo>,
