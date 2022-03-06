@@ -16,6 +16,7 @@ uuid = { version = "0.4", features = ["serde", "v4"] }
 tokio-stream = "0.1.6"
 rsmq_async = "5.1.2"
 chemix-chain = { path = "../chain" }
+common = { path = "../common" }
 log = "0.4.8"
 env_logger = "0.7.1"
 

@@ -7,19 +7,22 @@ extern crate warp;
 
 use futures::TryFutureExt;
 use handler::Event;
-use rsmq_async::{Rsmq, RsmqConnection};
+use rsmq_async::{Rsmq, RsmqConnection, RsmqOptions};
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::env;
 use log::info;
 use std::sync::Arc;
 
+use common::queue::*;
 use chemix_chain::chemix::ThawBalances2;
 use serde::{Deserialize, Serialize};
+//use serde_json::Value::String;
 use tokio::sync::{mpsc, RwLock};
 use tokio::time;
 use warp::http::Method;
 use warp::{ws::Message, Filter, Rejection};
+
 
 mod handler;
 mod ws;
@@ -198,11 +201,8 @@ async fn listen_trade(
 async fn main() {
     env_logger::init();
     let clients: Clients = Arc::new(RwLock::new(HashMap::new()));
-
-    let mut rsmq = Rsmq::new(Default::default())
-        .await
-        .expect("connection failed");
-    let queues: Queues = Arc::new(RwLock::new(rsmq));
+    let queue = Queue::regist(vec![QueueType::Thaws,QueueType::Depth,QueueType::Trade]).await;
+    let queues: Queues = Arc::new(RwLock::new(queue));
 
     let clients_ws = clients.clone();
     let clients_thaws = clients.clone();
@@ -219,36 +219,18 @@ async fn main() {
 
     //最近的解冻
     let thaws_queue = tokio::spawn(async move {
-        let channel_thaw_order = match env::var_os("CHEMIX_MODE") {
-            None => "thaw_order_local".to_string(),
-            Some(mist_mode) => {
-                format!("thaw_order_{}", mist_mode.into_string().unwrap())
-            }
-        };
-        listen_thaws(queues_thaws, clients_thaws, channel_thaw_order.as_str()).await
+        listen_thaws(queues_thaws, clients_thaws, QueueType::Thaws.to_string().as_str()).await
     });
 
     //最近成交
     let agg_trade_queue = tokio::spawn(async move {
-        let channel_new_trade = match env::var_os("CHEMIX_MODE") {
-            None => "new_trade_local".to_string(),
-            Some(mist_mode) => {
-                format!("new_trade_{}", mist_mode.into_string().unwrap())
-            }
-        };
-        listen_trade(queues_trade, clients_trade, channel_new_trade.as_str()).await
+        listen_trade(queues_trade, clients_trade, QueueType::Trade.to_string().as_str()).await
     });
 
 
     //深度的增量更新
     let depth_queue = tokio::spawn(async move {
-        let channel_update_book = match env::var_os("CHEMIX_MODE") {
-            None => "update_book_local".to_string(),
-            Some(mist_mode) => {
-                format!("update_book_{}", mist_mode.into_string().unwrap())
-            }
-        };
-        listen_depth(queues_depth, clients_depth, channel_update_book.as_str()).await
+        listen_depth(queues_depth, clients_depth, QueueType::Depth.to_string().as_str()).await
     });
 
     let _tasks = tokio::join!(ws_handle,depth_queue,agg_trade_queue,thaws_queue);
