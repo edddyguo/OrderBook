@@ -126,7 +126,7 @@ fn gen_settle_trades(db_trades: Vec<TradeInfo>) -> Vec<SettleValues3> {
     for trader in db_trades.clone() {
         let base_amount = trader.amount;
         let quote_amount = trader.amount * trader.price / token_base_decimal;
-        let market = get_markets(&trader.market_id);
+        let market = get_markets(&trader.market_id).unwrap();
 
         match trader.taker_side {
             OrderSide::Buy => {
@@ -260,8 +260,8 @@ fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, AddBook> {
         for taker_order_id in taker_order_ids {
             let taker_order = get_order(IdOrIndex::Id(taker_order_id.clone())).unwrap();
             let matched_trades =
-                list_trades2(taker_order_id.clone(), taker_order.hash_data.clone());
-            let mut matched_amount = U256::from(0);
+                list_trades2(&taker_order_id, &taker_order.hash_data);
+            let mut matched_amount = U256::from(0u32);
             for matched_trade in matched_trades {
                 matched_amount += matched_trade.amount;
             }
@@ -417,7 +417,7 @@ async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock
         //todo: limit
         let db_trades = list_trades(None, None, None, Some(hash_data.clone()), 10000);
         //todo: update status 可以根据状态一次update
-        update_trade_by_hash(TradeStatus::Confirmed, hash_data);
+        update_trade_by_hash(TradeStatus::Confirmed, &hash_data);
         //todo: push ws aggTrade
         //todo: push ws depth
         for x in db_trades.clone() {
@@ -473,14 +473,14 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<
     for new_thaw_flag in new_thaw_flags {
         //推解冻信息
         ////flag足够，该flag在此时全部launched
-        let pending_thaws = list_thaws2(new_thaw_flag);
+        let pending_thaws = list_thaws2(&new_thaw_flag);
         let iters = pending_thaws.group_by(|a, b| a.market_id == b.market_id);
 
         for iter in iters.into_iter() {
-            let market_id = get_markets(iter[0].market_id.as_str()).id;
+            let market_id = get_markets(iter[0].market_id.as_str()).unwrap().id;
             let mut thaw_infos = Vec::new();
             for pending_thaw in iter.clone() {
-                let market = get_markets(pending_thaw.market_id.as_str());
+                let market = get_markets(pending_thaw.market_id.as_str()).unwrap();
                 let token_base_decimal =
                     U256::from(10u128).pow(U256::from(market.base_contract_decimal));
                 let (token_address, amount, decimal) = match pending_thaw.side {
@@ -634,7 +634,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     //todo: 可以汇总
                     let mut thaw_infos = Vec::new();
                     for pending_thaw in pending_thaws.clone() {
-                        let market = get_markets(pending_thaw.market_id.as_str());
+                        let market = get_markets(pending_thaw.market_id.as_str()).unwrap();
 
                         let token_base_decimal =
                             U256::from(10u128).pow(U256::from(market.base_contract_decimal));
@@ -777,8 +777,6 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                     }
                                 }
                             }
-                        //todo: update confirm
-
 
                         let height = receipt.block_number.unwrap().to_string().parse::<u32>().unwrap();
                         let txid = receipt.transaction_hash.to_string();

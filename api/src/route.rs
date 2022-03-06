@@ -158,7 +158,7 @@ async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
     let now = get_current_time();
     for db_market in db_markets {
         let seven_day_volume = get_order_volume(TimeScope::SevenDay, &db_market.id);
-        let twenty_four_hour_volume = get_order_volume(TimeScope::TwentyFour, &db_market.id);
+        let twenty_four_hour_volume = get_order_volume(TimeScope::OneDay, &db_market.id);
         let token = get_token(db_market.base_token_symbol.as_str());
         let data = MarketInfoTmp1 {
             id: db_market.id,

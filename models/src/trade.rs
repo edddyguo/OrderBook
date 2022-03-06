@@ -182,7 +182,7 @@ pub fn list_trades(
         let side = order::Side::from(side_str.as_str());
         let info = TradeInfo {
             id: row.get(0),
-            block_height: row.get(1), //todo: 待加逻辑
+            block_height: row.get(1),
             transaction_hash: row.get(2),
             hash_data: row.get(3),
             status: TradeStatus::from(row.get::<usize, &str>(4usize)), //row.get(3),
@@ -202,7 +202,7 @@ pub fn list_trades(
     trades
 }
 
-pub fn list_trades2(taker_order_id: String, hash_data: String) -> Vec<TradeInfo> {
+pub fn list_trades2(taker_order_id: &str, hash_data: &str) -> Vec<TradeInfo> {
     let sql = format!(
         "select \
     id,\
@@ -274,7 +274,7 @@ pub fn update_trade(
     info!("success update trade {} rows", execute_res);
 }
 
-pub fn update_trade_by_hash(status: TradeStatus, hash_data: String) {
+pub fn update_trade_by_hash(status: TradeStatus, hash_data: &str) {
     let sql = format!(
         "UPDATE chemix_trades SET (status,updated_at)=\
          ('{}','{}') WHERE hash_data='{}'",
@@ -311,7 +311,7 @@ pub fn get_trade_volume(scope: TimeScope, market_id: &str) -> U256 {
         TimeScope::SevenDay => {
             format!("{} and market_id='{}' ", scope.filter_str(), market_id)
         }
-        TimeScope::TwentyFour => {
+        TimeScope::OneDay => {
             format!("{} and market_id='{}' ", scope.filter_str(), market_id)
         }
     };

@@ -28,8 +28,6 @@ pub fn sign() -> Result<()> {
 }
 
 pub async fn listen_block() -> anyhow::Result<()> {
-    //let ganache = Ganache::new().block_time(1u64).spawn();
-    //let ws = Ws::connect(ganache.ws_endpoint()).await?;
     let ws = Ws::connect("wss://rinkeby.infura.io/ws/v3/c60b0bb42f8a4c6481ecd229eddaca27")
         .await
         .unwrap();
@@ -39,9 +37,9 @@ pub async fn listen_block() -> anyhow::Result<()> {
         println!("in sign2");
         dbg!(block);
     }
-
     Ok(())
 }
+
 #[cfg(test)]
 mod tests {
     #[test]

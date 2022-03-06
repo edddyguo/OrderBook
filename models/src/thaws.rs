@@ -94,12 +94,6 @@ impl Thaws {
     }
 }
 
-/**
-1、txid
-                        2、cancel_id
-                        3、status
-                        4、block_height
- */
 pub fn update_thaws1(
     order_id: &str,
     cancel_id: &str,
@@ -124,7 +118,7 @@ pub fn update_thaws1(
 }
 
 pub fn insert_thaws(thaw_info: Vec<Thaws>) {
-    //fixme: 批量插入
+    //todo: 批量插入
     for order in thaw_info.into_iter() {
         let order_info = struct2array(&order);
         let mut sql = format!("insert into chemix_thaws values(");
@@ -188,7 +182,7 @@ pub fn list_thaws(status: ThawStatus) -> Vec<Thaws> {
 }
 
 //flag足够，该flag在此时全部launched
-pub fn list_thaws2(flag: String) -> Vec<Thaws> {
+pub fn list_thaws2(flag: &str) -> Vec<Thaws> {
     let sql = format!(
         "select order_id,\
     account,\
@@ -203,7 +197,7 @@ pub fn list_thaws2(flag: String) -> Vec<Thaws> {
     cast(updated_at as text),\
     cast(created_at as text) from chemix_thaws \
     where thaws_hash='{}' order by created_at DESC",
-        flag.as_str()
+        flag
     );
     let mut thaws = Vec::<Thaws>::new();
     info!("list_thaws sql {}", sql);

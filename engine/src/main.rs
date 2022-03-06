@@ -82,8 +82,7 @@ lazy_static! {
             .index(1))
         .get_matches();
     let market_id : &str = matches.value_of("market_id").unwrap();
-    let market = get_markets(market_id);
-        market
+        get_markets(market_id).unwrap()
     };
 
     static ref BOOK: Mutex<EngineBook> = Mutex::new({

@@ -72,9 +72,7 @@ pub struct BookOrder {
     pub created_at: u64,
 }
 
-/**
-amount = available_amount + matched_amount + canceled_amount
-*/
+
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct OrderInfo {
     pub id: String,
@@ -239,7 +237,7 @@ pub fn get_last_order() -> Result<OrderInfo, String> {
 
 pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(
     id_or_index: T,
-) -> Result<OrderInfo, String> {
+) -> Option<OrderInfo> {
     let filter_str = match id_or_index.into() {
         IdOrIndex::Id(id) => {
             format!(" id=\'{}\'", id)
@@ -262,6 +260,9 @@ pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(
         filter_str
     );
     let rows = crate::query(sql.as_str()).unwrap();
+    if rows.is_empty() {
+        return None
+    }
     let order = OrderInfo {
         id: rows[0].get(0),
         index: U256::from(rows[0].get::<usize, i32>(1)),
@@ -278,7 +279,7 @@ pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(
         updated_at: rows[0].get(12),
         created_at: rows[0].get(13),
     };
-    Ok(order)
+    Some(order)
 }
 
 pub fn list_users_orders(
@@ -347,7 +348,7 @@ pub fn get_order_volume(scope: TimeScope, market_id: &str) -> U256 {
         TimeScope::SevenDay => {
             format!("{} and market_id='{}' ", scope.filter_str(), market_id)
         }
-        TimeScope::TwentyFour => {
+        TimeScope::OneDay => {
             format!("{} and market_id='{}' ", scope.filter_str(), market_id)
         }
     };

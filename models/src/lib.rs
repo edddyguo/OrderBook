@@ -43,7 +43,7 @@ use serde::Serialize;
 pub enum TimeScope {
     NoLimit,
     SevenDay,
-    TwentyFour,
+    OneDay,
 }
 
 impl TimeScope {
@@ -51,7 +51,7 @@ impl TimeScope {
         match self {
             TimeScope::NoLimit => "",
             TimeScope::SevenDay => "where created_at > NOW() - INTERVAL '7 day'",
-            TimeScope::TwentyFour => "where created_at > NOW() - INTERVAL '24 hour'",
+            TimeScope::OneDay => "where created_at > NOW() - INTERVAL '24 hour'",
         }
     }
 }

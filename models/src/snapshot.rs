@@ -6,17 +6,7 @@ use postgres::Row;
 use crate::struct2array;
 use serde::Serialize;
 
-/***
-  traders int default 0,
-  transactions  int default 0,
-  order_volume text default '',
-  withdraw text default '',
-  trade_volume text default '',
-  trading_pairs int default 0,
-  cec_price text default '',
-  snapshot_time bigint,
 
-*/
 #[derive(Serialize, Debug, Default)]
 pub struct Snapshot {
     pub traders: i32,
@@ -55,7 +45,7 @@ pub fn get_snapshot() -> Option<(Snapshot, Snapshot)> {
 }
 
 pub fn insert_snapshot(data: Snapshot) {
-    //fixme: 想办法批量插入
+    //todo: 批量插入
     let data_arr = struct2array(&data);
     let mut sql = format!("insert into chemix_snapshot values(");
     for i in 0..data_arr.len() {
