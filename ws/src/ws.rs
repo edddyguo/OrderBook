@@ -1,5 +1,6 @@
 use crate::{Client, Clients};
 use futures::{FutureExt, SinkExt, StreamExt};
+use log::{error, info};
 use serde::Deserialize;
 use serde_json::from_str;
 use tokio::sync::mpsc;
@@ -7,7 +8,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::ws::{Message, WebSocket};
 //use warp::filters::ws::Message;
 
-use crate::handler::PublishRespond;
+use crate::handler::{PublishRespond, register_client};
 use uuid::Uuid;
 
 #[derive(Deserialize, Debug)]
@@ -68,44 +69,31 @@ pub async fn client_connection(
 
     //insert new client
     let id = Uuid::new_v4().simple().to_string();
-    let client = Client {
-        topics: vec![],
-        user_address: None,
-        sender: Some(client_sender.clone()),
-    };
-
-    let mut test1 = clients.write().await;
-    test1.insert(id.clone(), client.clone());
-    drop(test1);
-    println!("1111---");
+    register_client(id.clone(),client_sender,clients.clone()).await;
 
     tokio::task::spawn(client_rcv.forward(client_ws_sender).map(|result| {
         if let Err(e) = result {
-            eprintln!("error sending websocket msg: {}", e);
+            error!("error sending websocket msg: {}", e);
         }
     }));
-
-    //client.sender = Some(client_sender);
 
     while let Some(result) = client_ws_rcv.next().await {
         let msg = match result {
             Ok(msg) => msg,
             Err(e) => {
-                eprintln!("error receiving ws message : {}", e);
+                error!("error receiving ws message : {}", e);
                 break;
             }
         };
-        println!("333--33");
-
         client_msg(&id, msg, &clients).await;
     }
 
     clients.write().await.remove(&id);
-    println!("{} disconnected", id);
+    info!("{} disconnected", id);
 }
 
 async fn client_msg(id: &str, msg: Message, clients: &Clients) {
-    println!("received message from {}: {:?}", id, msg);
+    info!("received message from {}: {:?}", id, msg);
     let message = match msg.to_str() {
         Ok(v) => v,
         Err(_) => return,
@@ -115,15 +103,14 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
     let topics_req: TopicsRequest2 = match from_str(&message) {
         Ok(v) => v,
         Err(e) => {
-            eprintln!("error while parsing message to topics request: {}", e);
+            error!("error while parsing message to topics request: {}", e);
             return;
         }
     };
 
     let mut locked = clients.write().await;
     if let Some(v) = locked.get_mut(id) {
-        println!("topics={:?}", topics_req.params.channel);
-        println!("topics={:?}", topics_req.method);
+        info!("new subcribe topics {:?}", topics_req.params.channel);
         //todo: match  method
         match topics_req.method {
             WSMethod::SUBSCRIBE => {
