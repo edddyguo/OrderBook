@@ -31,7 +31,7 @@ use chemix_models::trade::{
 };
 use common::utils::algorithm::{sha256, u8_arr_from_str};
 use common::utils::math::u256_to_f64;
-use common::utils::time::get_current_time;
+use common::utils::time::{get_current_time, get_unix_time};
 
 use ethers_core::abi::ethereum_types::U64;
 
@@ -260,30 +260,55 @@ fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, AddBook> {
         //taker剩余的部分为插入
         for taker_order_id in taker_order_ids {
             let taker_order = get_order(IdOrIndex::Id(taker_order_id.clone())).unwrap();
-            let matched_trades =
-                list_trades2(&taker_order_id, &taker_order.hash_data);
+            let matched_trades = list_trades2(&taker_order_id, &taker_order.hash_data,TradeStatus::Launched);
+            info!("[test_big_taker]:0000_matched_trades_{:?}",matched_trades);
             let mut matched_amount = U256::from(0u32);
             for matched_trade in matched_trades {
                 matched_amount += matched_trade.amount;
             }
 
-            let remain = taker_order.amount - matched_amount;
-            match taker_order.side {
-                Side::Buy => {
-                    let stat = market_AddBook2
-                        .bids
-                        .entry(taker_order.price)
-                        .or_insert(I256::from(0i32));
-                    *stat += I256::from_raw(remain);
+            let confirmed_trades = list_trades2(&taker_order_id, &taker_order.hash_data,TradeStatus::Confirmed);
+            //todo！判断当前taker_order_id confirm的数量，处理一个taker_order_id多次上链的情况
+            //若大额吃单,会放多个区块打包，第一次的时候将已撮合还没上链的余额更新到taker_side的方向剩余，之后上链的在该vlomue上累减
+            if confirmed_trades.is_empty(){
+                info!("[test_big_taker]:0001_taker_order.amount {},matched_amount {}",taker_order.amount,matched_amount);
+                let remain = taker_order.amount - matched_amount;
+                match taker_order.side {
+                    Side::Buy => {
+                        let stat = market_AddBook2
+                            .bids
+                            .entry(taker_order.price)
+                            .or_insert(I256::from(0i32));
+                        *stat += I256::from_raw(remain);
+                    }
+                    Side::Sell => {
+                        let stat = market_AddBook2
+                            .asks
+                            .entry(taker_order.price)
+                            .or_insert(I256::from(0i32));
+                        *stat += I256::from_raw(remain);
+                    }
                 }
-                Side::Sell => {
-                    let stat = market_AddBook2
-                        .asks
-                        .entry(taker_order.price)
-                        .or_insert(I256::from(0i32));
-                    *stat += I256::from_raw(remain);
+            }else {
+                info!("[test_big_taker]:0002_taker_order.amount {},matched_amount {}",taker_order.amount,matched_amount);
+                match taker_order.side {
+                    Side::Buy => {
+                        let stat = market_AddBook2
+                            .bids
+                            .entry(taker_order.price)
+                            .or_insert(I256::from(0i32));
+                        *stat -= I256::from_raw(matched_amount);
+                    }
+                    Side::Sell => {
+                        let stat = market_AddBook2
+                            .asks
+                            .entry(taker_order.price)
+                            .or_insert(I256::from(0i32));
+                        *stat -= I256::from_raw(matched_amount);
+                    }
                 }
             }
+
         }
         all_market_depth.insert(market_id, market_AddBook2);
     }
@@ -408,7 +433,7 @@ fn gen_depth_from_thaws(pending_thaws: Vec<Thaws>) -> AddBook {
     }
 }
 
-async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock<Rsmq>>) {
+async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock<Rsmq>>, block_height: u32) {
     //let mut agg_trades = Vec::<LastTrade2>::new();
     info!("Get settlement event {:?}", new_settlements);
     let mut agg_trades = HashMap::<String, Vec<LastTrade2>>::new();
@@ -416,9 +441,8 @@ async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock
     //目前来说一个区块里只有一个清算
     for hash_data in new_settlements {
         //todo: limit
-        let db_trades = list_trades(None, None, None, Some(hash_data.clone()), 10000);
-        //todo: update status 可以根据状态一次update
-        update_trade_by_hash(TradeStatus::Confirmed, &hash_data);
+        let db_trades = list_trades(None, None, None, Some(hash_data.clone()), Some(block_height),10000);
+
         //todo: push ws aggTrade
         //todo: push ws depth
         for x in db_trades.clone() {
@@ -448,7 +472,11 @@ async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock
                 }
             }
         }
-        //push update depth
+
+        let all_markets_depth = gen_depth_from_trades(db_trades.clone());
+        update_trade_by_hash(TradeStatus::Confirmed, &hash_data);
+
+        //push agg trade
         if !agg_trades.is_empty() {
             let json_str = serde_json::to_string(&agg_trades).unwrap();
             arc_queue
@@ -458,8 +486,8 @@ async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock
                 .await
                 .expect("failed to send message");
         }
-        //push agg trade
-        let all_markets_depth = gen_depth_from_trades(db_trades.clone());
+
+        //push update depth
         let json_str = serde_json::to_string(&all_markets_depth).unwrap();
         arc_queue
             .write()
@@ -467,6 +495,7 @@ async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock
             .send_message(QueueType::Depth.to_string().as_str(), json_str, None)
             .await
             .expect("failed to send message");
+
     }
 }
 
@@ -589,7 +618,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             current_height
                         );
                     } else {
-                        deal_launched_trade(new_settlements, arc_queue.clone()).await;
+                        deal_launched_trade(new_settlements, arc_queue.clone(),current_height.as_u32()).await;
                     }
 
                     let new_thaws = vault_listen_client
@@ -725,13 +754,14 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
         });
         //execute matched trade
         s.spawn(move |_| {
+            let mut last_launch_time = 0u64;
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
                 loop {
                     //market_orders的移除或者减少
                     let _u256_zero = U256::from(0i32);
                     //fix: 10000是经验值，放到外部参数注入
-                    let db_trades = list_trades(None, None,Some(TradeStatus::Matched), None,200);
+                    let db_trades = list_trades(None, None,Some(TradeStatus::Matched), None,None,50);
                     if db_trades.is_empty() {
                         info!("Have no matched trade need launch,and wait 5 seconds for next check");
                         tokio::time::sleep(time::Duration::from_millis(5000)).await;
@@ -748,6 +778,10 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 
                     //let mut agg_trades = Vec::new();
                     if !settle_trades.is_empty() {
+                        if  get_unix_time() - last_launch_time <= 4000 {
+                            info!("now {},last_launch_time {}",get_unix_time(),last_launch_time);
+                            tokio::time::sleep(time::Duration::from_millis(4000)).await;
+                        }
                         let mut receipt = Default::default();
                             loop {
 //                            match chemix_main_client2.read().unwrap().settlement_trades(MARKET.base_token_address.as_str(),MARKET.quote_token_address.as_str(),settle_trades.clone()).await {
@@ -755,6 +789,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 match vault_settel_client.clone().read().unwrap().settlement_trades2(last_order.index,hash_data,settle_trades.clone()).await {
                                     Ok(data) => {
                                         receipt = data.unwrap();
+                                        last_launch_time = get_unix_time();
                                         break;
                                     }
                                     Err(error) => {

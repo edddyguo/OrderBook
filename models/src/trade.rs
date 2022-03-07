@@ -109,17 +109,18 @@ pub fn list_trades(
     market_id: Option<String>,
     status: Option<TradeStatus>,
     hash_data: Option<String>,
+    block_height: Option<u32>,
     limit: u32,
 ) -> Vec<TradeInfo> {
     //todo: 待补充场景
-    let filter_str = match (user, market_id, status, hash_data) {
-        (None, None, None, None) => {
+    let filter_str = match (user, market_id, status, hash_data,block_height) {
+        (None, None, None, None,None) => {
             format!("")
         }
-        (Some(account), None, None, None) => {
+        (Some(account), None, None, None,None) => {
             format!(" where taker='{}' or maker='{}' ", account, account)
         }
-        (Some(account), Some(market_id), Some(status), None) => {
+        (Some(account), Some(market_id), Some(status), None,None) => {
             format!(
                 " where (taker='{}' or maker='{}') and status='{}' and market_id='{}' ",
                 account,
@@ -128,24 +129,24 @@ pub fn list_trades(
                 market_id.as_str()
             )
         }
-        (None, Some(id), Some(status), None) => {
+        (None, Some(id), Some(status), None,None) => {
             format!(
                 " where market_id='{}' and status='{}' ",
                 id,
                 status.as_str()
             )
         }
-        (Some(account), Some(id), None, None) => {
+        (Some(account), Some(id), None, None,None) => {
             format!(
                 " where market_id='{}' and (taker='{}' or maker='{}') ",
                 id, account, account
             )
         }
-        (None, None, Some(status), None) => {
+        (None, None, Some(status), None,None) => {
             format!(" where status='{}' ", status.as_str())
         }
-        (None, None, None, Some(hash_data)) => {
-            format!(" where hash_data='{}' ", hash_data.as_str())
+        (None, None, None, Some(hash_data),Some(height)) => {
+            format!(" where hash_data='{}' and block_height={} ", hash_data.as_str(),height)
         }
         _ => {
             unreachable!()
@@ -202,7 +203,7 @@ pub fn list_trades(
     trades
 }
 
-pub fn list_trades2(taker_order_id: &str, hash_data: &str) -> Vec<TradeInfo> {
+pub fn list_trades2(taker_order_id: &str, hash_data: &str,status: TradeStatus) -> Vec<TradeInfo> {
     let sql = format!(
         "select \
     id,\
@@ -221,8 +222,8 @@ pub fn list_trades2(taker_order_id: &str, hash_data: &str) -> Vec<TradeInfo> {
     cast(created_at as text), \
     cast(updated_at as text) \
     from chemix_trades \
-    where taker_order_id='{}' and hash_data='{}'  order by created_at DESC",
-        taker_order_id, hash_data
+    where taker_order_id='{}' and hash_data='{}'  and status='{}' order by created_at DESC",
+        taker_order_id, hash_data,status.as_str()
     );
     let mut trades: Vec<TradeInfo> = Vec::new();
     info!("list_trades_sql {}", sql);

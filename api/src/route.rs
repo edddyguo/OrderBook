@@ -307,6 +307,7 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
         Some(info.market_id.clone()),
         Some(TradeStatus::Launched),
         None,
+        None,
         info.limit,
     )
     .iter()
@@ -545,6 +546,7 @@ async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> imp
         Some(account.clone()),
         Some(info.market_id.clone()),
         Some(TradeStatus::Confirmed),
+        None,
         None,
         info.limit,
     );
