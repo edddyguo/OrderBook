@@ -18,6 +18,8 @@ serde_json = "1.0.64"
 chrono = { version = "0.4", features = ["serde"] }
 chemix-models = { path = "../models" }
 common = { path = "../common" }
+tokio = { version = "1", features = ["full"] }
+
 
 
 

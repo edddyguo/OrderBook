@@ -10,7 +10,7 @@ use chemix_chain::chemix::ChemixContractClient;
 use ethers_providers::{Http, Middleware, Provider, StreamExt};
 use rsmq_async::{Rsmq, RsmqConnection};
 
-use chemix_chain::bsc::Node;
+use chemix_chain::bsc::{gen_watcher, get_block};
 use std::string::String;
 
 use serde::Serialize;
@@ -39,6 +39,8 @@ use common::utils::math::u256_to_f64;
 use common::utils::time::get_current_time;
 use common::utils::time::time2unix;
 use ethers_core::abi::ethereum_types::U64;
+use chemix_chain::chemix::storage::Storage;
+use chemix_chain::Node;
 
 use chemix_models::order::IdOrIndex::{Id, Index};
 use common::env::CONF as ENV_CONF;
@@ -200,42 +202,32 @@ async fn get_balance() -> Result<()> {
 
 async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
     //todo: 重启从上次结束的块开始扫
+    info!("0000");
     let mut last_height: U64 = U64::from(200u64);
     let (event_sender, event_receiver) = mpsc::sync_channel(0);
     let arc_queue = Arc::new(RwLock::new(queue));
-    let chemix_storage = ENV_CONF.chemix_storage.to_owned().unwrap();
-    //test1
-    //let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
+    //不考虑安全性,随便写个私钥
     let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
-
-    let chemix_main_client =
-        ChemixContractClient::new(pri_key, chemix_storage.to_str().unwrap());
-    let chemix_main_client_arc = Arc::new(RwLock::new(chemix_main_client));
-    let _chemix_main_client_receiver = chemix_main_client_arc.clone();
-    let chemix_main_client_sender = chemix_main_client_arc.clone();
-    let _chemix_main_client_receiver2 = chemix_main_client_arc.clone();
-    let ws_url = ENV_CONF.chain_ws.to_owned().unwrap();
-    let rpc_url = ENV_CONF.chain_rpc.to_owned().unwrap();
-
-    let watcher = Node::<Ws>::new(ws_url.to_str().unwrap()).await;
-    let provider_http = Node::<Http>::new(rpc_url.to_str().unwrap());
+    let chemix_storage_client = ChemixContractClient::<Storage>::new(pri_key);
+    let chemix_storage_client = Arc::new(RwLock::new(chemix_storage_client));
 
     rayon::scope(|s| {
         //监听合约事件（新建订单和取消订单），将其发送到相应处理模块
         s.spawn(move |_| {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
-                let mut stream = watcher.gen_watcher().await.unwrap();
+                let mut watcher = gen_watcher().await;
+                let mut stream = watcher.provide.watch_blocks().await.unwrap();
                 while let Some(block) = stream.next().await {
                     info!("block {}", block);
                     info!("current_book {:#?}", crate::BOOK.lock().unwrap());
                     //last_height = last_height.add(1i32);
-                    let current_height = provider_http.get_block(block).await.unwrap().unwrap();
+                    let current_height = get_block(block).await.unwrap().unwrap();
                     //todo: 处理块高异常的情况,get block from http
                     //assert_eq!(last_height.add(1u64), current_height);
                     info!("new_orders_event {:?}", current_height);
 
-                    let new_cancel_orders = chemix_main_client_sender
+                    let new_cancel_orders = chemix_storage_client
                         .clone()
                         .write()
                         .unwrap()
@@ -280,7 +272,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         insert_thaws(pending_thaws);
                     }
 
-                    let new_orders = chemix_main_client_sender
+                    let new_orders = chemix_storage_client
                         .clone()
                         .write()
                         .unwrap()

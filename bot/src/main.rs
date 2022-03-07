@@ -18,6 +18,7 @@ use rand::Rng;
 
 use chemix_chain::chemix::ChemixContractClient;
 use clap::{App, Arg};
+use chemix_chain::chemix::chemix_main::Main;
 use common::env;
 use common::utils::math::MathOperation;
 
@@ -33,7 +34,7 @@ abigen!(
     event_derives(serde::Deserialize, serde::Serialize)
 );
 async fn new_order(
-    client: ChemixContractClient,
+    client: ChemixContractClient<Main>,
     base_token: &str,
     quote_token: &str,
     side: Side,
@@ -64,7 +65,7 @@ async fn new_order(
 
 //讨论：取消不需要两个token，全局的index
 async fn cancel_order(
-    client: ChemixContractClient,
+    client: ChemixContractClient<Main>,
     base_token: &str,
     quote_token: &str,
     index: u32,
@@ -88,7 +89,7 @@ async fn cancel_order(
     }
 }
 
-async fn auto_take_order(client: ChemixContractClient, base_token: &str, quote_token: &str) {
+async fn auto_take_order(client: ChemixContractClient<Main>, base_token: &str, quote_token: &str) {
     let base_price = 50000.0f64;
     let base_amount = 1.0f64;
     loop {
@@ -187,8 +188,7 @@ async fn main() -> anyhow::Result<()> {
     let base_token: &str = matches.value_of("base_token").unwrap();
     let quote_token: &str = matches.value_of("quote_token").unwrap();
 
-    let chemix_main_addr = env::CONF.chemix_main.to_owned().unwrap();
-    let client = ChemixContractClient::new(pri_key, chemix_main_addr.to_str().unwrap());
+    let client = ChemixContractClient::<Main>::new(pri_key);
 
     match matches.subcommand() {
         Some(("buy", sub_matches)) => {

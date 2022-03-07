@@ -7,7 +7,7 @@ use serde::Serialize;
 use crate::AddBook2;
 //use ethers::{prelude::*,types::{U256}};
 
-use chemix_chain::chemix::CancelOrderState2;
+use chemix_chain::chemix::storage::CancelOrderState2;
 
 use chemix_models::order::IdOrIndex::Index;
 use chemix_models::order::{get_order, BookOrder};

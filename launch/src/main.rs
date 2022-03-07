@@ -5,12 +5,12 @@ use std::collections::{HashMap, HashSet};
 
 //use ethers::providers::Ws;
 
-use chemix_chain::chemix::{ChemixContractClient, SettleValues3, ThawBalances, ThawBalances2};
+use chemix_chain::chemix::{ChemixContractClient, ThawBalances2};
 use ethers_providers::{Http, StreamExt};
 use rsmq_async::{Rsmq, RsmqConnection};
 use common::queue::*;
 
-use chemix_chain::bsc::Node;
+use chemix_chain::bsc::{gen_watcher, get_block};
 use std::string::String;
 
 use serde::Serialize;
@@ -37,6 +37,7 @@ use ethers_core::abi::ethereum_types::U64;
 
 use chemix_models::market::get_markets;
 use log::info;
+use chemix_chain::chemix::vault::{SettleValues3, ThawBalances, Vault};
 
 //use common::env::CONF as ENV_CONF;
 use chemix_models::thaws::{list_thaws2, Thaws};
@@ -549,40 +550,33 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<
 async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
     let mut last_height: U64 = U64::from(200u64);
     let arc_queue = Arc::new(RwLock::new(queue));
-    let chemix_vault = ENV_CONF.chemix_vault.to_owned().unwrap();
+
     let pri_key = ENV_CONF.chemix_relayer_prikey.to_owned().unwrap();
+    let chemix_vault_client = ChemixContractClient::<Vault>::new(pri_key.clone().to_str().unwrap());
+    let chemix_vault_client = Arc::new(RwLock::new(chemix_vault_client));
 
-    let chemix_main_client =
-        ChemixContractClient::new(pri_key.to_str().unwrap(), chemix_vault.to_str().unwrap());
-    let chemix_main_client_arc = Arc::new(RwLock::new(chemix_main_client));
-    let chemix_main_client_receiver = chemix_main_client_arc.clone();
-    let chemix_main_client_sender = chemix_main_client_arc.clone();
-    let _chemix_main_client_sender2 = chemix_main_client_arc.clone();
-
-    let thaw_client = chemix_main_client_arc.clone();
-    let _battel_client = chemix_main_client_arc.clone();
-    let ws_url = ENV_CONF.chain_ws.to_owned().unwrap();
-    let rpc_url = ENV_CONF.chain_rpc.to_owned().unwrap();
-
-    let watcher = Node::<Ws>::new(ws_url.to_str().unwrap()).await;
-    let provider_http = Node::<Http>::new(rpc_url.to_str().unwrap());
 
     rayon::scope(|s| {
+        let vault_listen_client = chemix_vault_client.clone();
+        let vault_thaws_client = chemix_vault_client.clone();
+        let vault_settel_client = chemix_vault_client.clone();
+
         //监听所有的settle事件并更新确认状态
         s.spawn(move |_| {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
                 //todo 过滤所有的thaws和battle，更新confirm状态,并且推ws消息（解冻，depth、aggtrade）
-                let mut stream = watcher.gen_watcher().await.unwrap();
+                let mut watcher = gen_watcher().await;
+                let mut stream = watcher.provide.watch_blocks().await.unwrap();
                 while let Some(block) = stream.next().await {
                     info!("block {}", block);
                     //last_height = last_height.add(1i32);
-                    let current_height = provider_http.get_block(block).await.unwrap().unwrap();
+                    let current_height = get_block(block).await.unwrap().unwrap();
                     //todo: 处理块高异常的情况,get block from http
                     //assert_eq!(last_height.add(1u64), current_height);
                     info!("new_orders_event {:?}", current_height);
 
-                    let new_settlements = chemix_main_client_sender
+                    let new_settlements = vault_listen_client
                         .clone()
                         .write()
                         .unwrap()
@@ -598,7 +592,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         deal_launched_trade(new_settlements, arc_queue.clone()).await;
                     }
 
-                    let new_thaws = chemix_main_client_sender
+                    let new_thaws = vault_listen_client
                         .clone()
                         .write()
                         .unwrap()
@@ -683,7 +677,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     );
                     let cancel_id = u8_arr_from_str(sha256(order_json));
                     loop {
-                        match thaw_client
+                        match vault_thaws_client.clone()
                             .read()
                             .unwrap()
                             .thaw_balances(thaw_infos.clone(), cancel_id)
@@ -754,13 +748,11 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 
                     //let mut agg_trades = Vec::new();
                     if !settle_trades.is_empty() {
-                        let chemix_main_client2 = chemix_main_client_receiver.clone();
                         let mut receipt = Default::default();
-
                             loop {
 //                            match chemix_main_client2.read().unwrap().settlement_trades(MARKET.base_token_address.as_str(),MARKET.quote_token_address.as_str(),settle_trades.clone()).await {
                                 info!("settlement_trades____ trade={:?}_index={},hash={:?}",settle_trades,last_order.index,hash_data);
-                                match chemix_main_client2.read().unwrap().settlement_trades2(last_order.index,hash_data,settle_trades.clone()).await {
+                                match vault_settel_client.clone().read().unwrap().settlement_trades2(last_order.index,hash_data,settle_trades.clone()).await {
                                     Ok(data) => {
                                         receipt = data.unwrap();
                                         break;
