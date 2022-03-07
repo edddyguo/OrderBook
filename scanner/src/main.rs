@@ -9,6 +9,7 @@ use chemix_models::trade::{get_current_price2, get_trade_volume};
 use common::utils::time::get_unix_time;
 
 use chemix_chain::chemix::ChemixContractClient;
+use chemix_chain::chemix::vault::Vault;
 use chemix_models::snapshot::{insert_snapshot, Snapshot};
 use chemix_models::TimeScope;
 
@@ -46,7 +47,7 @@ fn get_token_price(quote_symbol: &str) -> Option<U256> {
     }
 }
 
-async fn gen_chemix_profile(vault_client: &ChemixContractClient) {
+async fn gen_chemix_profile(vault_client: &ChemixContractClient<Vault>) {
     //todo: 从链上拿
     let mut current_withdraw_value = U256::from(0);
     for token in list_tokens() {
@@ -108,8 +109,7 @@ async fn main() -> anyhow::Result<()> {
         //let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
         let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
 
-        let chemix_vault_client =
-            ChemixContractClient::new(pri_key, chemix_vault.to_str().unwrap());
+        let chemix_vault_client = ChemixContractClient::<Vault>::new(pri_key);
         loop {
             gen_chemix_profile(&chemix_vault_client).await;
             tokio::time::sleep(time::Duration::from_secs(ONE_HOUR)).await;
