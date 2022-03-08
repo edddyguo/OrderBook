@@ -47,7 +47,7 @@ pub fn match_order(
                         account: taker_order.account.clone(),
                         side: taker_order.side.clone(),
                         price: taker_order.price,
-                        amount: taker_order.amount,
+                        amount: taker_order.available_amount,
                         created_at: get_unix_time()
                     });
                     book.buy
@@ -101,7 +101,7 @@ pub fn match_order(
                         account: taker_order.account.clone(),
                         side: taker_order.side.clone(),
                         price: taker_order.price,
-                        amount: taker_order.amount,
+                        amount: taker_order.available_amount,
                         created_at: get_unix_time()
                     });
                     book.sell
