@@ -30,10 +30,7 @@ use tokio::runtime::Runtime;
 
 use clap::{App, Arg};
 
-use chemix_models::order::{
-    get_order, insert_order, list_available_orders, update_order, BookOrder, EngineOrder,
-    OrderInfo, UpdateOrder,
-};
+use chemix_models::order::{get_order, insert_order, list_available_orders, update_order, BookOrder, EngineOrder, OrderInfo, UpdateOrder, get_last_order};
 use chemix_models::trade::{insert_trades, TradeInfo};
 
 use common::utils::math::u256_to_f64;
@@ -216,97 +213,93 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 let mut watcher = gen_watcher().await;
                 let mut stream = watcher.provide.watch_blocks().await.unwrap();
                 while let Some(block) = stream.next().await {
-                    let current_height = get_block(block).await.unwrap().unwrap();
-                    info!("block {:?},current_height {}", block,current_height);
-                    //tokio::time::sleep(time::Duration::from_millis(20000)).await;
                     info!("current_book {:#?}", crate::BOOK.lock().unwrap());
-                    //last_height = last_height.add(1i32);
-                    let current_height = get_block(block).await.unwrap().unwrap();
-                    //todo: 处理块高异常的情况,get block from http
-                    //assert_eq!(last_height.add(1u64), current_height);
-                    info!("new_orders_event {:?}", current_height);
-
-                    //取消订单
-                    let new_cancel_orders = chemix_storage_client
-                        .clone()
-                        .write()
-                        .unwrap()
-                        .filter_new_cancel_order_created_event(
-                            current_height,
-                            crate::MARKET.base_token_address.clone(),
-                            crate::MARKET.quote_token_address.clone(),
-                        )
-                        .await
-                        .unwrap();
-                    info!("new_cancel_orders_event {:?}", new_cancel_orders);
-                    let legal_orders = cancel(new_cancel_orders.clone());
-                    if legal_orders.is_empty() {
-                        info!(
+                    let current_height = get_block(block).await.unwrap().unwrap().as_u32();
+                    let last_height = get_last_order().unwrap().block_height;
+                    //防止ws推送的数据有跳空的情况，以及系统重启的时候历史区块的处理
+                    for height in last_height+1..=current_height {
+                        info!("deal with block {:?},height {}", block,height);
+                        //取消订单
+                        let new_cancel_orders = chemix_storage_client
+                            .clone()
+                            .write()
+                            .unwrap()
+                            .filter_new_cancel_order_created_event(
+                                height,
+                                crate::MARKET.base_token_address.clone(),
+                                crate::MARKET.quote_token_address.clone(),
+                            )
+                            .await
+                            .unwrap();
+                        info!("new_cancel_orders_event {:?}", new_cancel_orders);
+                        let legal_orders = cancel(new_cancel_orders.clone());
+                        if legal_orders.is_empty() {
+                            info!(
                             "Not found legal_cancel orders created at height {}",
-                            current_height
+                            height
                         );
-                    } else {
-                        let mut pending_thaws = Vec::new();
-                        for cancel_order in legal_orders {
-                            let order =
-                                get_order(Index(cancel_order.order_index.as_u32())).unwrap();
-                            let update_info = UpdateOrder {
-                                id: order.id.clone(),
-                                status: OrderStatus::PreCanceled,
-                                available_amount: order.available_amount,
-                                matched_amount: order.matched_amount,
-                                canceled_amount: order.available_amount,
-                                updated_at: get_current_time(),
-                            };
-                            //todo: 批量更新
-                            update_order(&update_info);
-                            pending_thaws.push(Thaws::new(
-                                order.id.clone(),
-                                Address::from_str(order.account.as_str()).unwrap(),
-                                order.market_id,
-                                order.available_amount,
-                                order.price,
-                                order.side.clone(),
-                            ));
+                        } else {
+                            let mut pending_thaws = Vec::new();
+                            for cancel_order in legal_orders {
+                                let order =
+                                    get_order(Index(cancel_order.order_index.as_u32())).unwrap();
+                                let update_info = UpdateOrder {
+                                    id: order.id.clone(),
+                                    status: OrderStatus::PreCanceled,
+                                    available_amount: order.available_amount,
+                                    matched_amount: order.matched_amount,
+                                    canceled_amount: order.available_amount,
+                                    updated_at: get_current_time(),
+                                };
+                                //todo: 批量更新
+                                update_order(&update_info);
+                                pending_thaws.push(Thaws::new(
+                                    order.id.clone(),
+                                    Address::from_str(order.account.as_str()).unwrap(),
+                                    order.market_id,
+                                    order.available_amount,
+                                    order.price,
+                                    order.side.clone(),
+                                ));
+                            }
+                            insert_thaws(pending_thaws);
                         }
-                        insert_thaws(pending_thaws);
-                    }
 
-                    //过滤新下订单
-                    let new_orders = chemix_storage_client
-                        .clone()
-                        .write()
-                        .unwrap()
-                        .filter_new_order_event(
-                            current_height,
-                            crate::MARKET.base_token_address.clone(),
-                            crate::MARKET.quote_token_address.clone(),
-                        )
-                        .await
-                        .unwrap();
-                    info!("new_orders_event {:?}", new_orders);
+                        //过滤新下订单
+                        let new_orders = chemix_storage_client
+                            .clone()
+                            .write()
+                            .unwrap()
+                            .filter_new_order_event(
+                                height,
+                                crate::MARKET.base_token_address.clone(),
+                                crate::MARKET.quote_token_address.clone(),
+                            )
+                            .await
+                            .unwrap();
+                        info!("new_orders_event {:?}", new_orders);
 
-                    if new_orders.is_empty() {
-                        info!("Not found new order created at height {}", current_height);
-                    } else {
-                        let mut db_new_orders = Vec::new();
-                        for order in new_orders {
-                            let base_decimal = crate::MARKET.base_contract_decimal as u32;
-                            let raw_amount = if base_decimal > order.num_power {
-                                order.amount * U256::from(10u32).pow(U256::from(base_decimal - order.num_power))
-                            }else {
-                                order.amount / U256::from(10u32).pow(U256::from(order.num_power - base_decimal))
-                            };
-                            //todo: 非法数据过滤
-                            db_new_orders.push(OrderInfo::new(
-                                order.id,  order.index, current_height.as_u32(), order.hash_data, crate::MARKET.id.to_string(),
-                                order.account, order.side, order.price,raw_amount));
+                        if new_orders.is_empty() {
+                            info!("Not found new order created at height {}", height);
+                        } else {
+                            let mut db_new_orders = Vec::new();
+                            for order in new_orders {
+                                let base_decimal = crate::MARKET.base_contract_decimal as u32;
+                                let raw_amount = if base_decimal > order.num_power {
+                                    order.amount * U256::from(10u32).pow(U256::from(base_decimal - order.num_power))
+                                }else {
+                                    order.amount / U256::from(10u32).pow(U256::from(order.num_power - base_decimal))
+                                };
+                                //todo: 非法数据过滤
+                                db_new_orders.push(OrderInfo::new(
+                                    order.id,  order.index, height, order.hash_data, crate::MARKET.id.to_string(),
+                                    order.account, order.side, order.price,raw_amount));
+                            }
+                            event_sender
+                                .send(db_new_orders)
+                                .expect("failed to send orders");
                         }
-                        event_sender
-                            .send(db_new_orders)
-                            .expect("failed to send orders");
                     }
-                    last_height = current_height;
                 }
             });
         });
