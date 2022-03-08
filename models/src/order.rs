@@ -164,6 +164,20 @@ pub fn update_order(order: &UpdateOrder) {
     info!("success update order {} rows", execute_res);
 }
 
+pub fn update_order_status(status: OrderStatus,order_id: &str) {
+    // todo:考虑数据后期增加的问题，做每日的临时表
+    let sql = format!(
+        "UPDATE chemix_orders SET (status,updated_at)=\
+         ('{}','{}') WHERE id='{}'",
+        status.as_str(),
+        get_current_time(),
+        order_id
+    );
+    info!("start update order {} ", sql);
+    let execute_res = crate::execute(sql.as_str()).unwrap();
+    info!("success update order {} rows", execute_res);
+}
+
 pub fn list_available_orders(market_id: &str, side: order::Side) -> Vec<EngineOrder> {
     let sql = format!(
         "select id,\
@@ -284,10 +298,19 @@ pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(
 
 pub fn list_users_orders(
     account: &str,
-    status1: order::Status,
-    status2: order::Status,
+    status_arr: Vec<order::Status>,
     limit: u32,
 ) -> Vec<EngineOrderTmp1> {
+
+    let mut status_filter = "(".to_string();
+    for (index,status) in status_arr.iter().enumerate() {
+        let filter = if index < status_arr.len() - 1 {
+            format!("'{}',",status.as_str())
+        }else {
+            format!("'{}')",status.as_str())
+        };
+        status_filter += filter.as_str();
+    }
     let sql = format!(
         "select id,index,\
     account,\
@@ -296,10 +319,9 @@ pub fn list_users_orders(
     side,\
     status,\
     cast(created_at as text) from chemix_orders \
-    where account='{}' and (status=\'{}\' or status=\'{}\') order by created_at DESC limit {}",
+    where account='{}' and status in {} order by created_at DESC limit {}",
         account,
-        status1.as_str(),
-        status2.as_str(),
+        status_filter,
         limit
     );
     info!("list_users_orders raw sql {}", sql);

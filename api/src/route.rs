@@ -492,8 +492,7 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
     let account = info.account.clone().to_lowercase();
     let orders = list_users_orders(
         account.as_str(),
-        OrderStatus::from("pending"),
-        OrderStatus::from("partial_filled"),
+        vec![OrderStatus::Pending,OrderStatus::PreCanceled,OrderStatus::PartialFilled],
         info.limit,
     );
     let orders = orders

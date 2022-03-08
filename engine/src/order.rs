@@ -221,6 +221,9 @@ pub fn cancel(new_cancel_orders: Vec<CancelOrderState2>) -> Vec<CancelOrderState
             },
             OrderStatus::Canceled => {
                 warn!("Have already Canceled");
+            },
+            OrderStatus::PreCanceled => {
+                warn!("Have already Canceled");
             }
             OrderStatus::Abandoned => {
                 todo!()

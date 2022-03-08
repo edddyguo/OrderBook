@@ -15,6 +15,8 @@ pub enum Status {
     PartialFilled,
     #[serde(rename = "pending")]
     Pending,
+    #[serde(rename = "pre_canceled")]
+    PreCanceled,
     #[serde(rename = "canceled")]
     Canceled,
     #[serde(rename = "abandoned")]
@@ -28,6 +30,7 @@ impl Status {
             Self::Abandoned => "abandoned",
             Self::PartialFilled => "partial_filled",
             Self::Pending => "pending",
+            Self::PreCanceled => "pre_canceled",
             Self::Canceled => "canceled",
         }
     }
@@ -39,6 +42,7 @@ impl From<&str> for Status {
             "full_filled" => Self::FullFilled,
             "partial_filled" => Self::PartialFilled,
             "pending" => Self::Pending,
+            "pre_canceled" => Self::PreCanceled,
             "canceled" => Self::Canceled,
             "abandoned" => Self::Abandoned,
             _ => unreachable!(),

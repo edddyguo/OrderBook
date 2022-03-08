@@ -145,8 +145,8 @@ pub fn list_trades(
         (None, None, Some(status), None,None) => {
             format!(" where status='{}' ", status.as_str())
         }
-        (None, None, None, Some(hash_data),Some(height)) => {
-            format!(" where hash_data='{}' and block_height={} ", hash_data.as_str(),height)
+        (None, None, Some(status), Some(hash_data),Some(height)) => {
+            format!(" where status='{}' and hash_data='{}' and block_height={} ", status.as_str(),hash_data.as_str(),height)
         }
         _ => {
             unreachable!()
@@ -275,13 +275,14 @@ pub fn update_trade(
     info!("success update trade {} rows", execute_res);
 }
 
-pub fn update_trade_by_hash(status: TradeStatus, hash_data: &str) {
+pub fn update_trade_by_hash(status: TradeStatus, hash_data: &str,block_height: u32) {
     let sql = format!(
         "UPDATE chemix_trades SET (status,updated_at)=\
-         ('{}','{}') WHERE hash_data='{}'",
+         ('{}','{}') WHERE hash_data='{}' and block_height={}",
         status.as_str(),
         get_current_time(),
         hash_data,
+        block_height
     );
     info!("start update trade {} ", sql);
     let execute_res = crate::execute(sql.as_str()).unwrap();

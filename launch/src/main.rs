@@ -25,7 +25,7 @@ use std::sync::{Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::time;
 
-use chemix_models::order::{get_last_order, get_order, BookOrder, IdOrIndex};
+use chemix_models::order::{get_last_order, get_order, BookOrder, IdOrIndex, update_order, update_order_status};
 use chemix_models::trade::{
     list_trades, list_trades2, update_trade, update_trade_by_hash, TradeInfo,
 };
@@ -46,6 +46,7 @@ use common::env::CONF as ENV_CONF;
 use common::types::order::{Side as OrderSide, Side};
 use common::types::thaw::Status as ThawStatus;
 use common::types::trade::Status as TradeStatus;
+use common::types::order::Status as OrderStatus;
 
 #[macro_use]
 extern crate lazy_static;
@@ -441,7 +442,7 @@ async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock
     //目前来说一个区块里只有一个清算
     for hash_data in new_settlements {
         //todo: limit
-        let db_trades = list_trades(None, None, None, Some(hash_data.clone()), Some(block_height),10000);
+        let db_trades = list_trades(None, None, Some(TradeStatus::Launched), Some(hash_data.clone()), Some(block_height),10000);
 
         //todo: push ws aggTrade
         //todo: push ws depth
@@ -474,7 +475,7 @@ async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock
         }
 
         let all_markets_depth = gen_depth_from_trades(db_trades.clone());
-        update_trade_by_hash(TradeStatus::Confirmed, &hash_data);
+        update_trade_by_hash(TradeStatus::Confirmed, &hash_data,block_height);
 
         //push agg trade
         if !agg_trades.is_empty() {
@@ -618,6 +619,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             current_height
                         );
                     } else {
+                        tokio::time::sleep(time::Duration::from_millis(1000)).await;
                         deal_launched_trade(new_settlements, arc_queue.clone(),current_height.as_u32()).await;
                     }
 
@@ -748,6 +750,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             height,
                             ThawStatus::Launched,
                         );
+                        update_order_status(OrderStatus::Canceled,pending_thaw.order_id.as_str());
                     }
                 }
             });
@@ -778,9 +781,9 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 
                     //let mut agg_trades = Vec::new();
                     if !settle_trades.is_empty() {
-                        if  get_unix_time() - last_launch_time <= 4000 {
+                        if  get_unix_time() - last_launch_time <= 10000 {
                             info!("now {},last_launch_time {}",get_unix_time(),last_launch_time);
-                            tokio::time::sleep(time::Duration::from_millis(4000)).await;
+                            tokio::time::sleep(time::Duration::from_millis(10000)).await;
                         }
                         let mut receipt = Default::default();
                             loop {

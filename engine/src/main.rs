@@ -227,6 +227,9 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     //assert_eq!(last_height.add(1u64), current_height);
                     info!("new_orders_event {:?}", current_height);
 
+
+
+                    //今天取消订单
                     let new_cancel_orders = chemix_storage_client
                         .clone()
                         .write()
@@ -252,7 +255,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 get_order(Index(cancel_order.order_index.as_u32())).unwrap();
                             let update_info = UpdateOrder {
                                 id: order.id.clone(),
-                                status: OrderStatus::Canceled,
+                                status: OrderStatus::PreCanceled,
                                 available_amount: U256::from(0i32),
                                 matched_amount: order.matched_amount,
                                 canceled_amount: order.available_amount,
@@ -272,6 +275,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         insert_thaws(pending_thaws);
                     }
 
+                    //过滤新下订单
                     let new_orders = chemix_storage_client
                         .clone()
                         .write()
