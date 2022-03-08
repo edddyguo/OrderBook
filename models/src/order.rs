@@ -66,8 +66,6 @@ pub struct EngineOrderTmp2 {
 pub struct BookOrder {
     pub id: String,
     pub account: String,
-    pub index: U256,
-    pub hash_data: String,
     pub side: OrderSide,
     pub price: U256,
     pub amount: U256,
@@ -78,7 +76,8 @@ pub struct BookOrder {
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct OrderInfo {
     pub id: String,
-    pub index: U256,
+    pub index: u32,
+    pub block_height: u32,
     pub hash_data: String,
     pub market_id: String,
     pub account: String,
@@ -102,7 +101,8 @@ pub struct MarketVolume {
 impl OrderInfo {
     pub fn new(
         id: String,
-        index: U256,
+        index: u32,
+        block_height: u32,
         hash_data: String,
         market_id: String,
         account: String,
@@ -113,6 +113,7 @@ impl OrderInfo {
         OrderInfo {
             id,
             index,
+            block_height,
             hash_data,
             market_id,
             account,
@@ -222,7 +223,7 @@ pub enum IdOrIndex {
 
 pub fn get_last_order() -> Result<OrderInfo, String> {
     let sql = format!(
-        "select id,index,hash_data,market_id,account,side,
+        "select id,index,block_height,hash_data,market_id,account,side,
          price,\
          amount,\
          status,\
@@ -236,19 +237,20 @@ pub fn get_last_order() -> Result<OrderInfo, String> {
     let rows = crate::query(sql.as_str()).unwrap();
     let order = OrderInfo {
         id: rows[0].get(0),
-        index: U256::from(rows[0].get::<usize, i32>(1)),
-        hash_data: rows[0].get(2),
-        market_id: rows[0].get(3),
-        account: rows[0].get(4),
-        side: OrderSide::from(rows[0].get::<usize, &str>(5usize)), //rows[0].get(4),
-        price: U256::from_str_radix(rows[0].get::<usize, &str>(6usize), 10).unwrap(),
-        amount: U256::from_str_radix(rows[0].get::<usize, &str>(7usize), 10).unwrap(),
-        status: order::Status::from(rows[0].get::<usize, &str>(8usize)),
-        available_amount: U256::from_str_radix(rows[0].get::<usize, &str>(9usize), 10).unwrap(),
-        matched_amount: U256::from_str_radix(rows[0].get::<usize, &str>(10usize), 10).unwrap(),
-        canceled_amount: U256::from_str_radix(rows[0].get::<usize, &str>(11usize), 10).unwrap(),
-        updated_at: rows[0].get(12),
-        created_at: rows[0].get(13),
+        index: rows[0].get::<usize, i32>(1) as u32,
+        block_height: rows[0].get::<usize, i32>(2) as u32,
+        hash_data: rows[0].get(3),
+        market_id: rows[0].get(4),
+        account: rows[0].get(5),
+        side: OrderSide::from(rows[0].get::<usize, &str>(6usize)), //rows[0].get(4),
+        price: U256::from_str_radix(rows[0].get::<usize, &str>(7usize), 10).unwrap(),
+        amount: U256::from_str_radix(rows[0].get::<usize, &str>(8usize), 10).unwrap(),
+        status: order::Status::from(rows[0].get::<usize, &str>(9usize)),
+        available_amount: U256::from_str_radix(rows[0].get::<usize, &str>(10usize), 10).unwrap(),
+        matched_amount: U256::from_str_radix(rows[0].get::<usize, &str>(11usize), 10).unwrap(),
+        canceled_amount: U256::from_str_radix(rows[0].get::<usize, &str>(12usize), 10).unwrap(),
+        updated_at: rows[0].get(13),
+        created_at: rows[0].get(14),
     };
     Ok(order)
 }
@@ -265,7 +267,7 @@ pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(
         }
     };
     let sql = format!(
-        "select id,index,hash_data,market_id,account,side,
+        "select id,index,block_height,hash_data,market_id,account,side,
          price,\
          amount,\
          status,\
@@ -283,19 +285,20 @@ pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(
     }
     let order = OrderInfo {
         id: rows[0].get(0),
-        index: U256::from(rows[0].get::<usize, i32>(1)),
-        hash_data: rows[0].get(2),
-        market_id: rows[0].get(3),
-        account: rows[0].get(4),
-        side: OrderSide::from(rows[0].get::<usize, &str>(5usize)), //rows[0].get(4),
-        price: U256::from_str_radix(rows[0].get::<usize, &str>(6usize), 10).unwrap(),
-        amount: U256::from_str_radix(rows[0].get::<usize, &str>(7usize), 10).unwrap(),
-        status: order::Status::from(rows[0].get::<usize, &str>(8usize)),
-        available_amount: U256::from_str_radix(rows[0].get::<usize, &str>(9usize), 10).unwrap(),
-        matched_amount: U256::from_str_radix(rows[0].get::<usize, &str>(10usize), 10).unwrap(),
-        canceled_amount: U256::from_str_radix(rows[0].get::<usize, &str>(11usize), 10).unwrap(),
-        updated_at: rows[0].get(12),
-        created_at: rows[0].get(13),
+        index: rows[0].get::<usize, i32>(1) as u32,
+        block_height: rows[0].get::<usize, i32>(2) as u32,
+        hash_data: rows[0].get(3),
+        market_id: rows[0].get(4),
+        account: rows[0].get(5),
+        side: OrderSide::from(rows[0].get::<usize, &str>(6usize)), //rows[0].get(4),
+        price: U256::from_str_radix(rows[0].get::<usize, &str>(7usize), 10).unwrap(),
+        amount: U256::from_str_radix(rows[0].get::<usize, &str>(8usize), 10).unwrap(),
+        status: order::Status::from(rows[0].get::<usize, &str>(9usize)),
+        available_amount: U256::from_str_radix(rows[0].get::<usize, &str>(10usize), 10).unwrap(),
+        matched_amount: U256::from_str_radix(rows[0].get::<usize, &str>(11usize), 10).unwrap(),
+        canceled_amount: U256::from_str_radix(rows[0].get::<usize, &str>(12usize), 10).unwrap(),
+        updated_at: rows[0].get(13),
+        created_at: rows[0].get(14),
     };
     Some(order)
 }
@@ -391,19 +394,20 @@ pub fn list_users_orders2(
     for row in rows {
         let info = OrderInfo {
             id: row.get(0),
-            index: U256::from(row.get::<usize, i32>(1)),
-            hash_data: row.get(2),
-            market_id: row.get(3),
-            account: row.get(4),
-            side: OrderSide::from(row.get::<usize, &str>(5usize)), //row.get(4),
-            price: U256::from_str_radix(row.get::<usize, &str>(6usize), 10).unwrap(),
-            amount: U256::from_str_radix(row.get::<usize, &str>(7usize), 10).unwrap(),
-            status: order::Status::from(row.get::<usize, &str>(8usize)),
-            available_amount: U256::from_str_radix(row.get::<usize, &str>(9usize), 10).unwrap(),
-            matched_amount: U256::from_str_radix(row.get::<usize, &str>(10usize), 10).unwrap(),
-            canceled_amount: U256::from_str_radix(row.get::<usize, &str>(11usize), 10).unwrap(),
-            updated_at: row.get(12),
-            created_at: row.get(13),
+            index: row.get::<usize, i32>(1) as u32,
+            block_height: row.get::<usize, i32>(2) as u32,
+            hash_data: row.get(3),
+            market_id: row.get(4),
+            account: row.get(5),
+            side: OrderSide::from(row.get::<usize, &str>(6usize)), //row.get(4),
+            price: U256::from_str_radix(row.get::<usize, &str>(7usize), 10).unwrap(),
+            amount: U256::from_str_radix(row.get::<usize, &str>(8usize), 10).unwrap(),
+            status: order::Status::from(row.get::<usize, &str>(9usize)),
+            available_amount: U256::from_str_radix(row.get::<usize, &str>(10usize), 10).unwrap(),
+            matched_amount: U256::from_str_radix(row.get::<usize, &str>(11usize), 10).unwrap(),
+            canceled_amount: U256::from_str_radix(row.get::<usize, &str>(12usize), 10).unwrap(),
+            updated_at: row.get(13),
+            created_at: row.get(14),
         };
         orders.push(info);
     }

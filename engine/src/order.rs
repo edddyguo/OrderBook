@@ -4,17 +4,19 @@ use std::ops::{Add, Sub};
 
 use serde::Serialize;
 
-use crate::AddBook2;
+use crate::{AddBook, AddBook2};
 //use ethers::{prelude::*,types::{U256}};
 
 use chemix_chain::chemix::storage::CancelOrderState2;
 
 use chemix_models::order::IdOrIndex::Index;
-use chemix_models::order::{get_order, BookOrder};
+use chemix_models::order::{get_order, BookOrder, OrderInfo};
 use chemix_models::trade::TradeInfo;
-use common::types::order::Status as OrderStatus;
+use common::types::order::{Side, Status as OrderStatus};
 
 use common::types::order::Side as OrderSide;
+use common::utils::math::u256_to_f64;
+use common::utils::time::get_unix_time;
 
 #[derive(RustcEncodable, Clone, Serialize)]
 pub struct EventOrder {
@@ -25,9 +27,8 @@ pub struct EventOrder {
 }
 
 pub fn match_order(
-    mut taker_order: BookOrder,
+    mut taker_order: &mut OrderInfo,
     trades: &mut Vec<TradeInfo>,
-    orders: &mut AddBook2,
     marker_reduced_orders: &mut HashMap<String, U256>,
 ) -> U256 {
     let u256_zero = U256::from(0i32);
@@ -36,28 +37,26 @@ pub fn match_order(
     'marker_orders: loop {
         match &taker_order.side {
             OrderSide::Buy => {
+                //不能吃单的直接挂单
                 if book.sell.is_empty() || taker_order.price < book.sell.first().unwrap().price
                 {
-                    //此时一定是有吃单剩余
-                    info!("______0001__{:?}", orders.asks.get(&taker_order.price));
-                    let stat = orders
-                        .bids
-                        .entry(taker_order.price.clone())
-                        .or_insert(I256::from(0i32));
-                    *stat += I256::from_raw(taker_order.amount);
-
-                    info!("______0002__{:?}", orders.bids.get(&taker_order.price));
-
                     //insert this order by compare price and created_at
                     //fixme:tmpcode,优化，还有时间排序的问题
-                    book.buy.push(taker_order);
+                    book.buy.push(BookOrder{
+                        id: taker_order.id.clone(),
+                        account: taker_order.account.clone(),
+                        side: taker_order.side.clone(),
+                        price: taker_order.price,
+                        amount: taker_order.amount,
+                        created_at: get_unix_time()
+                    });
                     book.buy
                         .sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
                     book.buy.reverse();
                     break 'marker_orders;
                 } else {
                     let mut marker_order = book.sell[0].clone();
-                    let matched_amount = std::cmp::min(taker_order.amount, marker_order.amount);
+                    let matched_amount = std::cmp::min(taker_order.available_amount, marker_order.amount);
 
                     trades.push(TradeInfo::new(
                         crate::MARKET.id.clone(),
@@ -70,29 +69,21 @@ pub fn match_order(
                         taker_order.id.clone(),
                     ));
 
-                    //update asks
-                    let stat = orders
-                        .asks
-                        .entry(marker_order.price.clone())
-                        .or_insert(I256::from(0i32));
-                    *stat -= I256::from_raw(matched_amount);
-
                     //get marker_order change value
                     marker_reduced_orders.insert(marker_order.id.clone(), matched_amount);
-
                     marker_order.amount = marker_order.amount.sub(matched_amount);
                     //todo: 不在去减，用total_matched_amount 判断
-                    taker_order.amount = taker_order.amount.sub(matched_amount);
+                    taker_order.available_amount = taker_order.available_amount.sub(matched_amount);
                     total_matched_amount = total_matched_amount.add(matched_amount);
-                    if marker_order.amount != u256_zero && taker_order.amount == u256_zero {
+                    if marker_order.amount != u256_zero && taker_order.available_amount == u256_zero {
                         book.sell[0] = marker_order;
                         break 'marker_orders;
                     } else if marker_order.amount == u256_zero
-                        && taker_order.amount != u256_zero
+                        && taker_order.available_amount != u256_zero
                     {
                         book.sell.remove(0);
                     } else if marker_order.amount == u256_zero
-                        && taker_order.amount == u256_zero
+                        && taker_order.available_amount == u256_zero
                     {
                         book.sell.remove(0);
                         break 'marker_orders;
@@ -103,25 +94,22 @@ pub fn match_order(
             }
             OrderSide::Sell => {
                 if book.buy.is_empty() || taker_order.price > book.buy.first().unwrap().price {
-                    //此时一定是有吃单剩余
-                    info!("______0003__{:?}", orders.asks.get(&taker_order.price));
-                    let stat = orders
-                        .asks
-                        .entry(taker_order.price.clone())
-                        .or_insert(I256::from(0i32));
-                    *stat += I256::from_raw(taker_order.amount);
-
-                    info!("______0004__{:?}", orders.asks.get(&taker_order.price));
-
                     //insert this order by compare price and created_at
                     //fixme:tmpcode,优化，还有时间的问题
-                    book.sell.push(taker_order);
+                    book.sell.push(BookOrder{
+                        id: taker_order.id.clone(),
+                        account: taker_order.account.clone(),
+                        side: taker_order.side.clone(),
+                        price: taker_order.price,
+                        amount: taker_order.amount,
+                        created_at: get_unix_time()
+                    });
                     book.sell
                         .sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
                     break 'marker_orders;
                 } else {
                     let mut marker_order = book.buy[0].clone();
-                    let matched_amount = std::cmp::min(taker_order.amount, marker_order.amount);
+                    let matched_amount = std::cmp::min(taker_order.available_amount, marker_order.amount);
 
                     trades.push(TradeInfo::new(
                         crate::MARKET.id.clone(),
@@ -134,29 +122,22 @@ pub fn match_order(
                         taker_order.id.clone(),
                     ));
 
-                    //info!("gen new trade {:?}",trades);
-                    //update asks
-                    let stat = orders
-                        .bids
-                        .entry(marker_order.price.clone())
-                        .or_insert(I256::from(0i32));
-                    *stat -= I256::from_raw(matched_amount);
-
                     //get change marker order
                     marker_reduced_orders.insert(marker_order.id.clone(), matched_amount);
 
                     marker_order.amount = marker_order.amount.sub(matched_amount);
-                    taker_order.amount = taker_order.amount.sub(matched_amount);
+                    taker_order.available_amount = taker_order.available_amount.sub(matched_amount);
                     total_matched_amount = total_matched_amount.add(matched_amount);
-                    if marker_order.amount != u256_zero && taker_order.amount == u256_zero {
+                    if marker_order.amount != u256_zero && taker_order.available_amount == u256_zero {
+                        //todo: 本身此时也是在index0
                         book.buy[0] = marker_order;
                         break 'marker_orders;
                     } else if marker_order.amount == u256_zero
-                        && taker_order.amount != u256_zero
+                        && taker_order.available_amount != u256_zero
                     {
                         book.buy.remove(0);
                     } else if marker_order.amount == u256_zero
-                        && taker_order.amount == u256_zero
+                        && taker_order.available_amount == u256_zero
                     {
                         book.buy.remove(0);
                         break 'marker_orders;
@@ -168,14 +149,7 @@ pub fn match_order(
         }
     }
 
-    //todo: update orders and trades in psql
-
-    //drop(book);
-    //info!("current book = {:?}",crate::BOOK.lock().unwrap());
     info!("current book = {:?}", book);
-    //match_trade.id = sha256(serde_json::to_string(&match_trade).unwrap());
-
-    //(add_depth, trades)
     total_matched_amount
 }
 
@@ -233,6 +207,67 @@ pub fn cancel(new_cancel_orders: Vec<CancelOrderState2>) -> Vec<CancelOrderState
     legal_orders
 }
 
-pub fn flush() {
-    todo!()
+//根据未成交的订单生成深度数据
+pub fn gen_depth_from_order(orders: Vec<OrderInfo>) -> HashMap<String,AddBook>{
+    let mut raw_depth = AddBook2 {
+        asks: HashMap::new(),
+        bids: HashMap::new(),
+    };
+
+    for order in orders {
+        match order.side {
+            Side::Buy => {
+                let stat = raw_depth
+                    .bids
+                    .entry(order.price)
+                    .or_insert(I256::from(0i32));
+                *stat += I256::from_raw(order.amount);
+            }
+            Side::Sell => {
+                let stat = raw_depth
+                    .asks
+                    .entry(order.price)
+                    .or_insert(I256::from(0i32));
+                *stat += I256::from_raw(order.amount);
+            }
+        }
+    }
+
+    let base_decimal = crate::MARKET.base_contract_decimal as u32;
+    let quote_decimal = crate::MARKET.quote_contract_decimal as u32;
+
+    let asks = raw_depth
+        .asks
+        .iter()
+        .map(|(x, y)| {
+            let user_price = u256_to_f64(x.to_owned(), quote_decimal);
+            let user_volume = if y < &I256::from(0u32) {
+                u256_to_f64(y.abs().into_raw(), base_decimal) * -1.0f64
+            } else {
+                u256_to_f64(y.abs().into_raw(), base_decimal)
+            };
+
+            (user_price, user_volume)
+        })
+        .filter(|(p, v)| p != &0.0 && v != &0.0)
+        .collect::<Vec<(f64, f64)>>();
+
+    let bids = raw_depth
+        .bids
+        .iter()
+        .map(|(x, y)| {
+            let user_price = u256_to_f64(x.to_owned(), quote_decimal);
+            let user_volume = if y < &I256::from(0u32) {
+                u256_to_f64(y.abs().into_raw(), base_decimal) * -1.0f64
+            } else {
+                u256_to_f64(y.abs().into_raw(), base_decimal)
+            };
+            (user_price, user_volume)
+        })
+        .filter(|(p, v)| p != &0.0 && v != &0.0)
+        .collect::<Vec<(f64, f64)>>();
+
+    let mut market_add_depth = HashMap::new();
+    market_add_depth.insert(crate::MARKET.id.clone(), AddBook { asks, bids});
+    market_add_depth
 }

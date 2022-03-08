@@ -179,6 +179,7 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
         Some(trade) => {
             values.push(trade.id.string4sql());
             values.push(trade.index.to_string());
+            values.push(trade.block_height.to_string());
             values.push(trade.hash_data.string4sql());
             values.push(trade.market_id.string4sql());
             values.push(trade.account.string4sql());

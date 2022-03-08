@@ -21,9 +21,10 @@ use std::fmt::Debug;
 use std::ops::Sub;
 use std::str::FromStr;
 
-use crate::order::{cancel, match_order};
+use crate::order::{cancel, gen_depth_from_order, match_order};
 use std::sync::Mutex;
 use std::sync::{mpsc, Arc, RwLock};
+use std::time;
 
 use tokio::runtime::Runtime;
 
@@ -95,8 +96,6 @@ lazy_static! {
         let mut available_sell2 = available_sell.iter().map(|x|{
             BookOrder {
                 id: x.id.clone(),
-                index: U256::from(0i8),
-                hash_data: "".to_string(),
                 account: x.account.clone(),
                 side: x.side.clone(),
                 price: x.price,
@@ -112,8 +111,6 @@ lazy_static! {
         let mut available_buy2 = available_buy.iter().map(|x|{
             BookOrder {
                 id: x.id.clone(),
-                index: U256::from(0i8), //todo
-                hash_data: "".to_string(),
                 account: x.account.clone(),
                 side: x.side.clone(),
                 price: x.price,
@@ -219,7 +216,9 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 let mut watcher = gen_watcher().await;
                 let mut stream = watcher.provide.watch_blocks().await.unwrap();
                 while let Some(block) = stream.next().await {
-                    info!("block {}", block);
+                    let current_height = get_block(block).await.unwrap().unwrap();
+                    info!("block {:?},current_height {}", block,current_height);
+                    //tokio::time::sleep(time::Duration::from_millis(20000)).await;
                     info!("current_book {:#?}", crate::BOOK.lock().unwrap());
                     //last_height = last_height.add(1i32);
                     let current_height = get_block(block).await.unwrap().unwrap();
@@ -227,9 +226,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     //assert_eq!(last_height.add(1u64), current_height);
                     info!("new_orders_event {:?}", current_height);
 
-
-
-                    //今天取消订单
+                    //取消订单
                     let new_cancel_orders = chemix_storage_client
                         .clone()
                         .write()
@@ -292,8 +289,21 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     if new_orders.is_empty() {
                         info!("Not found new order created at height {}", current_height);
                     } else {
+                        let mut db_new_orders = Vec::new();
+                        for order in new_orders {
+                            let base_decimal = crate::MARKET.base_contract_decimal as u32;
+                            let raw_amount = if base_decimal > order.num_power {
+                                order.amount * U256::from(10u32).pow(U256::from(base_decimal - order.num_power))
+                            }else {
+                                order.amount / U256::from(10u32).pow(U256::from(order.num_power - base_decimal))
+                            };
+                            //todo: 非法数据过滤
+                            db_new_orders.push(OrderInfo::new(
+                                order.id,  order.index, current_height.as_u32(), order.hash_data, crate::MARKET.id.to_string(),
+                                order.account, order.side, order.price,raw_amount));
+                        }
                         event_sender
-                            .send(new_orders)
+                            .send(db_new_orders)
                             .expect("failed to send orders");
                     }
                     last_height = current_height;
@@ -303,7 +313,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 
         s.spawn(move |_| {
             loop {
-                let orders: Vec<BookOrder> =
+                let mut orders: Vec<OrderInfo> =
                     event_receiver.recv().expect("failed to recv book order");
                 println!(
                     "[listen_blocks: receive] New order Event {:?},base token {:?}",
@@ -311,57 +321,41 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 );
                 //TODO: matched order
                 //update OrderBook
-                let mut add_depth = AddBook2 {
-                    asks: HashMap::<U256, I256>::new(),
-                    bids: HashMap::<U256, I256>::new(),
-                };
 
                 let mut db_trades = Vec::<TradeInfo>::new();
-                let mut db_orders = Vec::<OrderInfo>::new();
                 //market_orders的移除或者减少
                 let mut db_marker_orders_reduce = HashMap::<String, U256>::new();
                 let u256_zero = U256::from(0i32);
 
-                for (index, order) in orders.into_iter().enumerate() {
-                    let mut db_order = OrderInfo::new(
-                        order.id.clone(),
-                        order.index.clone(),
-                        order.hash_data.clone(),
-                        MARKET.id.clone(),
-                        order.account.clone(),
-                        order.side.clone(),
-                        order.price.clone(),
-                        order.amount.clone(),
-                    );
-                    let matched_amount = match_order(
-                        order,
+                for (index, db_order) in orders.iter_mut().enumerate() {
+                    let _matched_amount = match_order(
+                        db_order,
                         &mut db_trades,
-                        &mut add_depth,
                         &mut db_marker_orders_reduce,
                     );
 
-                    error!(
+                    info!(
                         "index {},taker amount {},matched-amount {}",
-                        index, db_order.amount, matched_amount
+                        index, db_order.amount, _matched_amount
                     );
-                    db_order.status = if matched_amount == db_order.amount {
+                    db_order.status = if db_order.available_amount == u256_zero{
                         OrderStatus::FullFilled
-                    } else if matched_amount != u256_zero && matched_amount < db_order.amount {
+                    } else if db_order.available_amount != u256_zero && db_order.available_amount < db_order.amount {
                         OrderStatus::PartialFilled
-                    } else if matched_amount == u256_zero {
+                    } else if db_order.available_amount == db_order.amount {
                         OrderStatus::Pending
                     } else {
                         unreachable!()
                     };
-                    db_order.matched_amount = matched_amount;
-                    db_order.available_amount = db_order.amount.sub(matched_amount);
+                    //tmp code: 校验数据准确性用，后边移除
+                    assert_eq!(_matched_amount,db_order.amount - db_order.available_amount);
+                    db_order.matched_amount = db_order.amount - db_order.available_amount;
                     info!(
                         "finished match_order index {},and status {:?},status_str={},",
                         index,
                         db_order.status,
                         db_order.status.as_str()
                     );
-                    db_orders.push(db_order);
                 }
                 error!("db_trades = {:?}", db_trades);
 
@@ -369,13 +363,13 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 if !db_trades.is_empty() {
                     insert_trades(&mut db_trades);
                 }
-                insert_order(db_orders);
+                insert_order(orders.clone());
                 //update marker orders
                 let u256_zero = U256::from(0i32);
                 for orders in db_marker_orders_reduce {
                     let marker_order_ori = get_order(Id(orders.0.clone())).unwrap();
-
                     let new_matched_amount = marker_order_ori.matched_amount + orders.1;
+                    info!("marker_order_ori {};available_amount={},reduce_amount={}",marker_order_ori.id,marker_order_ori.available_amount,orders.1);
                     let new_available_amount = marker_order_ori.available_amount - orders.1;
 
                     let new_status = if new_available_amount == u256_zero {
@@ -396,60 +390,11 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     update_order(&update_info);
                 }
 
-                info!("finished compute  ,add_depth {:?}", add_depth);
-                let asks2 = add_depth
-                    .asks
-                    .iter()
-                    .map(|(x, y)| {
-                        let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
-                        // let user_volume = u256_to_f64(y.to_owned(), BaseTokenDecimal);
-                        info!(
-                            "__test_decimal_0001_{}_{}_{}",
-                            y,
-                            y.into_raw(),
-                            y.abs().into_raw()
-                        );
-                        let user_volume = if y < &I256::from(0u32) {
-                            u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
-                        } else {
-                            u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
-                        };
-
-                        (user_price, user_volume)
-                    })
-                    .filter(|(p, v)| p != &0.0 && v != &0.0)
-                    .collect::<Vec<(f64, f64)>>();
-
-                let bids2 = add_depth
-                    .bids
-                    .iter()
-                    .map(|(x, y)| {
-                        info!(
-                            "__test_decimal_0002_{}_{}_{}",
-                            y,
-                            y.into_raw(),
-                            y.abs().into_raw()
-                        );
-                        let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
-                        let user_volume = if y < &I256::from(0u32) {
-                            u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
-                        } else {
-                            u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
-                        };
-                        (user_price, user_volume)
-                    })
-                    .filter(|(p, v)| p != &0.0 && v != &0.0)
-                    .collect::<Vec<(f64, f64)>>();
-
-                let book2 = AddBook {
-                    asks: asks2,
-                    bids: bids2,
-                };
-
                 //todo: 放在luanch模块在交易确认后推送？
-                if db_trades.is_empty() {
-                    let mut market_add_depth = HashMap::new();
-                    market_add_depth.insert(MARKET.id.clone(), book2);
+                orders.retain(|x| x.matched_amount == U256::from(0u32));
+                if !orders.is_empty() {
+                    //todo：没有成交的里面推ws
+                    let market_add_depth = gen_depth_from_order(orders);
                     let arc_queue = arc_queue.clone();
                     let rt = Runtime::new().unwrap();
                     rt.block_on(async move {
