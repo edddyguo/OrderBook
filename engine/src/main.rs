@@ -256,7 +256,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             let update_info = UpdateOrder {
                                 id: order.id.clone(),
                                 status: OrderStatus::PreCanceled,
-                                available_amount: U256::from(0i32),
+                                available_amount: order.available_amount,
                                 matched_amount: order.matched_amount,
                                 canceled_amount: order.available_amount,
                                 updated_at: get_current_time(),

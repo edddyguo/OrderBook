@@ -9,13 +9,12 @@ use actix_cors::Cors;
 use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder};
 use log::info;
 use std::env;
+use ethers_core::k256::U256;
 
 use chemix_models::market::list_markets as list_markets2;
-use chemix_models::order::{
-    get_order_volume, list_available_orders, list_users_orders, EngineOrderTmp2,
-};
+use chemix_models::order::{get_order_volume, list_available_orders, list_users_orders, EngineOrderTmp2, list_users_orders2};
 use chemix_models::snapshot::get_snapshot;
-use chemix_models::trade::list_trades;
+use chemix_models::trade::{list_trades, list_trades3};
 use chemix_models::TimeScope;
 use common::utils::time::{get_current_time, time2unix};
 use serde::{Deserialize, Serialize};
@@ -27,6 +26,7 @@ use common::utils::math::u256_to_f64;
 use common::types::order::Side as OrderSide;
 use common::types::order::Status as OrderStatus;
 use common::types::trade::Status as TradeStatus;
+use crate::order::{get_order_detail, OrderDetail};
 
 #[get("/{id}/{name}/index.html")]
 async fn index(web::Path((id, name)): web::Path<(u32, String)>) -> impl Responder {
@@ -511,6 +511,34 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
     respond_json(200, "".to_string(), serde_json::to_string(&orders).unwrap())
 }
 
+//todo 文档同步
+#[derive(Deserialize, Serialize, Debug)]
+struct OrderHistoryRequest {
+    market_id: String,
+    account: String,
+    limit: u32,
+}
+
+//todo: 所有的数据库都加上numPows字段，在后models里处理
+#[get("/chemix/orderHistory")]
+async fn order_history(web::Query(info): web::Query<OrderHistoryRequest>) -> impl Responder {
+    let base_decimal = 18u32;
+    let quote_decimal = 15u32;
+    let account = info.account.clone().to_lowercase();
+    let orders = list_users_orders2(
+        account.as_str(),
+        vec![OrderStatus::FullFilled,OrderStatus::Canceled],
+        info.limit,
+    );
+    let orders = orders
+        .iter()
+        .map(|x| {
+            get_order_detail(x)
+        })
+        .collect::<Vec<OrderDetail>>();
+    respond_json(200, "".to_string(), serde_json::to_string(&orders).unwrap())
+}
+
 /***
 * @api {get} /chemix/recentTrades recentTrades
 * @apiName recentTrades
@@ -610,6 +638,7 @@ async fn main() -> std::io::Result<()> {
             .service(dex_info)
             .service(list_orders)
             .service(recent_trades)
+            .service(order_history)
             .service(
                 web::resource("/addMarket/{contract_address}")
                     .route(web::post().to(add_market)),

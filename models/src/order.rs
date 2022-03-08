@@ -5,7 +5,7 @@ use ethers_core::types::U256;
 use serde::Deserialize;
 
 //#[derive(Serialize)]
-use crate::{struct2array, TimeScope};
+use crate::{struct2array, TimeScope, TradeInfo};
 use serde::Serialize;
 
 use common::utils::time::get_current_time;
@@ -59,6 +59,8 @@ pub struct EngineOrderTmp2 {
     pub status: String,
     pub created_at: String,
 }
+
+
 
 #[derive(Clone, Serialize, Debug)]
 pub struct BookOrder {
@@ -164,11 +166,13 @@ pub fn update_order(order: &UpdateOrder) {
     info!("success update order {} rows", execute_res);
 }
 
-pub fn update_order_status(status: OrderStatus,order_id: &str) {
+pub fn update_order_status(status: OrderStatus,available_amount:U256,canceled_amount:U256,order_id: &str) {
     // todo:考虑数据后期增加的问题，做每日的临时表
     let sql = format!(
-        "UPDATE chemix_orders SET (status,updated_at)=\
-         ('{}','{}') WHERE id='{}'",
+        "UPDATE chemix_orders SET (available_amount,canceled_amount,status,updated_at)=\
+         ({},{},'{}','{}') WHERE id='{}'",
+        available_amount,
+        canceled_amount,
         status.as_str(),
         get_current_time(),
         order_id
@@ -343,6 +347,63 @@ pub fn list_users_orders(
             side,
             status,
             created_at: row.get(7),
+        };
+        orders.push(info);
+    }
+    orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
+    orders
+}
+
+
+pub fn list_users_orders2(
+    account: &str,
+    status_arr: Vec<order::Status>,
+    limit: u32,
+) -> Vec<OrderInfo> {
+
+    let mut status_filter = "(".to_string();
+    for (index,status) in status_arr.iter().enumerate() {
+        let filter = if index < status_arr.len() - 1 {
+            format!("'{}',",status.as_str())
+        }else {
+            format!("'{}')",status.as_str())
+        };
+        status_filter += filter.as_str();
+    }
+    let sql = format!(
+        "select id,index,hash_data,market_id,account,side,
+         price,\
+         amount,\
+         status,\
+         available_amount,\
+         matched_amount,\
+         canceled_amount,\
+         cast(updated_at as text) ,\
+         cast(created_at as text)  from chemix_orders \
+    where account='{}' and status in {} order by created_at DESC limit {}",
+        account,
+        status_filter,
+        limit
+    );
+    info!("list_users_orders raw sql {}", sql);
+    let mut orders = Vec::<OrderInfo>::new();
+    let rows = crate::query(sql.as_str()).unwrap();
+    for row in rows {
+        let info = OrderInfo {
+            id: row.get(0),
+            index: U256::from(row.get::<usize, i32>(1)),
+            hash_data: row.get(2),
+            market_id: row.get(3),
+            account: row.get(4),
+            side: OrderSide::from(row.get::<usize, &str>(5usize)), //row.get(4),
+            price: U256::from_str_radix(row.get::<usize, &str>(6usize), 10).unwrap(),
+            amount: U256::from_str_radix(row.get::<usize, &str>(7usize), 10).unwrap(),
+            status: order::Status::from(row.get::<usize, &str>(8usize)),
+            available_amount: U256::from_str_radix(row.get::<usize, &str>(9usize), 10).unwrap(),
+            matched_amount: U256::from_str_radix(row.get::<usize, &str>(10usize), 10).unwrap(),
+            canceled_amount: U256::from_str_radix(row.get::<usize, &str>(11usize), 10).unwrap(),
+            updated_at: row.get(12),
+            created_at: row.get(13),
         };
         orders.push(info);
     }

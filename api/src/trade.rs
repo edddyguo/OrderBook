@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Serialize,Deserialize};
 
 use common::types::order::Side as OrderSide;
 
@@ -9,6 +9,19 @@ pub struct Trade {
     pub price: f64,
     pub amount: f64,
     pub height: u32,
+    pub taker_side: OrderSide,
+    pub updated_at: u64,
+}
+
+
+#[derive(Serialize,Debug,Clone,Deserialize)]
+pub struct Trade2 {
+    pub id: String,
+    pub market_id: String,
+    pub price: f64,
+    pub amount: f64,
+    pub height: u32,
+    pub status: String,
     pub taker_side: OrderSide,
     pub updated_at: u64,
 }

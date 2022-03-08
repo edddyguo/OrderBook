@@ -3,13 +3,13 @@ use common::types::*;
 use common::utils::algorithm::sha256;
 use common::utils::time::get_current_time;
 use ethers_core::types::U256;
-use serde::Serialize;
+use serde::{Serialize,Deserialize};
 
 extern crate rustc_serialize;
 use common::types::order::Side as OrderSide;
 use common::types::trade::Status as TradeStatus;
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone,Deserialize)]
 pub struct TradeInfo {
     pub id: String,
     pub block_height: i32,
@@ -224,6 +224,56 @@ pub fn list_trades2(taker_order_id: &str, hash_data: &str,status: TradeStatus) -
     from chemix_trades \
     where taker_order_id='{}' and hash_data='{}'  and status='{}' order by created_at DESC",
         taker_order_id, hash_data,status.as_str()
+    );
+    let mut trades: Vec<TradeInfo> = Vec::new();
+    info!("list_trades_sql {}", sql);
+    let rows = crate::query(sql.as_str()).unwrap();
+    for row in rows {
+        let side_str: String = row.get(10);
+        let side = order::Side::from(side_str.as_str());
+        let info = TradeInfo {
+            id: row.get(0),
+            block_height: row.get(1), //todo: 待加逻辑
+            transaction_hash: row.get(2),
+            hash_data: row.get(3),
+            status: TradeStatus::from(row.get::<usize, &str>(4usize)), //row.get(3),
+            market_id: row.get(5),
+            taker: row.get(6),
+            maker: row.get(7),
+            price: U256::from_str_radix(row.get::<usize, &str>(8), 10).unwrap(),
+            amount: U256::from_str_radix(row.get::<usize, &str>(9), 10).unwrap(),
+            taker_side: side,
+            maker_order_id: row.get(11),
+            taker_order_id: row.get(12),
+            updated_at: row.get(13),
+            created_at: row.get(14),
+        };
+        trades.push(info);
+    }
+    trades
+}
+
+pub fn list_trades3(order_id: &str) -> Vec<TradeInfo> {
+    let sql = format!(
+        "select \
+    id,\
+    block_height,\
+    transaction_hash,\
+    hash_data,\
+    status,\
+    market_id,\
+    taker,\
+    maker,\
+    price,\
+    amount,\
+    taker_side,\
+    maker_order_id, \
+    taker_order_id,\
+    cast(created_at as text), \
+    cast(updated_at as text) \
+    from chemix_trades \
+    where  (taker_order_id='{}' or maker_order_id='{}')",
+        order_id,order_id
     );
     let mut trades: Vec<TradeInfo> = Vec::new();
     info!("list_trades_sql {}", sql);

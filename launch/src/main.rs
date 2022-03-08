@@ -25,7 +25,7 @@ use std::sync::{Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::time;
 
-use chemix_models::order::{get_last_order, get_order, BookOrder, IdOrIndex, update_order, update_order_status};
+use chemix_models::order::{get_last_order, get_order, BookOrder, IdOrIndex, update_order, update_order_status,UpdateOrder};
 use chemix_models::trade::{
     list_trades, list_trades2, update_trade, update_trade_by_hash, TradeInfo,
 };
@@ -750,7 +750,8 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             height,
                             ThawStatus::Launched,
                         );
-                        update_order_status(OrderStatus::Canceled,pending_thaw.order_id.as_str());
+                        //todo： 放到事件监听之后处理
+                        update_order_status(OrderStatus::Canceled,U256::from(0u32),pending_thaw.amount,pending_thaw.order_id.as_str());
                     }
                 }
             });
