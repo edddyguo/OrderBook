@@ -57,7 +57,7 @@ pub struct EngineOrderTmp2 {
     pub amount: f64,
     pub side: OrderSide,
     pub status: String,
-    pub created_at: String,
+    pub created_at: u64,
 }
 
 
@@ -374,7 +374,7 @@ pub fn list_users_orders2(
         status_filter += filter.as_str();
     }
     let sql = format!(
-        "select id,index,hash_data,market_id,account,side,
+        "select id,index,block_height,hash_data,market_id,account,side,
          price,\
          amount,\
          status,\
@@ -388,7 +388,7 @@ pub fn list_users_orders2(
         status_filter,
         limit
     );
-    info!("list_users_orders raw sql {}", sql);
+    info!("list_users_orders2 raw sql {}", sql);
     let mut orders = Vec::<OrderInfo>::new();
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {

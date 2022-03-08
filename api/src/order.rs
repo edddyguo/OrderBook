@@ -21,6 +21,7 @@ struct Trade {
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct OrderDetail {
     pub id: String,
+    pub market_id: String,
     pub index: String,
     pub account: String,
     pub price: f64,
@@ -32,7 +33,7 @@ pub struct OrderDetail {
     pub side: OrderSide,
     pub status: String,
     pub trades: Vec<Trade2>,
-    pub created_at: String,
+    pub created_at: u64,
 }
 
 pub fn get_order_detail(order: &OrderInfo) -> OrderDetail{
@@ -58,6 +59,7 @@ pub fn get_order_detail(order: &OrderInfo) -> OrderDetail{
     let average_price = total_volume  / (order.amount / base_decimal);
     OrderDetail {
         id: order.id.clone(),
+        market_id: order.market_id.clone(),
         index: order.index.to_string(),
         account: order.account.to_string(),
         total_amount: u256_to_f64(order.amount, base_decimal),
@@ -69,6 +71,6 @@ pub fn get_order_detail(order: &OrderInfo) -> OrderDetail{
         side: Side::Buy,
         status: order.status.as_str().to_string(),
         trades: trades2,
-        created_at: get_current_time()
+        created_at: time2unix(order.created_at.clone())
     }
 }

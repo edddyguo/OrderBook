@@ -16,7 +16,7 @@ use chemix_models::order::{get_order_volume, list_available_orders, list_users_o
 use chemix_models::snapshot::get_snapshot;
 use chemix_models::trade::{list_trades, list_trades3};
 use chemix_models::TimeScope;
-use common::utils::time::{get_current_time, time2unix};
+use common::utils::time::{get_current_time, get_unix_time, time2unix};
 use serde::{Deserialize, Serialize};
 
 use chemix_models::tokens::get_token;
@@ -505,7 +505,7 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
             amount: u256_to_f64(x.amount, base_decimal),
             side: x.side.clone(),
             status: x.status.as_str().to_string(),
-            created_at: "".to_string(),
+            created_at: get_unix_time(),
         })
         .collect::<Vec<EngineOrderTmp2>>();
     respond_json(200, "".to_string(), serde_json::to_string(&orders).unwrap())
