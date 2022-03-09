@@ -1,6 +1,7 @@
 extern crate rustc_serialize;
 
 use ethers_core::types::U256;
+use postgres::types::IsNull::No;
 
 use serde::Deserialize;
 
@@ -221,7 +222,7 @@ pub enum IdOrIndex {
     Index(u32),
 }
 
-pub fn get_last_order() -> Result<OrderInfo, String> {
+pub fn get_last_order() -> Option<OrderInfo> {
     let sql = format!(
         "select id,index,block_height,hash_data,market_id,account,side,
          price,\
@@ -235,6 +236,9 @@ pub fn get_last_order() -> Result<OrderInfo, String> {
          from chemix_orders order by index desc limit 1 "
     );
     let rows = crate::query(sql.as_str()).unwrap();
+    if rows.is_empty() {
+        return None;
+    }
     let order = OrderInfo {
         id: rows[0].get(0),
         index: rows[0].get::<usize, i32>(1) as u32,
@@ -252,7 +256,7 @@ pub fn get_last_order() -> Result<OrderInfo, String> {
         updated_at: rows[0].get(13),
         created_at: rows[0].get(14),
     };
-    Ok(order)
+    Some(order)
 }
 
 pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(

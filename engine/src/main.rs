@@ -10,7 +10,7 @@ use chemix_chain::chemix::ChemixContractClient;
 use ethers_providers::{Http, Middleware, Provider, StreamExt};
 use rsmq_async::{Rsmq, RsmqConnection};
 
-use chemix_chain::bsc::{gen_watcher, get_block};
+use chemix_chain::bsc::{gen_watcher, get_block, get_last_block};
 use std::string::String;
 
 use serde::Serialize;
@@ -212,11 +212,18 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
             rt.block_on(async move {
                 let mut watcher = gen_watcher().await;
                 let mut stream = watcher.provide.watch_blocks().await.unwrap();
+                let mut last_height = match  get_last_order() {
+                    Some(order) => {
+                        order.block_height
+                    },
+                    None => {
+                        get_last_block().await
+                    }
+                };
                 while let Some(block) = stream.next().await {
                     info!("current_book {:#?}", crate::BOOK.lock().unwrap());
                     let current_height = get_block(block).await.unwrap().unwrap().as_u32();
-                    let last_height = get_last_order().unwrap().block_height;
-                    //防止ws推送的数据有跳空的情况，以及系统重启的时候历史区块的处理
+                    //防止ws推送的数据有跳空的情况
                     for height in last_height+1..=current_height {
                         info!("deal with block {:?},height {}", block,height);
                         //取消订单
@@ -300,6 +307,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 .expect("failed to send orders");
                         }
                     }
+                    last_height = current_height;
                 }
             });
         });
@@ -359,6 +367,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 insert_order(orders.clone());
                 //update marker orders
                 let u256_zero = U256::from(0i32);
+                info!("db_marker_orders_reduce {:?}",db_marker_orders_reduce);
                 for orders in db_marker_orders_reduce {
                     let marker_order_ori = get_order(Id(orders.0.clone())).unwrap();
                     let new_matched_amount = marker_order_ori.matched_amount + orders.1;
