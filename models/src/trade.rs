@@ -8,6 +8,7 @@ use serde::{Serialize,Deserialize};
 extern crate rustc_serialize;
 use common::types::order::Side as OrderSide;
 use common::types::trade::Status as TradeStatus;
+use common::utils::math::U256_ZERO;
 
 #[derive(Serialize, Debug, Clone,Deserialize)]
 pub struct TradeInfo {
@@ -349,7 +350,7 @@ pub fn get_current_price2(market_id: &str) -> Option<U256> {
     let sql =format!("select price from chemix_trades where market_id='{}' order by created_at desc limit 1;",market_id);
     let rows = crate::query(sql.as_str()).unwrap();
     if rows.is_empty() {
-        return Some(U256::from(0u32));
+        return Some(U256_ZERO);
     }
     Some(U256::from_str_radix(rows[0].get::<usize, &str>(0), 10).unwrap())
 }

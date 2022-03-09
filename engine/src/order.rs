@@ -15,7 +15,7 @@ use chemix_models::trade::TradeInfo;
 use common::types::order::{Side, Status as OrderStatus};
 
 use common::types::order::Side as OrderSide;
-use common::utils::math::u256_to_f64;
+use common::utils::math::{u256_to_f64, U256_ZERO};
 use common::utils::time::get_unix_time;
 
 #[derive(RustcEncodable, Clone, Serialize)]
@@ -31,9 +31,8 @@ pub fn match_order(
     trades: &mut Vec<TradeInfo>,
     marker_reduced_orders: &mut HashMap<String, U256>,
 ) -> U256 {
-    let u256_zero = U256::from(0u32);
     let book = &mut crate::BOOK.lock().unwrap();
-    let mut total_matched_amount = U256::from(0u32);
+    let mut total_matched_amount = U256_ZERO;
     'marker_orders: loop {
         match &taker_order.side {
             OrderSide::Buy => {
@@ -75,15 +74,15 @@ pub fn match_order(
                     //todo: 不在去减，用total_matched_amount 判断
                     taker_order.available_amount = taker_order.available_amount.sub(matched_amount);
                     total_matched_amount = total_matched_amount.add(matched_amount);
-                    if marker_order.amount != u256_zero && taker_order.available_amount == u256_zero {
+                    if marker_order.amount != U256_ZERO && taker_order.available_amount == U256_ZERO {
                         book.sell[0] = marker_order;
                         break 'marker_orders;
-                    } else if marker_order.amount == u256_zero
-                        && taker_order.available_amount != u256_zero
+                    } else if marker_order.amount == U256_ZERO
+                        && taker_order.available_amount != U256_ZERO
                     {
                         book.sell.remove(0);
-                    } else if marker_order.amount == u256_zero
-                        && taker_order.available_amount == u256_zero
+                    } else if marker_order.amount == U256_ZERO
+                        && taker_order.available_amount == U256_ZERO
                     {
                         book.sell.remove(0);
                         break 'marker_orders;
@@ -128,16 +127,16 @@ pub fn match_order(
                     marker_order.amount = marker_order.amount.sub(matched_amount);
                     taker_order.available_amount = taker_order.available_amount.sub(matched_amount);
                     total_matched_amount = total_matched_amount.add(matched_amount);
-                    if marker_order.amount != u256_zero && taker_order.available_amount == u256_zero {
+                    if marker_order.amount != U256_ZERO && taker_order.available_amount == U256_ZERO {
                         //todo: 本身此时也是在index0
                         book.buy[0] = marker_order;
                         break 'marker_orders;
-                    } else if marker_order.amount == u256_zero
-                        && taker_order.available_amount != u256_zero
+                    } else if marker_order.amount == U256_ZERO
+                        && taker_order.available_amount != U256_ZERO
                     {
                         book.buy.remove(0);
-                    } else if marker_order.amount == u256_zero
-                        && taker_order.available_amount == u256_zero
+                    } else if marker_order.amount == U256_ZERO
+                        && taker_order.available_amount == U256_ZERO
                     {
                         book.buy.remove(0);
                         break 'marker_orders;

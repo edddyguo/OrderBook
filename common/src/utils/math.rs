@@ -7,7 +7,7 @@ use ethers_core::types::U256;
 
 use num::pow::Pow;
 
-const U256_ZERO : U256 = U256([0;4]);
+pub const U256_ZERO : U256 = U256([0;4]);
 
 #[macro_export]
 macro_rules! teen_power{

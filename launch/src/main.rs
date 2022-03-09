@@ -30,7 +30,7 @@ use chemix_models::trade::{
     list_trades, list_trades2, update_trade, update_trade_by_hash, TradeInfo,
 };
 use common::utils::algorithm::{sha256, u8_arr_from_str};
-use common::utils::math::u256_to_f64;
+use common::utils::math::{u256_to_f64, U256_ZERO};
 use common::utils::time::{get_current_time, get_unix_time};
 
 use ethers_core::abi::ethereum_types::U64;
@@ -268,7 +268,7 @@ fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, AddBook> {
             let taker_order = get_order(IdOrIndex::Id(taker_order_id.clone())).unwrap();
             let matched_trades = list_trades2(&taker_order_id, &taker_order.hash_data,TradeStatus::Launched);
             info!("[test_big_taker]:0000_matched_trades_{:?}",matched_trades);
-            let mut matched_amount = U256::from(0u32);
+            let mut matched_amount = U256_ZERO;
             for matched_trade in matched_trades {
                 matched_amount += matched_trade.amount;
             }
@@ -753,7 +753,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             ThawStatus::Launched,
                         );
                         //todo： 放到事件监听之后处理
-                        update_order_status(OrderStatus::Canceled,U256::from(0u32),pending_thaw.amount,pending_thaw.order_id.as_str());
+                        update_order_status(OrderStatus::Canceled,U256_ZERO,pending_thaw.amount,pending_thaw.order_id.as_str());
                     }
                 }
             });
@@ -765,7 +765,6 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
             rt.block_on(async move {
                 loop {
                     //market_orders的移除或者减少
-                    let _u256_zero = U256::from(0u32);
                     //fix: 10000是经验值，放到外部参数注入
                     let db_trades = list_trades(None, None,Some(TradeStatus::Matched), None,None,50);
                     if db_trades.is_empty() {
@@ -780,7 +779,6 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     info!("settle_trades {:?} ",settle_trades);
 
                     let hash_data = u8_arr_from_str(last_order.hash_data.clone());
-                    info!("__0000");
 
                     //let mut agg_trades = Vec::new();
                     if !settle_trades.is_empty() {

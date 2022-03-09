@@ -33,7 +33,7 @@ use clap::{App, Arg};
 use chemix_models::order::{get_order, insert_order, list_available_orders, update_order, BookOrder, EngineOrder, OrderInfo, UpdateOrder, get_last_order};
 use chemix_models::trade::{insert_trades, TradeInfo};
 
-use common::utils::math::u256_to_f64;
+use common::utils::math::{u256_to_f64, U256_ZERO};
 use common::utils::time::get_current_time;
 use common::utils::time::time2unix;
 use ethers_core::abi::ethereum_types::U64;
@@ -331,8 +331,6 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 let mut db_trades = Vec::<TradeInfo>::new();
                 //market_orders的移除或者减少
                 let mut db_marker_orders_reduce = HashMap::<String, U256>::new();
-                let u256_zero = U256::from(0u32);
-
                 for (index, db_order) in orders.iter_mut().enumerate() {
                     let _matched_amount = match_order(
                         db_order,
@@ -344,9 +342,9 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         "index {},taker amount {},matched-amount {}",
                         index, db_order.amount, _matched_amount
                     );
-                    db_order.status = if db_order.available_amount == u256_zero{
+                    db_order.status = if db_order.available_amount == U256_ZERO{
                         OrderStatus::FullFilled
-                    } else if db_order.available_amount != u256_zero && db_order.available_amount < db_order.amount {
+                    } else if db_order.available_amount != U256_ZERO && db_order.available_amount < db_order.amount {
                         OrderStatus::PartialFilled
                     } else if db_order.available_amount == db_order.amount {
                         OrderStatus::Pending
@@ -371,7 +369,6 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 }
                 insert_order(orders.clone());
                 //update marker orders
-                let u256_zero = U256::from(0u32);
                 info!("db_marker_orders_reduce {:?}",db_marker_orders_reduce);
                 for orders in db_marker_orders_reduce {
                     let marker_order_ori = get_order(Id(orders.0.clone())).unwrap();
@@ -379,7 +376,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     info!("marker_order_ori {};available_amount={},reduce_amount={}",marker_order_ori.id,marker_order_ori.available_amount,orders.1);
                     let new_available_amount = marker_order_ori.available_amount - orders.1;
 
-                    let new_status = if new_available_amount == u256_zero {
+                    let new_status = if new_available_amount == U256_ZERO {
                         OrderStatus::FullFilled
                     } else {
                         OrderStatus::PartialFilled
@@ -398,7 +395,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 }
 
                 //todo: 放在luanch模块在交易确认后推送？
-                orders.retain(|x| x.matched_amount == U256::from(0u32));
+                orders.retain(|x| x.matched_amount == U256_ZERO);
                 if !orders.is_empty() {
                     //todo：没有成交的里面推ws
                     let market_add_depth = gen_depth_from_order(orders);
