@@ -7,6 +7,17 @@ use ethers_core::types::U256;
 
 use num::pow::Pow;
 
+const U256_ZERO : U256 = U256([0;4]);
+
+#[macro_export]
+macro_rules! teen_power{
+    ($a:expr)=>{
+        {
+            U256::from(10u32).pow(U256::from($a))
+        }
+    }
+}
+
 pub trait MathOperation {
     fn to_fix(&self, precision: u32) -> f64;
     fn to_nano(&self) -> u64;
@@ -56,8 +67,8 @@ pub fn narrow(ori: u64) -> f64 {
     decimal_number.to_f64().unwrap()
 }
 
-//todo:考虑用其他库,硬编码精度为8位，decimal超过37的话仍溢出，目前业务不会触发
-//todo: f64的有效精度为16位,当前业务做一定的取舍，总账对上就行
+//fixme:考虑用其他库,硬编码精度为8位，decimal超过37的话仍溢出，目前业务不会触发
+//fixme: f64的有效精度为16位,当前业务做一定的取舍，总账对上就行
 pub fn u256_to_f64(ori: U256, decimal: u32) -> f64 {
     let decimal_value = U256::from(10u32).pow(U256::from(decimal - 8));
     let dist_int = ori.div(decimal_value);

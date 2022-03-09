@@ -35,15 +35,18 @@ pub fn list_tokens() -> Vec<Token> {
     tokens
 }
 
-pub fn get_token(symbol: &str) -> Token {
+pub fn get_token(symbol: &str) -> Option<Token> {
     let sql = format!(
         "select symbol,name,address,front_decimals,\
     base_contract_decimal,cvt_url,show_cvt from chemix_tokens where symbol='{}'",
         symbol
     );
     let rows = crate::query(sql.as_str()).unwrap();
+    if rows.is_empty() {
+        return None
+    }
     info!("get_snapshot: raw sql {}", sql);
-    Token {
+    Some(Token {
         symbol: rows[0].get(0),
         name: rows[0].get(1),
         address: rows[0].get(2),
@@ -51,5 +54,5 @@ pub fn get_token(symbol: &str) -> Token {
         base_contract_decimal: rows[0].get(4),
         cvt_url: rows[0].get(5),
         show_cvt: rows[0].get(6),
-    }
+    })
 }

@@ -56,6 +56,10 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
+
+#[macro_use]
+extern crate common;
+
 static BaseTokenDecimal: u32 = 18;
 static QuoteTokenDecimal: u32 = 15;
 
@@ -293,9 +297,10 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             for order in new_orders {
                                 let base_decimal = crate::MARKET.base_contract_decimal as u32;
                                 let raw_amount = if base_decimal > order.num_power {
-                                    order.amount * U256::from(10u32).pow(U256::from(base_decimal - order.num_power))
+                                    order.amount * teen_power!(base_decimal - order.num_power)
                                 }else {
-                                    order.amount / U256::from(10u32).pow(U256::from(order.num_power - base_decimal))
+                                    order.amount * teen_power!(order.num_power - base_decimal)
+
                                 };
                                 //todo: 非法数据过滤
                                 db_new_orders.push(OrderInfo::new(
@@ -326,7 +331,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 let mut db_trades = Vec::<TradeInfo>::new();
                 //market_orders的移除或者减少
                 let mut db_marker_orders_reduce = HashMap::<String, U256>::new();
-                let u256_zero = U256::from(0i32);
+                let u256_zero = U256::from(0u32);
 
                 for (index, db_order) in orders.iter_mut().enumerate() {
                     let _matched_amount = match_order(
@@ -366,7 +371,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 }
                 insert_order(orders.clone());
                 //update marker orders
-                let u256_zero = U256::from(0i32);
+                let u256_zero = U256::from(0u32);
                 info!("db_marker_orders_reduce {:?}",db_marker_orders_reduce);
                 for orders in db_marker_orders_reduce {
                     let marker_order_ori = get_order(Id(orders.0.clone())).unwrap();

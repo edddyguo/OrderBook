@@ -43,7 +43,8 @@ pub fn get_order_detail(order: &OrderInfo) -> OrderDetail{
     let mut total_volume = U256::from(0u32);
     let mut trades2 = Vec::<Trade2>::new();
     for trade in trades.clone() {
-        total_volume += trade.amount * trade.price / U256::from(10u32).pow(U256::from(base_decimal));
+        total_volume += trade.amount * trade.price / teen_power!(base_decimal);
+
         trades2.push(Trade2{
             id: trade.id.clone(),
             market_id: trade.market_id.clone(),
@@ -54,7 +55,7 @@ pub fn get_order_detail(order: &OrderInfo) -> OrderDetail{
             taker_side: trade.taker_side.clone(),
             updated_at: time2unix(trade.created_at.clone()),
         });
-        info!("total_volume = {}",(trade.amount * trade.price / U256::from(10u32).pow(U256::from(base_decimal))).to_string());
+        info!("total_volume = {}",(trade.amount * trade.price / teen_power!(base_decimal)).to_string());
     }
     let average_price = total_volume  / (order.amount / base_decimal);
     OrderDetail {

@@ -31,9 +31,9 @@ pub fn match_order(
     trades: &mut Vec<TradeInfo>,
     marker_reduced_orders: &mut HashMap<String, U256>,
 ) -> U256 {
-    let u256_zero = U256::from(0i32);
+    let u256_zero = U256::from(0u32);
     let book = &mut crate::BOOK.lock().unwrap();
-    let mut total_matched_amount = U256::from(0i32);
+    let mut total_matched_amount = U256::from(0u32);
     'marker_orders: loop {
         match &taker_order.side {
             OrderSide::Buy => {

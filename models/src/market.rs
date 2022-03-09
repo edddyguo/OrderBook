@@ -9,12 +9,12 @@ pub struct MarketInfo {
     pub id: String,
     pub base_token_address: String,
     pub base_token_symbol: String,
-    pub base_contract_decimal: i32,
-    pub base_front_decimal: i32,
+    pub base_contract_decimal: u32,
+    pub base_front_decimal: u32,
     pub quote_token_address: String,
     pub quote_token_symbol: String,
-    pub quote_contract_decimal: i32,
-    pub quote_front_decimal: i32,
+    pub quote_contract_decimal: u32,
+    pub quote_front_decimal: u32,
 }
 
 pub fn list_markets() -> Vec<MarketInfo> {
@@ -54,16 +54,17 @@ pub fn get_markets(id: &str) -> Option<MarketInfo> {
     }
     info!("get_markets: raw sql {}", sql);
     //id只有一个
+    //rows[0].get::<usize, i32>(2) as u32
     Some(MarketInfo {
         id: rows[0].get(0),
         base_token_address: rows[0].get(1),
         base_token_symbol: rows[0].get(2),
-        base_contract_decimal: rows[0].get(3),
-        base_front_decimal: rows[0].get(4),
+        base_contract_decimal: rows[0].get::<usize, i32>(3) as u32,
+        base_front_decimal: rows[0].get::<usize, i32>(4) as u32,
         quote_token_address: rows[0].get(5),
         quote_token_symbol: rows[0].get(6),
-        quote_contract_decimal: rows[0].get(7),
-        quote_front_decimal: rows[0].get(8),
+        quote_contract_decimal: rows[0].get::<usize, i32>(7) as u32,
+        quote_front_decimal: rows[0].get::<usize, i32>(8) as u32,
     })
 }
 

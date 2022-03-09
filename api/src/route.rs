@@ -11,7 +11,7 @@ use log::info;
 use std::env;
 use ethers_core::k256::U256;
 
-use chemix_models::market::list_markets as list_markets2;
+use chemix_models::market::{get_markets, list_markets as list_markets2};
 use chemix_models::order::{get_order_volume, list_available_orders, list_users_orders, EngineOrderTmp2, list_users_orders2};
 use chemix_models::snapshot::get_snapshot;
 use chemix_models::trade::{list_trades, list_trades3};
@@ -27,6 +27,9 @@ use common::types::order::Side as OrderSide;
 use common::types::order::Status as OrderStatus;
 use common::types::trade::Status as TradeStatus;
 use crate::order::{get_order_detail, OrderDetail};
+
+#[macro_use]
+extern crate common;
 
 #[get("/{id}/{name}/index.html")]
 async fn index(web::Path((id, name)): web::Path<(u32, String)>) -> impl Responder {
@@ -138,12 +141,12 @@ pub struct MarketInfoTmp1 {
     pub id: String,
     pub base_token_address: String,
     base_token_symbol: String,
-    pub base_contract_decimal: i32,
-    base_front_decimal: i32,
+    pub base_contract_decimal: u32,
+    base_front_decimal: u32,
     pub quote_token_address: String,
     quote_token_symbol: String,
-    pub quote_contract_decimal: i32,
-    quote_front_decimal: i32,
+    pub quote_contract_decimal: u32,
+    quote_front_decimal: u32,
     seven_day_volume: f64,
     twenty_four_hour_volume: f64,
     cvt_url: String,
@@ -153,13 +156,14 @@ pub struct MarketInfoTmp1 {
 
 #[get("/chemix/listMarkets")]
 async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
+
     let mut markets = Vec::<MarketInfoTmp1>::new();
     let db_markets = list_markets2();
     let now = get_current_time();
     for db_market in db_markets {
         let seven_day_volume = get_order_volume(TimeScope::SevenDay, &db_market.id);
         let twenty_four_hour_volume = get_order_volume(TimeScope::OneDay, &db_market.id);
-        let token = get_token(db_market.base_token_symbol.as_str());
+        let token = get_token(db_market.base_token_symbol.as_str()).unwrap();
         let data = MarketInfoTmp1 {
             id: db_market.id,
             base_token_address: db_market.base_token_address,
@@ -300,8 +304,8 @@ struct AggTradesRequest {
 
 #[get("/chemix/aggTrades")]
 async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Responder {
-    let base_decimal = 18u32;
-    let quote_decimal = 15u32;
+    let market = get_markets(&info.market_id).unwrap();
+    let (base_decimal,quote_decimal) = (market.base_contract_decimal,market.quote_contract_decimal);
     let trades = list_trades(
         None,
         Some(info.market_id.clone()),
@@ -519,7 +523,6 @@ struct OrderHistoryRequest {
     limit: u32,
 }
 
-//todo: 所有的数据库都加上numPows字段，在后models里处理
 #[get("/chemix/orderHistory")]
 async fn order_history(web::Query(info): web::Query<OrderHistoryRequest>) -> impl Responder {
     let base_decimal = 18u32;

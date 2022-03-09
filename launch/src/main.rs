@@ -54,6 +54,10 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
+
+#[macro_use]
+extern crate common;
+
 static BaseTokenDecimal: u32 = 18;
 static QuoteTokenDecimal: u32 = 15;
 
@@ -124,11 +128,12 @@ fn gen_settle_trades(db_trades: Vec<TradeInfo>) -> Vec<SettleValues3> {
             }
         };
 
-    let token_base_decimal = U256::from(10u128).pow(U256::from(18u32));
     for trader in db_trades.clone() {
+        let market = get_markets(&trader.market_id).unwrap();
+        let token_base_decimal = teen_power!(market.base_contract_decimal);
+
         let base_amount = trader.amount;
         let quote_amount = trader.amount * trader.price / token_base_decimal;
-        let market = get_markets(&trader.market_id).unwrap();
 
         match trader.taker_side {
             OrderSide::Buy => {
@@ -512,8 +517,7 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<
             let mut thaw_infos = Vec::new();
             for pending_thaw in iter.clone() {
                 let market = get_markets(pending_thaw.market_id.as_str()).unwrap();
-                let token_base_decimal =
-                    U256::from(10u128).pow(U256::from(market.base_contract_decimal));
+                let token_base_decimal = teen_power!(market.base_contract_decimal);
                 let (token_address, amount, decimal) = match pending_thaw.side {
                     OrderSide::Sell => {
                         info!("available_amount {}", pending_thaw.amount);
@@ -660,9 +664,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     let mut thaw_infos = Vec::new();
                     for pending_thaw in pending_thaws.clone() {
                         let market = get_markets(pending_thaw.market_id.as_str()).unwrap();
-
-                        let token_base_decimal =
-                            U256::from(10u128).pow(U256::from(market.base_contract_decimal));
+                        let token_base_decimal = teen_power!(market.base_contract_decimal);
                         let (token_address, amount, decimal) = match pending_thaw.side {
                             OrderSide::Sell => {
                                 info!("available_amount {}", pending_thaw.amount);
@@ -763,7 +765,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
             rt.block_on(async move {
                 loop {
                     //market_orders的移除或者减少
-                    let _u256_zero = U256::from(0i32);
+                    let _u256_zero = U256::from(0u32);
                     //fix: 10000是经验值，放到外部参数注入
                     let db_trades = list_trades(None, None,Some(TradeStatus::Matched), None,None,50);
                     if db_trades.is_empty() {

@@ -2,7 +2,7 @@ use crate::k256::ecdsa::SigningKey;
 use anyhow::Result;
 use chemix_models::order::BookOrder;
 use chrono::Local;
-use common::env;
+use common::{env, teen_power};
 use common::env::CONF as ENV_CONF;
 use common::types::order::Side;
 use common::types::*;
@@ -54,8 +54,8 @@ impl ChemixContractClient<Main> {
         amount: f64,
     ) -> Result<()> {
         let contract = ChemixMain::new(self.contract_addr, self.client.clone());
-        let tokenADecimal = U256::from(10u128).pow(U256::from(10u32)); //18 -8
-        let tokenBDecimal = U256::from(10u128).pow(U256::from(7u32)); //15 -8
+        let tokenADecimal = teen_power!(10u32);//18 -8
+        let tokenBDecimal = teen_power!(7u32); //15 -8
 
         let quoteToken = Address::from_str(quoteToken).unwrap();
         let baseToken = Address::from_str(baseToken).unwrap();

@@ -13,9 +13,13 @@ use chemix_chain::chemix::vault::Vault;
 use chemix_models::snapshot::{insert_snapshot, Snapshot};
 use chemix_models::TimeScope;
 
-use chemix_models::tokens::list_tokens;
+use chemix_models::tokens::{get_token, list_tokens};
 
 use common::env::CONF as ENV_CONF;
+
+
+#[macro_use]
+extern crate common;
 
 static ONE_HOUR: u64 = 60 * 60;
 static TEN_MINS: u64 = 10 * 60;
@@ -30,8 +34,8 @@ fn get_token_price(quote_symbol: &str) -> Option<U256> {
         return Some(U256::from(1_000_000_000_000_000i64)); //1U
     }
     let market_id = format!("{}-USDT", quote_symbol);
-    //todo:15
-    let cec_dicimal = U256::from(10u128).pow(U256::from(15u32));
+
+    let cec_dicimal = teen_power!(get_token("CEC").unwrap().base_contract_decimal);
     match get_markets2(&market_id) {
         None => {
             //必须usdt和cec有一个交易对
@@ -51,8 +55,7 @@ async fn gen_chemix_profile(vault_client: &ChemixContractClient<Vault>) {
     //todo: 从链上拿
     let mut current_withdraw_value = U256::from(0);
     for token in list_tokens() {
-        let base_token_decimal =
-            U256::from(10u128).pow(U256::from(token.base_contract_decimal));
+        let base_token_decimal = teen_power!(token.base_contract_decimal);
         let price = get_token_price(token.symbol.as_str()).unwrap();
         let withdraw_volume = vault_client
             .vault_total_withdraw_volume(token.address)
@@ -67,8 +70,7 @@ async fn gen_chemix_profile(vault_client: &ChemixContractClient<Vault>) {
 
     let total_markets = list_markets();
     for market in total_markets.clone() {
-        let base_token_decimal =
-            U256::from(10u128).pow(U256::from(market.base_contract_decimal));
+        let base_token_decimal = teen_power!(token.base_contract_decimal);
 
         //单个交易对的交易量
         let volume = get_order_volume(TimeScope::NoLimit, &market.id);
