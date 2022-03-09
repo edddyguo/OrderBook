@@ -1,5 +1,5 @@
-use log::info;
 use crate::{ws, Client, Clients, Result};
+use log::info;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
@@ -57,7 +57,11 @@ pub async fn publish_handler(body: Event, clients: Clients) -> Result<impl Reply
     Ok(StatusCode::OK)
 }
 
-pub async fn register_client(id: String, client_sender: mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>, clients: Clients) {
+pub async fn register_client(
+    id: String,
+    client_sender: mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>,
+    clients: Clients,
+) {
     clients.write().await.insert(
         id,
         Client {

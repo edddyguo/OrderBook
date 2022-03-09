@@ -1,12 +1,10 @@
 pub mod env;
+pub mod queue;
 pub mod types;
 pub mod utils;
-pub mod queue;
-
 
 #[macro_use]
 extern crate lazy_static;
-
 
 /****
 

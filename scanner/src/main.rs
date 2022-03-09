@@ -1,4 +1,3 @@
-use log::info;
 use std::time;
 
 use ethers_core::types::U256;
@@ -8,15 +7,15 @@ use chemix_models::order::{get_order_num, get_order_volume, get_user_number};
 use chemix_models::trade::{get_current_price2, get_trade_volume};
 use common::utils::time::get_unix_time;
 
-use chemix_chain::chemix::ChemixContractClient;
 use chemix_chain::chemix::vault::Vault;
+use chemix_chain::chemix::ChemixContractClient;
 use chemix_models::snapshot::{insert_snapshot, Snapshot};
 use chemix_models::TimeScope;
 
 use chemix_models::tokens::{get_token, list_tokens};
 
 use common::env::CONF as ENV_CONF;
-
+use common::utils::math::U256_ZERO;
 
 #[macro_use]
 extern crate common;
@@ -53,7 +52,7 @@ fn get_token_price(quote_symbol: &str) -> Option<U256> {
 
 async fn gen_chemix_profile(vault_client: &ChemixContractClient<Vault>) {
     //todo: 从链上拿
-    let mut current_withdraw_value = U256::from(0);
+    let mut current_withdraw_value = U256_ZERO;
     for token in list_tokens() {
         let base_token_decimal = teen_power!(token.base_contract_decimal);
         let price = get_token_price(token.symbol.as_str()).unwrap();
@@ -65,12 +64,12 @@ async fn gen_chemix_profile(vault_client: &ChemixContractClient<Vault>) {
         current_withdraw_value += value;
     }
 
-    let mut total_order_value = U256::from(0);
-    let mut total_trade_value = U256::from(0);
+    let mut total_order_value = U256_ZERO;
+    let mut total_trade_value = U256_ZERO;
 
     let total_markets = list_markets();
     for market in total_markets.clone() {
-        let base_token_decimal = teen_power!(token.base_contract_decimal);
+        let base_token_decimal = teen_power!(market.base_contract_decimal);
 
         //单个交易对的交易量
         let volume = get_order_volume(TimeScope::NoLimit, &market.id);
@@ -106,7 +105,7 @@ async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let task1 = tokio::spawn(async move {
-        let chemix_vault = ENV_CONF.chemix_vault.to_owned().unwrap();
+        let _chemix_vault = ENV_CONF.chemix_vault.to_owned().unwrap();
         //test1
         //let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
         let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";

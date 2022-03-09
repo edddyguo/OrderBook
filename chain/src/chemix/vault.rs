@@ -1,21 +1,19 @@
-use crate::k256::ecdsa::SigningKey;
 use anyhow::Result;
-use chemix_models::order::BookOrder;
+
 use chrono::Local;
-use common::env;
+
 use common::env::CONF as ENV_CONF;
-use common::types::order::Side;
-use common::types::*;
-use common::utils::algorithm::{sha256, u8_arr_to_str};
-use common::utils::math::MathOperation;
+
+use common::utils::algorithm::u8_arr_to_str;
+
 use ethers::prelude::*;
 use ethers::types::Address;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+
 use std::marker::PhantomData;
-use std::ops::Mul;
+
 use std::str::FromStr;
-use std::sync::Arc;
+
 use crate::chemix::ChemixContractClient;
 use crate::gen_contract_client;
 
@@ -45,14 +43,13 @@ abigen!(
 );
 
 lazy_static! {
-    static ref VAULT_ADDR : Address = {
-       let vault = ENV_CONF.chemix_vault.to_owned().unwrap();
+    static ref VAULT_ADDR: Address = {
+        let vault = ENV_CONF.chemix_vault.to_owned().unwrap();
         Address::from_str(vault.to_str().unwrap()).unwrap()
     };
 }
 
-
-impl ChemixContractClient<Vault>{
+impl ChemixContractClient<Vault> {
     pub fn new(prikey: &str) -> ChemixContractClient<Vault> {
         ChemixContractClient {
             client: gen_contract_client(prikey),

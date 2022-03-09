@@ -1,5 +1,5 @@
-pub mod market;
 pub mod chain;
+pub mod market;
 pub mod order;
 pub mod snapshot;
 pub mod thaws;
@@ -27,7 +27,6 @@ extern crate log;
 
 #[macro_use]
 extern crate lazy_static;
-
 
 #[macro_use]
 extern crate common;

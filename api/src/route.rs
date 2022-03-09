@@ -9,12 +9,14 @@ use actix_cors::Cors;
 use actix_web::{error, get, post, web, App, HttpResponse, HttpServer, Responder};
 use log::info;
 use std::env;
-use ethers_core::k256::U256;
 
 use chemix_models::market::{get_markets, list_markets as list_markets2};
-use chemix_models::order::{get_order_volume, list_available_orders, list_users_orders, EngineOrderTmp2, list_users_orders2};
+use chemix_models::order::{
+    get_order_volume, list_available_orders, list_users_orders, list_users_orders2,
+    EngineOrderTmp2,
+};
 use chemix_models::snapshot::get_snapshot;
-use chemix_models::trade::{list_trades, list_trades3};
+use chemix_models::trade::list_trades;
 use chemix_models::TimeScope;
 use common::utils::time::{get_current_time, get_unix_time, time2unix};
 use serde::{Deserialize, Serialize};
@@ -23,10 +25,10 @@ use chemix_models::tokens::get_token;
 
 use common::utils::math::u256_to_f64;
 
+use crate::order::{get_order_detail, OrderDetail};
 use common::types::order::Side as OrderSide;
 use common::types::order::Status as OrderStatus;
 use common::types::trade::Status as TradeStatus;
-use crate::order::{get_order_detail, OrderDetail};
 
 #[macro_use]
 extern crate common;
@@ -156,7 +158,6 @@ pub struct MarketInfoTmp1 {
 
 #[get("/chemix/listMarkets")]
 async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
-
     let mut markets = Vec::<MarketInfoTmp1>::new();
     let db_markets = list_markets2();
     let now = get_current_time();
@@ -305,7 +306,8 @@ struct AggTradesRequest {
 #[get("/chemix/aggTrades")]
 async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Responder {
     let market = get_markets(&info.market_id).unwrap();
-    let (base_decimal,quote_decimal) = (market.base_contract_decimal,market.quote_contract_decimal);
+    let (base_decimal, quote_decimal) =
+        (market.base_contract_decimal, market.quote_contract_decimal);
     let trades = list_trades(
         None,
         Some(info.market_id.clone()),
@@ -496,7 +498,11 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
     let account = info.account.clone().to_lowercase();
     let orders = list_users_orders(
         account.as_str(),
-        vec![OrderStatus::Pending,OrderStatus::PreCanceled,OrderStatus::PartialFilled],
+        vec![
+            OrderStatus::Pending,
+            OrderStatus::PreCanceled,
+            OrderStatus::PartialFilled,
+        ],
         info.limit,
     );
     let orders = orders
@@ -525,19 +531,17 @@ struct OrderHistoryRequest {
 
 #[get("/chemix/orderHistory")]
 async fn order_history(web::Query(info): web::Query<OrderHistoryRequest>) -> impl Responder {
-    let base_decimal = 18u32;
-    let quote_decimal = 15u32;
+    let _base_decimal = 18u32;
+    let _quote_decimal = 15u32;
     let account = info.account.clone().to_lowercase();
     let orders = list_users_orders2(
         account.as_str(),
-        vec![OrderStatus::FullFilled,OrderStatus::Canceled],
+        vec![OrderStatus::FullFilled, OrderStatus::Canceled],
         info.limit,
     );
     let orders = orders
         .iter()
-        .map(|x| {
-            get_order_detail(x)
-        })
+        .map(|x| get_order_detail(x))
         .collect::<Vec<OrderDetail>>();
     respond_json(200, "".to_string(), serde_json::to_string(&orders).unwrap())
 }

@@ -16,10 +16,10 @@ use tokio::time;
 
 use rand::Rng;
 
+use chemix_chain::chemix::chemix_main::Main;
 use chemix_chain::chemix::ChemixContractClient;
 use clap::{App, Arg};
-use chemix_chain::chemix::chemix_main::Main;
-use common::env;
+
 use common::utils::math::MathOperation;
 
 use common::types::order::Side;
@@ -89,7 +89,11 @@ async fn cancel_order(
     }
 }
 
-async fn auto_take_order(client: ChemixContractClient<Main>, base_token: &str, quote_token: &str) {
+async fn auto_take_order(
+    client: ChemixContractClient<Main>,
+    base_token: &str,
+    quote_token: &str,
+) {
     let base_price = 50000.0f64;
     let base_amount = 1.0f64;
     loop {

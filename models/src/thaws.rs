@@ -1,4 +1,3 @@
-
 extern crate rustc_serialize;
 
 use ethers_core::types::U256;

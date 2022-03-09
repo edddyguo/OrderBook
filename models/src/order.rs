@@ -1,12 +1,11 @@
 extern crate rustc_serialize;
 
 use ethers_core::types::U256;
-use postgres::types::IsNull::No;
 
 use serde::Deserialize;
 
 //#[derive(Serialize)]
-use crate::{struct2array, TimeScope, TradeInfo};
+use crate::{struct2array, TimeScope};
 use serde::Serialize;
 
 use common::utils::time::get_current_time;
@@ -16,6 +15,7 @@ use common::types::*;
 use common::types::order::Status as OrderStatus;
 
 use common::types::order::Side as OrderSide;
+use common::utils::math::U256_ZERO;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct UpdateOrder {
@@ -61,8 +61,6 @@ pub struct EngineOrderTmp2 {
     pub created_at: u64,
 }
 
-
-
 #[derive(Clone, Serialize, Debug)]
 pub struct BookOrder {
     pub id: String,
@@ -72,7 +70,6 @@ pub struct BookOrder {
     pub amount: U256,
     pub created_at: u64,
 }
-
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct OrderInfo {
@@ -123,8 +120,8 @@ impl OrderInfo {
             amount,
             status: order::Status::Pending,
             available_amount: amount,
-            matched_amount: U256::from(0),
-            canceled_amount: U256::from(0),
+            matched_amount: U256_ZERO,
+            canceled_amount: U256_ZERO,
             updated_at: get_current_time(),
             created_at: get_current_time(),
         }
@@ -168,7 +165,12 @@ pub fn update_order(order: &UpdateOrder) {
     info!("success update order {} rows", execute_res);
 }
 
-pub fn update_order_status(status: OrderStatus,available_amount:U256,canceled_amount:U256,order_id: &str) {
+pub fn update_order_status(
+    status: OrderStatus,
+    available_amount: U256,
+    canceled_amount: U256,
+    order_id: &str,
+) {
     // todo:考虑数据后期增加的问题，做每日的临时表
     let sql = format!(
         "UPDATE chemix_orders SET (available_amount,canceled_amount,status,updated_at)=\
@@ -250,7 +252,8 @@ pub fn get_last_order() -> Option<OrderInfo> {
         price: U256::from_str_radix(rows[0].get::<usize, &str>(7usize), 10).unwrap(),
         amount: U256::from_str_radix(rows[0].get::<usize, &str>(8usize), 10).unwrap(),
         status: order::Status::from(rows[0].get::<usize, &str>(9usize)),
-        available_amount: U256::from_str_radix(rows[0].get::<usize, &str>(10usize), 10).unwrap(),
+        available_amount: U256::from_str_radix(rows[0].get::<usize, &str>(10usize), 10)
+            .unwrap(),
         matched_amount: U256::from_str_radix(rows[0].get::<usize, &str>(11usize), 10).unwrap(),
         canceled_amount: U256::from_str_radix(rows[0].get::<usize, &str>(12usize), 10).unwrap(),
         updated_at: rows[0].get(13),
@@ -259,9 +262,7 @@ pub fn get_last_order() -> Option<OrderInfo> {
     Some(order)
 }
 
-pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(
-    id_or_index: T,
-) -> Option<OrderInfo> {
+pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(id_or_index: T) -> Option<OrderInfo> {
     let filter_str = match id_or_index.into() {
         IdOrIndex::Id(id) => {
             format!(" id=\'{}\'", id)
@@ -285,7 +286,7 @@ pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(
     );
     let rows = crate::query(sql.as_str()).unwrap();
     if rows.is_empty() {
-        return None
+        return None;
     }
     let order = OrderInfo {
         id: rows[0].get(0),
@@ -298,7 +299,8 @@ pub fn get_order<T: Into<IdOrIndex> + Send + Sync>(
         price: U256::from_str_radix(rows[0].get::<usize, &str>(7usize), 10).unwrap(),
         amount: U256::from_str_radix(rows[0].get::<usize, &str>(8usize), 10).unwrap(),
         status: order::Status::from(rows[0].get::<usize, &str>(9usize)),
-        available_amount: U256::from_str_radix(rows[0].get::<usize, &str>(10usize), 10).unwrap(),
+        available_amount: U256::from_str_radix(rows[0].get::<usize, &str>(10usize), 10)
+            .unwrap(),
         matched_amount: U256::from_str_radix(rows[0].get::<usize, &str>(11usize), 10).unwrap(),
         canceled_amount: U256::from_str_radix(rows[0].get::<usize, &str>(12usize), 10).unwrap(),
         updated_at: rows[0].get(13),
@@ -312,13 +314,12 @@ pub fn list_users_orders(
     status_arr: Vec<order::Status>,
     limit: u32,
 ) -> Vec<EngineOrderTmp1> {
-
     let mut status_filter = "(".to_string();
-    for (index,status) in status_arr.iter().enumerate() {
+    for (index, status) in status_arr.iter().enumerate() {
         let filter = if index < status_arr.len() - 1 {
-            format!("'{}',",status.as_str())
-        }else {
-            format!("'{}')",status.as_str())
+            format!("'{}',", status.as_str())
+        } else {
+            format!("'{}')", status.as_str())
         };
         status_filter += filter.as_str();
     }
@@ -331,9 +332,7 @@ pub fn list_users_orders(
     status,\
     cast(created_at as text) from chemix_orders \
     where account='{}' and status in {} order by created_at DESC limit {}",
-        account,
-        status_filter,
-        limit
+        account, status_filter, limit
     );
     info!("list_users_orders raw sql {}", sql);
     let mut orders = Vec::<EngineOrderTmp1>::new();
@@ -361,19 +360,17 @@ pub fn list_users_orders(
     orders
 }
 
-
 pub fn list_users_orders2(
     account: &str,
     status_arr: Vec<order::Status>,
     limit: u32,
 ) -> Vec<OrderInfo> {
-
     let mut status_filter = "(".to_string();
-    for (index,status) in status_arr.iter().enumerate() {
+    for (index, status) in status_arr.iter().enumerate() {
         let filter = if index < status_arr.len() - 1 {
-            format!("'{}',",status.as_str())
-        }else {
-            format!("'{}')",status.as_str())
+            format!("'{}',", status.as_str())
+        } else {
+            format!("'{}')", status.as_str())
         };
         status_filter += filter.as_str();
     }
@@ -388,9 +385,7 @@ pub fn list_users_orders2(
          cast(updated_at as text) ,\
          cast(created_at as text)  from chemix_orders \
     where account='{}' and status in {} order by created_at DESC limit {}",
-        account,
-        status_filter,
-        limit
+        account, status_filter, limit
     );
     info!("list_users_orders2 raw sql {}", sql);
     let mut orders = Vec::<OrderInfo>::new();
@@ -407,7 +402,8 @@ pub fn list_users_orders2(
             price: U256::from_str_radix(row.get::<usize, &str>(7usize), 10).unwrap(),
             amount: U256::from_str_radix(row.get::<usize, &str>(8usize), 10).unwrap(),
             status: order::Status::from(row.get::<usize, &str>(9usize)),
-            available_amount: U256::from_str_radix(row.get::<usize, &str>(10usize), 10).unwrap(),
+            available_amount: U256::from_str_radix(row.get::<usize, &str>(10usize), 10)
+                .unwrap(),
             matched_amount: U256::from_str_radix(row.get::<usize, &str>(11usize), 10).unwrap(),
             canceled_amount: U256::from_str_radix(row.get::<usize, &str>(12usize), 10).unwrap(),
             updated_at: row.get(13),
@@ -444,7 +440,7 @@ pub fn get_order_volume(scope: TimeScope, market_id: &str) -> U256 {
         }
     };
     let sql = format!("select amount from chemix_orders {}", filter_str);
-    let mut sum = U256::from(0);
+    let mut sum = U256_ZERO;
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
         sum += U256::from_str_radix(row.get::<usize, &str>(0), 10).unwrap()

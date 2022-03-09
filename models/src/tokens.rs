@@ -1,5 +1,5 @@
 extern crate rustc_serialize;
-use serde::Deserialize;
+
 use serde::Serialize;
 
 #[derive(Serialize, Debug, Default)]
@@ -43,7 +43,7 @@ pub fn get_token(symbol: &str) -> Option<Token> {
     );
     let rows = crate::query(sql.as_str()).unwrap();
     if rows.is_empty() {
-        return None
+        return None;
     }
     info!("get_snapshot: raw sql {}", sql);
     Some(Token {

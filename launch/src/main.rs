@@ -6,9 +6,9 @@ use std::collections::{HashMap, HashSet};
 //use ethers::providers::Ws;
 
 use chemix_chain::chemix::{ChemixContractClient, ThawBalances2};
-use ethers_providers::{Http, StreamExt};
-use rsmq_async::{Rsmq, RsmqConnection};
 use common::queue::*;
+use ethers_providers::StreamExt;
+use rsmq_async::{Rsmq, RsmqConnection};
 
 use chemix_chain::bsc::{gen_watcher, get_block, get_current_block};
 use std::string::String;
@@ -25,35 +25,36 @@ use std::sync::{Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::time;
 
-use chemix_models::order::{get_last_order, get_order, BookOrder, IdOrIndex, update_order, update_order_status,UpdateOrder};
+use chemix_models::order::{
+    get_last_order, get_order, update_order_status, BookOrder, IdOrIndex,
+};
 use chemix_models::trade::{
     list_trades, list_trades2, update_trade, update_trade_by_hash, TradeInfo,
 };
 use common::utils::algorithm::{sha256, u8_arr_from_str};
 use common::utils::math::{u256_to_f64, U256_ZERO};
-use common::utils::time::{get_current_time, get_unix_time};
+use common::utils::time::get_current_time;
 
 use ethers_core::abi::ethereum_types::U64;
 
+use chemix_chain::chemix::vault::{SettleValues3, ThawBalances, Vault};
 use chemix_models::market::get_markets;
 use log::info;
-use chemix_chain::chemix::vault::{SettleValues3, ThawBalances, Vault};
 
 //use common::env::CONF as ENV_CONF;
 use chemix_models::thaws::{list_thaws2, Thaws};
 use common::env::CONF as ENV_CONF;
 
+use common::types::order::Status as OrderStatus;
 use common::types::order::{Side as OrderSide, Side};
 use common::types::thaw::Status as ThawStatus;
 use common::types::trade::Status as TradeStatus;
-use common::types::order::Status as OrderStatus;
 
 #[macro_use]
 extern crate lazy_static;
 
 #[macro_use]
 extern crate log;
-
 
 #[macro_use]
 extern crate common;
@@ -266,18 +267,29 @@ fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, AddBook> {
         //taker剩余的部分为插入
         for taker_order_id in taker_order_ids {
             let taker_order = get_order(IdOrIndex::Id(taker_order_id.clone())).unwrap();
-            let matched_trades = list_trades2(&taker_order_id, &taker_order.hash_data,TradeStatus::Launched);
-            info!("[test_big_taker]:0000_matched_trades_{:?}",matched_trades);
+            let matched_trades = list_trades2(
+                &taker_order_id,
+                &taker_order.hash_data,
+                TradeStatus::Launched,
+            );
+            info!("[test_big_taker]:0000_matched_trades_{:?}", matched_trades);
             let mut matched_amount = U256_ZERO;
             for matched_trade in matched_trades {
                 matched_amount += matched_trade.amount;
             }
 
-            let confirmed_trades = list_trades2(&taker_order_id, &taker_order.hash_data,TradeStatus::Confirmed);
+            let confirmed_trades = list_trades2(
+                &taker_order_id,
+                &taker_order.hash_data,
+                TradeStatus::Confirmed,
+            );
             //todo！判断当前taker_order_id confirm的数量，处理一个taker_order_id多次上链的情况
             //若大额吃单,会放多个区块打包，第一次的时候将已撮合还没上链的余额更新到taker_side的方向剩余，之后上链的在该vlomue上累减
-            if confirmed_trades.is_empty(){
-                info!("[test_big_taker]:0001_taker_order.amount {},matched_amount {}",taker_order.amount,matched_amount);
+            if confirmed_trades.is_empty() {
+                info!(
+                    "[test_big_taker]:0001_taker_order.amount {},matched_amount {}",
+                    taker_order.amount, matched_amount
+                );
                 let remain = taker_order.amount - matched_amount;
                 match taker_order.side {
                     Side::Buy => {
@@ -295,8 +307,11 @@ fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, AddBook> {
                         *stat += I256::from_raw(remain);
                     }
                 }
-            }else {
-                info!("[test_big_taker]:0002_taker_order.amount {},matched_amount {}",taker_order.amount,matched_amount);
+            } else {
+                info!(
+                    "[test_big_taker]:0002_taker_order.amount {},matched_amount {}",
+                    taker_order.amount, matched_amount
+                );
                 match taker_order.side {
                     Side::Buy => {
                         let stat = market_AddBook2
@@ -314,7 +329,6 @@ fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, AddBook> {
                     }
                 }
             }
-
         }
         all_market_depth.insert(market_id, market_AddBook2);
     }
@@ -439,7 +453,11 @@ fn gen_depth_from_thaws(pending_thaws: Vec<Thaws>) -> AddBook {
     }
 }
 
-async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock<Rsmq>>, block_height: u32) {
+async fn deal_launched_trade(
+    new_settlements: Vec<String>,
+    arc_queue: Arc<RwLock<Rsmq>>,
+    block_height: u32,
+) {
     //let mut agg_trades = Vec::<LastTrade2>::new();
     info!("Get settlement event {:?}", new_settlements);
     let mut agg_trades = HashMap::<String, Vec<LastTrade2>>::new();
@@ -447,7 +465,14 @@ async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock
     //目前来说一个区块里只有一个清算
     for hash_data in new_settlements {
         //todo: limit
-        let db_trades = list_trades(None, None, Some(TradeStatus::Launched), Some(hash_data.clone()), Some(block_height),10000);
+        let db_trades = list_trades(
+            None,
+            None,
+            Some(TradeStatus::Launched),
+            Some(hash_data.clone()),
+            Some(block_height),
+            10000,
+        );
 
         //todo: push ws aggTrade
         //todo: push ws depth
@@ -480,7 +505,7 @@ async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock
         }
 
         let all_markets_depth = gen_depth_from_trades(db_trades.clone());
-        update_trade_by_hash(TradeStatus::Confirmed, &hash_data,block_height);
+        update_trade_by_hash(TradeStatus::Confirmed, &hash_data, block_height);
 
         //push agg trade
         if !agg_trades.is_empty() {
@@ -501,7 +526,6 @@ async fn deal_launched_trade(new_settlements: Vec<String>, arc_queue: Arc<RwLock
             .send_message(QueueType::Depth.to_string().as_str(), json_str, None)
             .await
             .expect("failed to send message");
-
     }
 }
 
@@ -586,9 +610,9 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
     let arc_queue = Arc::new(RwLock::new(queue));
 
     let pri_key = ENV_CONF.chemix_relayer_prikey.to_owned().unwrap();
-    let chemix_vault_client = ChemixContractClient::<Vault>::new(pri_key.clone().to_str().unwrap());
+    let chemix_vault_client =
+        ChemixContractClient::<Vault>::new(pri_key.clone().to_str().unwrap());
     let chemix_vault_client = Arc::new(RwLock::new(chemix_vault_client));
-
 
     rayon::scope(|s| {
         let vault_listen_client = chemix_vault_client.clone();
@@ -600,7 +624,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
                 //todo 过滤所有的thaws和battle，更新confirm状态,并且推ws消息（解冻，depth、aggtrade）
-                let mut watcher = gen_watcher().await;
+                let watcher = gen_watcher().await;
                 let mut stream = watcher.provide.watch_blocks().await.unwrap();
                 while let Some(block) = stream.next().await {
                     info!("block {}", block);
@@ -624,7 +648,12 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         );
                     } else {
                         tokio::time::sleep(time::Duration::from_millis(1000)).await;
-                        deal_launched_trade(new_settlements, arc_queue.clone(),current_height.as_u32()).await;
+                        deal_launched_trade(
+                            new_settlements,
+                            arc_queue.clone(),
+                            current_height.as_u32(),
+                        )
+                        .await;
                     }
 
                     let new_thaws = vault_listen_client
@@ -710,7 +739,8 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     );
                     let cancel_id = u8_arr_from_str(sha256(order_json));
                     loop {
-                        match vault_thaws_client.clone()
+                        match vault_thaws_client
+                            .clone()
                             .read()
                             .unwrap()
                             .thaw_balances(thaw_infos.clone(), cancel_id)
@@ -753,7 +783,12 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             ThawStatus::Launched,
                         );
                         //todo： 放到事件监听之后处理
-                        update_order_status(OrderStatus::Canceled,U256_ZERO,pending_thaw.amount,pending_thaw.order_id.as_str());
+                        update_order_status(
+                            OrderStatus::Canceled,
+                            U256_ZERO,
+                            pending_thaw.amount,
+                            pending_thaw.order_id.as_str(),
+                        );
                     }
                 }
             });
@@ -782,7 +817,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 
                     //let mut agg_trades = Vec::new();
                     if !settle_trades.is_empty() {
-                        while get_current_block() - last_height > 0u32 {
+                        while get_current_block().await - last_height > 0u32 {
                             info!("current {},wait for next block",last_height);
                             tokio::time::sleep(time::Duration::from_millis(500)).await;
                         }
@@ -828,7 +863,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
-    let queue = Queue::regist(vec![QueueType::Trade,QueueType::Depth,QueueType::Thaws]).await;
+    let queue = Queue::regist(vec![QueueType::Trade, QueueType::Depth, QueueType::Thaws]).await;
     listen_blocks(queue).await;
     Ok(())
 }

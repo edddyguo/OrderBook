@@ -1,4 +1,4 @@
-use serde::{Serialize,Deserialize};
+use serde::{Deserialize, Serialize};
 
 use common::types::order::Side as OrderSide;
 
@@ -13,8 +13,7 @@ pub struct Trade {
     pub updated_at: u64,
 }
 
-
-#[derive(Serialize,Debug,Clone,Deserialize)]
+#[derive(Serialize, Debug, Clone, Deserialize)]
 pub struct Trade2 {
     pub id: String,
     pub market_id: String,

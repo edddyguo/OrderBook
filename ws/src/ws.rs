@@ -1,4 +1,4 @@
-use crate::{Client, Clients};
+use crate::Clients;
 use futures::{FutureExt, SinkExt, StreamExt};
 use log::{error, info};
 use serde::Deserialize;
@@ -8,7 +8,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::ws::{Message, WebSocket};
 //use warp::filters::ws::Message;
 
-use crate::handler::{PublishRespond, register_client};
+use crate::handler::{register_client, PublishRespond};
 use uuid::Uuid;
 
 #[derive(Deserialize, Debug)]
@@ -69,7 +69,7 @@ pub async fn client_connection(
 
     //insert new client
     let id = Uuid::new_v4().simple().to_string();
-    register_client(id.clone(),client_sender,clients.clone()).await;
+    register_client(id.clone(), client_sender, clients.clone()).await;
 
     tokio::task::spawn(client_rcv.forward(client_ws_sender).map(|result| {
         if let Err(e) = result {
@@ -99,7 +99,6 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
         Err(_) => return,
     };
 
-    //todo: 针对message做具体的订阅、取消订阅
     let topics_req: TopicsRequest2 = match from_str(&message) {
         Ok(v) => v,
         Err(e) => {

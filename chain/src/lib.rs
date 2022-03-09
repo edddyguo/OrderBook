@@ -3,24 +3,22 @@ pub mod chemix;
 
 use std::convert::TryFrom;
 // use the anyhow crate for easy idiomatic error handling
-use anyhow::Result;
+
 use ethers::prelude::*;
 use std::time::Duration;
 //use ethers::providers::Ws;
-use ethers_providers::{Http, Middleware, StreamExt,Ws};
 use common::env::CONF as ENV_CONF;
+use ethers_providers::{Http, Middleware, StreamExt, Ws};
 
-type ContractClient = Arc<SignerMiddleware<Provider<Http>,Wallet<SigningKey>>>;
-
+type ContractClient = Arc<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>;
 
 #[macro_use]
 extern crate log;
 
 #[macro_use]
 extern crate lazy_static;
-use std::sync::{Arc, Mutex};
 use ethers::core::k256::ecdsa::SigningKey;
-
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct Node<P> {
@@ -86,7 +84,6 @@ lazy_static! {
     };
 }
 
-
 pub async fn listen_block() -> anyhow::Result<()> {
     let ws = Ws::connect("wss://rinkeby.infura.io/ws/v3/c60b0bb42f8a4c6481ecd229eddaca27")
         .await
@@ -100,8 +97,7 @@ pub async fn listen_block() -> anyhow::Result<()> {
     Ok(())
 }
 
-
-fn gen_contract_client(prikey_str: &str) -> ContractClient{
+fn gen_contract_client(prikey_str: &str) -> ContractClient {
     let wallet = prikey_str
         .parse::<LocalWallet>()
         .unwrap()

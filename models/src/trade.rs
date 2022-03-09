@@ -3,14 +3,14 @@ use common::types::*;
 use common::utils::algorithm::sha256;
 use common::utils::time::get_current_time;
 use ethers_core::types::U256;
-use serde::{Serialize,Deserialize};
+use serde::{Deserialize, Serialize};
 
 extern crate rustc_serialize;
 use common::types::order::Side as OrderSide;
 use common::types::trade::Status as TradeStatus;
 use common::utils::math::U256_ZERO;
 
-#[derive(Serialize, Debug, Clone,Deserialize)]
+#[derive(Serialize, Debug, Clone, Deserialize)]
 pub struct TradeInfo {
     pub id: String,
     pub block_height: i32,
@@ -114,14 +114,14 @@ pub fn list_trades(
     limit: u32,
 ) -> Vec<TradeInfo> {
     //todo: 待补充场景
-    let filter_str = match (user, market_id, status, hash_data,block_height) {
-        (None, None, None, None,None) => {
+    let filter_str = match (user, market_id, status, hash_data, block_height) {
+        (None, None, None, None, None) => {
             format!("")
         }
-        (Some(account), None, None, None,None) => {
+        (Some(account), None, None, None, None) => {
             format!(" where taker='{}' or maker='{}' ", account, account)
         }
-        (Some(account), Some(market_id), Some(status), None,None) => {
+        (Some(account), Some(market_id), Some(status), None, None) => {
             format!(
                 " where (taker='{}' or maker='{}') and status='{}' and market_id='{}' ",
                 account,
@@ -130,24 +130,29 @@ pub fn list_trades(
                 market_id.as_str()
             )
         }
-        (None, Some(id), Some(status), None,None) => {
+        (None, Some(id), Some(status), None, None) => {
             format!(
                 " where market_id='{}' and status='{}' ",
                 id,
                 status.as_str()
             )
         }
-        (Some(account), Some(id), None, None,None) => {
+        (Some(account), Some(id), None, None, None) => {
             format!(
                 " where market_id='{}' and (taker='{}' or maker='{}') ",
                 id, account, account
             )
         }
-        (None, None, Some(status), None,None) => {
+        (None, None, Some(status), None, None) => {
             format!(" where status='{}' ", status.as_str())
         }
-        (None, None, Some(status), Some(hash_data),Some(height)) => {
-            format!(" where status='{}' and hash_data='{}' and block_height={} ", status.as_str(),hash_data.as_str(),height)
+        (None, None, Some(status), Some(hash_data), Some(height)) => {
+            format!(
+                " where status='{}' and hash_data='{}' and block_height={} ",
+                status.as_str(),
+                hash_data.as_str(),
+                height
+            )
         }
         _ => {
             unreachable!()
@@ -204,7 +209,11 @@ pub fn list_trades(
     trades
 }
 
-pub fn list_trades2(taker_order_id: &str, hash_data: &str,status: TradeStatus) -> Vec<TradeInfo> {
+pub fn list_trades2(
+    taker_order_id: &str,
+    hash_data: &str,
+    status: TradeStatus,
+) -> Vec<TradeInfo> {
     let sql = format!(
         "select \
     id,\
@@ -224,7 +233,9 @@ pub fn list_trades2(taker_order_id: &str, hash_data: &str,status: TradeStatus) -
     cast(updated_at as text) \
     from chemix_trades \
     where taker_order_id='{}' and hash_data='{}'  and status='{}' order by created_at DESC",
-        taker_order_id, hash_data,status.as_str()
+        taker_order_id,
+        hash_data,
+        status.as_str()
     );
     let mut trades: Vec<TradeInfo> = Vec::new();
     info!("list_trades_sql {}", sql);
@@ -274,7 +285,7 @@ pub fn list_trades3(order_id: &str) -> Vec<TradeInfo> {
     cast(updated_at as text) \
     from chemix_trades \
     where  (taker_order_id='{}' or maker_order_id='{}')",
-        order_id,order_id
+        order_id, order_id
     );
     let mut trades: Vec<TradeInfo> = Vec::new();
     info!("list_trades_sql {}", sql);
@@ -326,7 +337,7 @@ pub fn update_trade(
     info!("success update trade {} rows", execute_res);
 }
 
-pub fn update_trade_by_hash(status: TradeStatus, hash_data: &str,block_height: u32) {
+pub fn update_trade_by_hash(status: TradeStatus, hash_data: &str, block_height: u32) {
     let sql = format!(
         "UPDATE chemix_trades SET (status,updated_at)=\
          ('{}','{}') WHERE hash_data='{}' and block_height={}",
@@ -369,7 +380,7 @@ pub fn get_trade_volume(scope: TimeScope, market_id: &str) -> U256 {
         }
     };
     let sql = format!("select amount from chemix_trades {}", filter_str);
-    let mut sum = U256::from(0);
+    let mut sum = U256_ZERO;
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
         sum += U256::from_str_radix(row.get::<usize, &str>(0), 10).unwrap()

@@ -1,14 +1,14 @@
-use ethers_core::types::U256;
-use log::info;
-use serde::{Serialize,Deserialize};
+use crate::trade::Trade2;
+use crate::OrderSide;
 use chemix_models::market::get_markets2;
-use chemix_models::order::{OrderInfo};
+use chemix_models::order::OrderInfo;
 use chemix_models::trade::list_trades3;
 use common::types::order::Side;
 use common::utils::math::{u256_to_f64, U256_ZERO};
-use common::utils::time::{get_current_time, time2unix};
-use crate::OrderSide;
-use crate::trade::Trade2;
+use common::utils::time::time2unix;
+use ethers_core::types::U256;
+use log::info;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
 struct Trade {
@@ -36,16 +36,19 @@ pub struct OrderDetail {
     pub created_at: u64,
 }
 
-pub fn get_order_detail(order: &OrderInfo) -> OrderDetail{
+pub fn get_order_detail(order: &OrderInfo) -> OrderDetail {
     let market_info = get_markets2(order.market_id.as_str()).unwrap();
-    let (base_decimal,quote_decimal) = (market_info.base_contract_decimal as u32,market_info.quote_contract_decimal as u32);
+    let (base_decimal, quote_decimal) = (
+        market_info.base_contract_decimal as u32,
+        market_info.quote_contract_decimal as u32,
+    );
     let trades = list_trades3(order.id.as_str());
     let mut total_volume = U256_ZERO;
     let mut trades2 = Vec::<Trade2>::new();
     for trade in trades.clone() {
         total_volume += trade.amount * trade.price / teen_power!(base_decimal);
 
-        trades2.push(Trade2{
+        trades2.push(Trade2 {
             id: trade.id.clone(),
             market_id: trade.market_id.clone(),
             price: u256_to_f64(trade.price, quote_decimal),
@@ -55,9 +58,12 @@ pub fn get_order_detail(order: &OrderInfo) -> OrderDetail{
             taker_side: trade.taker_side.clone(),
             updated_at: time2unix(trade.created_at.clone()),
         });
-        info!("total_volume = {}",(trade.amount * trade.price / teen_power!(base_decimal)).to_string());
+        info!(
+            "total_volume = {}",
+            (trade.amount * trade.price / teen_power!(base_decimal)).to_string()
+        );
     }
-    let average_price = total_volume  / (order.amount / base_decimal);
+    let average_price = total_volume / (order.amount / base_decimal);
     OrderDetail {
         id: order.id.clone(),
         market_id: order.market_id.clone(),
@@ -72,6 +78,6 @@ pub fn get_order_detail(order: &OrderInfo) -> OrderDetail{
         side: Side::Buy,
         status: order.status.as_str().to_string(),
         trades: trades2,
-        created_at: time2unix(order.created_at.clone())
+        created_at: time2unix(order.created_at.clone()),
     }
 }

@@ -18,44 +18,42 @@ use std::convert::TryFrom;
 
 use ethers::types::Address;
 use std::fmt::Debug;
-use std::ops::Sub;
+
 use std::str::FromStr;
 
 use crate::order::{cancel, gen_depth_from_order, match_order};
 use std::sync::Mutex;
 use std::sync::{mpsc, Arc, RwLock};
-use std::time;
 
 use tokio::runtime::Runtime;
 
 use clap::{App, Arg};
 
-use chemix_models::order::{get_order, insert_order, list_available_orders, update_order, BookOrder, EngineOrder, OrderInfo, UpdateOrder, get_last_order};
+use chemix_models::order::{
+    get_last_order, get_order, insert_order, list_available_orders, update_order, BookOrder,
+    EngineOrder, OrderInfo, UpdateOrder,
+};
 use chemix_models::trade::{insert_trades, TradeInfo};
 
-use common::utils::math::{u256_to_f64, U256_ZERO};
+use chemix_chain::chemix::storage::Storage;
+use common::utils::math::U256_ZERO;
 use common::utils::time::get_current_time;
 use common::utils::time::time2unix;
 use ethers_core::abi::ethereum_types::U64;
-use chemix_chain::chemix::storage::Storage;
-use chemix_chain::Node;
 
 use chemix_models::order::IdOrIndex::{Id, Index};
-use common::env::CONF as ENV_CONF;
-use common::types::order::Status as OrderStatus;
-use common::types::order::Side as OrderSide;
-use chemix_models::market::{MarketInfo,get_markets};
+
+use chemix_models::market::{get_markets, MarketInfo};
 use chemix_models::thaws::{insert_thaws, Thaws};
 use common::queue::*;
-
-
+use common::types::order::Side as OrderSide;
+use common::types::order::Status as OrderStatus;
 
 #[macro_use]
 extern crate lazy_static;
 
 #[macro_use]
 extern crate log;
-
 
 #[macro_use]
 extern crate common;
@@ -201,7 +199,7 @@ async fn get_balance() -> Result<()> {
 async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
     //todo: 重启从上次结束的块开始扫
     info!("0000");
-    let mut last_height: U64 = U64::from(200u64);
+    let _last_height: U64 = U64::from(200u64);
     let (event_sender, event_receiver) = mpsc::sync_channel(0);
     let arc_queue = Arc::new(RwLock::new(queue));
     //不考虑安全性,随便写个私钥
@@ -214,22 +212,18 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
         s.spawn(move |_| {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
-                let mut watcher = gen_watcher().await;
+                let watcher = gen_watcher().await;
                 let mut stream = watcher.provide.watch_blocks().await.unwrap();
-                let mut last_height = match  get_last_order() {
-                    Some(order) => {
-                        order.block_height
-                    },
-                    None => {
-                        get_current_block().await
-                    }
+                let mut last_height = match get_last_order() {
+                    Some(order) => order.block_height,
+                    None => get_current_block().await,
                 };
                 while let Some(block) = stream.next().await {
                     info!("current_book {:#?}", crate::BOOK.lock().unwrap());
                     let current_height = get_block(block).await.unwrap().unwrap().as_u32();
                     //防止ws推送的数据有跳空的情况
-                    for height in last_height+1..=current_height {
-                        info!("deal with block {:?},height {}", block,height);
+                    for height in last_height + 1..=current_height {
+                        info!("deal with block {:?},height {}", block, height);
                         //取消订单
                         let new_cancel_orders = chemix_storage_client
                             .clone()
@@ -245,15 +239,12 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         info!("new_cancel_orders_event {:?}", new_cancel_orders);
                         let legal_orders = cancel(new_cancel_orders.clone());
                         if legal_orders.is_empty() {
-                            info!(
-                            "Not found legal_cancel orders created at height {}",
-                            height
-                        );
+                            info!("Not found legal_cancel orders created at height {}", height);
                         } else {
                             let mut pending_thaws = Vec::new();
                             for cancel_order in legal_orders {
-                                let order =
-                                    get_order(Index(cancel_order.order_index.as_u32())).unwrap();
+                                let order = get_order(Index(cancel_order.order_index.as_u32()))
+                                    .unwrap();
                                 let update_info = UpdateOrder {
                                     id: order.id.clone(),
                                     status: OrderStatus::PreCanceled,
@@ -298,14 +289,21 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 let base_decimal = crate::MARKET.base_contract_decimal as u32;
                                 let raw_amount = if base_decimal > order.num_power {
                                     order.amount * teen_power!(base_decimal - order.num_power)
-                                }else {
+                                } else {
                                     order.amount * teen_power!(order.num_power - base_decimal)
-
                                 };
                                 //todo: 非法数据过滤
                                 db_new_orders.push(OrderInfo::new(
-                                    order.id,  order.index, height, order.hash_data, crate::MARKET.id.to_string(),
-                                    order.account, order.side, order.price,raw_amount));
+                                    order.id,
+                                    order.index,
+                                    height,
+                                    order.hash_data,
+                                    crate::MARKET.id.to_string(),
+                                    order.account,
+                                    order.side,
+                                    order.price,
+                                    raw_amount,
+                                ));
                             }
                             event_sender
                                 .send(db_new_orders)
@@ -332,19 +330,18 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 //market_orders的移除或者减少
                 let mut db_marker_orders_reduce = HashMap::<String, U256>::new();
                 for (index, db_order) in orders.iter_mut().enumerate() {
-                    let _matched_amount = match_order(
-                        db_order,
-                        &mut db_trades,
-                        &mut db_marker_orders_reduce,
-                    );
+                    let _matched_amount =
+                        match_order(db_order, &mut db_trades, &mut db_marker_orders_reduce);
 
                     info!(
                         "index {},taker amount {},matched-amount {}",
                         index, db_order.amount, _matched_amount
                     );
-                    db_order.status = if db_order.available_amount == U256_ZERO{
+                    db_order.status = if db_order.available_amount == U256_ZERO {
                         OrderStatus::FullFilled
-                    } else if db_order.available_amount != U256_ZERO && db_order.available_amount < db_order.amount {
+                    } else if db_order.available_amount != U256_ZERO
+                        && db_order.available_amount < db_order.amount
+                    {
                         OrderStatus::PartialFilled
                     } else if db_order.available_amount == db_order.amount {
                         OrderStatus::Pending
@@ -352,7 +349,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         unreachable!()
                     };
                     //tmp code: 校验数据准确性用，后边移除
-                    assert_eq!(_matched_amount,db_order.amount - db_order.available_amount);
+                    assert_eq!(_matched_amount, db_order.amount - db_order.available_amount);
                     db_order.matched_amount = db_order.amount - db_order.available_amount;
                     info!(
                         "finished match_order index {},and status {:?},status_str={},",
@@ -369,11 +366,14 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 }
                 insert_order(orders.clone());
                 //update marker orders
-                info!("db_marker_orders_reduce {:?}",db_marker_orders_reduce);
+                info!("db_marker_orders_reduce {:?}", db_marker_orders_reduce);
                 for orders in db_marker_orders_reduce {
                     let marker_order_ori = get_order(Id(orders.0.clone())).unwrap();
                     let new_matched_amount = marker_order_ori.matched_amount + orders.1;
-                    info!("marker_order_ori {};available_amount={},reduce_amount={}",marker_order_ori.id,marker_order_ori.available_amount,orders.1);
+                    info!(
+                        "marker_order_ori {};available_amount={},reduce_amount={}",
+                        marker_order_ori.id, marker_order_ori.available_amount, orders.1
+                    );
                     let new_available_amount = marker_order_ori.available_amount - orders.1;
 
                     let new_status = if new_available_amount == U256_ZERO {

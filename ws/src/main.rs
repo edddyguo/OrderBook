@@ -7,15 +7,15 @@ extern crate warp;
 
 use futures::TryFutureExt;
 use handler::Event;
-use rsmq_async::{Rsmq, RsmqConnection, RsmqOptions};
+use log::info;
+use rsmq_async::{Rsmq, RsmqConnection};
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::env;
-use log::info;
 use std::sync::Arc;
 
-use common::queue::*;
 use chemix_chain::chemix::ThawBalances2;
+use common::queue::*;
 use serde::{Deserialize, Serialize};
 //use serde_json::Value::String;
 use tokio::sync::{mpsc, RwLock};
@@ -23,14 +23,12 @@ use tokio::time;
 use warp::http::Method;
 use warp::{ws::Message, Filter, Rejection};
 
-
 mod handler;
 mod ws;
 
 type Result<T> = std::result::Result<T, Rejection>;
 type Clients = Arc<RwLock<HashMap<String, Client>>>;
 type Queues = Arc<RwLock<Rsmq>>;
-
 
 #[derive(Debug, Clone)]
 pub struct Client {
@@ -55,7 +53,7 @@ pub struct AddBook {
 
 fn with_clients(
     clients: Clients,
-) -> impl Filter<Extract=(Clients, ), Error=Infallible> + Clone {
+) -> impl Filter<Extract = (Clients,), Error = Infallible> + Clone {
     warp::any().map(move || clients.clone())
 }
 
@@ -96,13 +94,11 @@ async fn ws_service(clients: Clients) {
     warp::serve(routes).run(([0, 0, 0, 0], port)).await;
 }
 
-async fn listen_depth(
-    rsmq: Queues,
-    clients: Clients,
-    queue_name: &str,
-) {
+async fn listen_depth(rsmq: Queues, clients: Clients, queue_name: &str) {
     loop {
-        let message = rsmq.write().await
+        let message = rsmq
+            .write()
+            .await
             .receive_message::<String>(queue_name, None)
             .await
             .expect("cannot receive message");
@@ -119,7 +115,9 @@ async fn listen_depth(
                 handler::publish_handler(event, clients.clone()).await;
             }
 
-            rsmq.write().await.delete_message(queue_name, &message.id)
+            rsmq.write()
+                .await
+                .delete_message(queue_name, &message.id)
                 .await;
         } else {
             tokio::time::sleep(time::Duration::from_millis(10)).await;
@@ -127,14 +125,11 @@ async fn listen_depth(
     }
 }
 
-
-async fn listen_thaws(
-    rsmq: Queues,
-    clients: Clients,
-    queue_name: &str,
-) {
+async fn listen_thaws(rsmq: Queues, clients: Clients, queue_name: &str) {
     loop {
-        let message = rsmq.write().await
+        let message = rsmq
+            .write()
+            .await
             .receive_message::<String>(queue_name, None)
             .await
             .expect("cannot receive message");
@@ -152,7 +147,9 @@ async fn listen_thaws(
                 handler::publish_handler(event, clients.clone()).await;
             }
 
-            rsmq.write().await.delete_message(queue_name, &message.id)
+            rsmq.write()
+                .await
+                .delete_message(queue_name, &message.id)
                 .await;
         } else {
             tokio::time::sleep(time::Duration::from_millis(10)).await;
@@ -160,14 +157,11 @@ async fn listen_thaws(
     }
 }
 
-
-async fn listen_trade(
-    rsmq: Queues,
-    clients: Clients,
-    queue_name: &str,
-) {
+async fn listen_trade(rsmq: Queues, clients: Clients, queue_name: &str) {
     loop {
-        let message = rsmq.write().await
+        let message = rsmq
+            .write()
+            .await
             .receive_message::<String>(queue_name, None)
             .await
             .expect("cannot receive message");
@@ -189,7 +183,9 @@ async fn listen_trade(
                 handler::publish_handler(event, clients.clone()).await;
             }
 
-            rsmq.write().await.delete_message(queue_name, &message.id)
+            rsmq.write()
+                .await
+                .delete_message(queue_name, &message.id)
                 .await;
         } else {
             tokio::time::sleep(time::Duration::from_millis(10)).await;
@@ -201,7 +197,7 @@ async fn listen_trade(
 async fn main() {
     env_logger::init();
     let clients: Clients = Arc::new(RwLock::new(HashMap::new()));
-    let queue = Queue::regist(vec![QueueType::Thaws,QueueType::Depth,QueueType::Trade]).await;
+    let queue = Queue::regist(vec![QueueType::Thaws, QueueType::Depth, QueueType::Trade]).await;
     let queues: Queues = Arc::new(RwLock::new(queue));
 
     let clients_ws = clients.clone();
@@ -212,26 +208,39 @@ async fn main() {
     let queues_depth = queues.clone();
     let queues_trade = queues.clone();
 
-
     let ws_handle = tokio::spawn(async move {
         ws_service(clients_ws).await;
     });
 
     //最近的解冻
     let thaws_queue = tokio::spawn(async move {
-        listen_thaws(queues_thaws, clients_thaws, QueueType::Thaws.to_string().as_str()).await
+        listen_thaws(
+            queues_thaws,
+            clients_thaws,
+            QueueType::Thaws.to_string().as_str(),
+        )
+        .await
     });
 
     //最近成交
     let agg_trade_queue = tokio::spawn(async move {
-        listen_trade(queues_trade, clients_trade, QueueType::Trade.to_string().as_str()).await
+        listen_trade(
+            queues_trade,
+            clients_trade,
+            QueueType::Trade.to_string().as_str(),
+        )
+        .await
     });
-
 
     //深度的增量更新
     let depth_queue = tokio::spawn(async move {
-        listen_depth(queues_depth, clients_depth, QueueType::Depth.to_string().as_str()).await
+        listen_depth(
+            queues_depth,
+            clients_depth,
+            QueueType::Depth.to_string().as_str(),
+        )
+        .await
     });
 
-    let _tasks = tokio::join!(ws_handle,depth_queue,agg_trade_queue,thaws_queue);
+    let _tasks = tokio::join!(ws_handle, depth_queue, agg_trade_queue, thaws_queue);
 }

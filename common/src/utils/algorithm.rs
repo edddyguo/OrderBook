@@ -1,4 +1,3 @@
-use log::info;
 use ring::digest;
 
 pub fn sha256(data: String) -> String {
@@ -47,6 +46,9 @@ mod tests {
             "d4bcd99699b2385f4582eaf64ef14346e01653923fd688c715a8562834ca6a11".to_string(),
         );
         let str = u8_arr_to_str(u8_arr);
-        assert_eq!(str.as_str(),"d4bcd99699b2385f4582eaf64ef14346e01653923fd688c715a8562834ca6a11");
+        assert_eq!(
+            str.as_str(),
+            "d4bcd99699b2385f4582eaf64ef14346e01653923fd688c715a8562834ca6a11"
+        );
     }
 }

@@ -6,7 +6,6 @@ use postgres::Row;
 use crate::struct2array;
 use serde::Serialize;
 
-
 #[derive(Serialize, Debug, Default)]
 pub struct Snapshot {
     pub traders: i32,

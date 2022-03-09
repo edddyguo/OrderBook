@@ -1,25 +1,22 @@
-use crate::k256::ecdsa::SigningKey;
 use anyhow::Result;
-use chemix_models::order::BookOrder;
+
 use chrono::Local;
-use common::env;
+
 use common::env::CONF as ENV_CONF;
-use common::types::order::Side;
+
 use common::types::*;
 use common::utils::algorithm::{sha256, u8_arr_to_str};
-use common::utils::math::MathOperation;
+
 use ethers::prelude::*;
 use ethers::types::Address;
-use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
-use std::marker::PhantomData;
-use std::ops::Mul;
-use std::str::FromStr;
-use std::sync::Arc;
-use crate::{ContractClient, gen_contract_client};
-use crate::chemix::ChemixContractClient;
-use common::types::order::Side as OrderSide;
 
+use std::marker::PhantomData;
+
+use std::str::FromStr;
+
+use crate::chemix::ChemixContractClient;
+use crate::gen_contract_client;
+use common::types::order::Side as OrderSide;
 
 #[derive(Clone, Debug)]
 pub struct CancelOrderState2 {
@@ -53,8 +50,8 @@ abigen!(
 );
 
 lazy_static! {
-    static ref STORAGE_ADDR : Address = {
-       let storage = ENV_CONF.chemix_storage.to_owned().unwrap();
+    static ref STORAGE_ADDR: Address = {
+        let storage = ENV_CONF.chemix_storage.to_owned().unwrap();
         Address::from_str(storage.to_str().unwrap()).unwrap()
     };
 }
@@ -62,7 +59,7 @@ lazy_static! {
 #[derive(Clone)]
 pub struct Storage {}
 
-impl ChemixContractClient<Storage>{
+impl ChemixContractClient<Storage> {
     pub fn new(prikey: &str) -> ChemixContractClient<Storage> {
         ChemixContractClient {
             client: gen_contract_client(prikey),

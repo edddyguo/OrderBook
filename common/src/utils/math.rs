@@ -7,15 +7,13 @@ use ethers_core::types::U256;
 
 use num::pow::Pow;
 
-pub const U256_ZERO : U256 = U256([0;4]);
+pub const U256_ZERO: U256 = U256([0; 4]);
 
 #[macro_export]
-macro_rules! teen_power{
-    ($a:expr)=>{
-        {
-            U256::from(10u32).pow(U256::from($a))
-        }
-    }
+macro_rules! teen_power {
+    ($a:expr) => {{
+        U256::from(10u32).pow(U256::from($a))
+    }};
 }
 
 pub trait MathOperation {

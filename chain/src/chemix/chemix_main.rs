@@ -1,23 +1,19 @@
-use crate::k256::ecdsa::SigningKey;
 use anyhow::Result;
-use chemix_models::order::BookOrder;
-use chrono::Local;
-use common::{env, teen_power};
+
 use common::env::CONF as ENV_CONF;
+use common::teen_power;
 use common::types::order::Side;
-use common::types::*;
-use common::utils::algorithm::{sha256, u8_arr_to_str};
+
 use common::utils::math::MathOperation;
 use ethers::prelude::*;
 use ethers::types::Address;
-use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+
 use std::marker::PhantomData;
 use std::ops::Mul;
 use std::str::FromStr;
-use std::sync::Arc;
-use crate::{ContractClient, gen_contract_client};
+
 use crate::chemix::ChemixContractClient;
+use crate::gen_contract_client;
 
 #[derive(Clone)]
 pub struct Main {}
@@ -29,12 +25,11 @@ abigen!(
 );
 
 lazy_static! {
-    static ref MAIN_ADDR : Address = {
-       let main = ENV_CONF.chemix_main.to_owned().unwrap();
+    static ref MAIN_ADDR: Address = {
+        let main = ENV_CONF.chemix_main.to_owned().unwrap();
         Address::from_str(main.to_str().unwrap()).unwrap()
     };
 }
-
 
 impl ChemixContractClient<Main> {
     pub fn new(prikey: &str) -> ChemixContractClient<Main> {
@@ -54,7 +49,7 @@ impl ChemixContractClient<Main> {
         amount: f64,
     ) -> Result<()> {
         let contract = ChemixMain::new(self.contract_addr, self.client.clone());
-        let tokenADecimal = teen_power!(10u32);//18 -8
+        let tokenADecimal = teen_power!(10u32); //18 -8
         let tokenBDecimal = teen_power!(7u32); //15 -8
 
         let quoteToken = Address::from_str(quoteToken).unwrap();
@@ -129,6 +124,3 @@ impl ChemixContractClient<Main> {
         Ok(())
     }
 }
-
-
-

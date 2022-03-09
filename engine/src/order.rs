@@ -41,13 +41,13 @@ pub fn match_order(
                 {
                     //insert this order by compare price and created_at
                     //fixme:tmpcode,优化，还有时间排序的问题
-                    book.buy.push(BookOrder{
+                    book.buy.push(BookOrder {
                         id: taker_order.id.clone(),
                         account: taker_order.account.clone(),
                         side: taker_order.side.clone(),
                         price: taker_order.price,
                         amount: taker_order.available_amount,
-                        created_at: get_unix_time()
+                        created_at: get_unix_time(),
                     });
                     book.buy
                         .sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
@@ -55,7 +55,8 @@ pub fn match_order(
                     break 'marker_orders;
                 } else {
                     let mut marker_order = book.sell[0].clone();
-                    let matched_amount = std::cmp::min(taker_order.available_amount, marker_order.amount);
+                    let matched_amount =
+                        std::cmp::min(taker_order.available_amount, marker_order.amount);
 
                     trades.push(TradeInfo::new(
                         crate::MARKET.id.clone(),
@@ -72,9 +73,12 @@ pub fn match_order(
                     marker_reduced_orders.insert(marker_order.id.clone(), matched_amount);
                     marker_order.amount = marker_order.amount.sub(matched_amount);
                     //todo: 不在去减，用total_matched_amount 判断
-                    taker_order.available_amount = taker_order.available_amount.sub(matched_amount);
+                    taker_order.available_amount =
+                        taker_order.available_amount.sub(matched_amount);
                     total_matched_amount = total_matched_amount.add(matched_amount);
-                    if marker_order.amount != U256_ZERO && taker_order.available_amount == U256_ZERO {
+                    if marker_order.amount != U256_ZERO
+                        && taker_order.available_amount == U256_ZERO
+                    {
                         book.sell[0] = marker_order;
                         break 'marker_orders;
                     } else if marker_order.amount == U256_ZERO
@@ -95,20 +99,21 @@ pub fn match_order(
                 if book.buy.is_empty() || taker_order.price > book.buy.first().unwrap().price {
                     //insert this order by compare price and created_at
                     //fixme:tmpcode,优化，还有时间的问题
-                    book.sell.push(BookOrder{
+                    book.sell.push(BookOrder {
                         id: taker_order.id.clone(),
                         account: taker_order.account.clone(),
                         side: taker_order.side.clone(),
                         price: taker_order.price,
                         amount: taker_order.available_amount,
-                        created_at: get_unix_time()
+                        created_at: get_unix_time(),
                     });
                     book.sell
                         .sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
                     break 'marker_orders;
                 } else {
                     let mut marker_order = book.buy[0].clone();
-                    let matched_amount = std::cmp::min(taker_order.available_amount, marker_order.amount);
+                    let matched_amount =
+                        std::cmp::min(taker_order.available_amount, marker_order.amount);
 
                     trades.push(TradeInfo::new(
                         crate::MARKET.id.clone(),
@@ -125,9 +130,12 @@ pub fn match_order(
                     marker_reduced_orders.insert(marker_order.id.clone(), matched_amount);
 
                     marker_order.amount = marker_order.amount.sub(matched_amount);
-                    taker_order.available_amount = taker_order.available_amount.sub(matched_amount);
+                    taker_order.available_amount =
+                        taker_order.available_amount.sub(matched_amount);
                     total_matched_amount = total_matched_amount.add(matched_amount);
-                    if marker_order.amount != U256_ZERO && taker_order.available_amount == U256_ZERO {
+                    if marker_order.amount != U256_ZERO
+                        && taker_order.available_amount == U256_ZERO
+                    {
                         //todo: 本身此时也是在index0
                         book.buy[0] = marker_order;
                         break 'marker_orders;
@@ -194,7 +202,7 @@ pub fn cancel(new_cancel_orders: Vec<CancelOrderState2>) -> Vec<CancelOrderState
             },
             OrderStatus::Canceled => {
                 warn!("Have already Canceled");
-            },
+            }
             OrderStatus::PreCanceled => {
                 warn!("Have already Canceled");
             }
@@ -207,7 +215,7 @@ pub fn cancel(new_cancel_orders: Vec<CancelOrderState2>) -> Vec<CancelOrderState
 }
 
 //根据未成交的订单生成深度数据
-pub fn gen_depth_from_order(orders: Vec<OrderInfo>) -> HashMap<String,AddBook>{
+pub fn gen_depth_from_order(orders: Vec<OrderInfo>) -> HashMap<String, AddBook> {
     let mut raw_depth = AddBook2 {
         asks: HashMap::new(),
         bids: HashMap::new(),
@@ -267,6 +275,6 @@ pub fn gen_depth_from_order(orders: Vec<OrderInfo>) -> HashMap<String,AddBook>{
         .collect::<Vec<(f64, f64)>>();
 
     let mut market_add_depth = HashMap::new();
-    market_add_depth.insert(crate::MARKET.id.clone(), AddBook { asks, bids});
+    market_add_depth.insert(crate::MARKET.id.clone(), AddBook { asks, bids });
     market_add_depth
 }

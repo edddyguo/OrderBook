@@ -1,6 +1,5 @@
 extern crate rustc_serialize;
 
-use postgres::types::IsNull::No;
 //#[derive(Serialize)]
 use serde::Serialize;
 
@@ -49,8 +48,8 @@ pub fn get_markets(id: &str) -> Option<MarketInfo> {
         id
     );
     let rows = crate::query(sql.as_str()).unwrap();
-    if rows.is_empty(){
-        return None
+    if rows.is_empty() {
+        return None;
     }
     info!("get_markets: raw sql {}", sql);
     //id只有一个
