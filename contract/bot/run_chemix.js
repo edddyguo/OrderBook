@@ -176,22 +176,22 @@ async function main() {
     //issue tokenB to account1
     let tokenAIssueAcc1Res = await contractTokenWBTC.issue(issueAmountDefault, options);
     console.log('tokenAIssueAcc1Res ', tokenAIssueAcc1Res);
-    await contractTokenWBTC.transfer(account_tj, issueAmountDefault);
+    await contractTokenWBTC.transfer(account3, issueAmountDefault);
 
     let tokenBIssueAcc1Res = await contractTokenUSDT.issue(issueAmountDefault, options);
     console.log('tokenAIssueAcc2Res ', tokenBIssueAcc1Res);
-    await contractTokenUSDT.transfer(account_tj, issueAmountDefault);
+    await contractTokenUSDT.transfer(account3, issueAmountDefault);
 
     console.log("deployTokenC:  ", contractTokenWETH.address);
     let tokenCIssueAcc1Res = await contractTokenWETH.issue(issueAmountDefault, options);
     console.log('tokenCIssueAcc1Res ', tokenCIssueAcc1Res);
-    await contractTokenWETH.transfer(account_tj, issueAmountDefault);
+    await contractTokenWETH.transfer(account3, issueAmountDefault);
 
 
     console.log("deployTokenCHE:  ", contractTokenCEC.address);
     let tokenCHEIssueAcc1Res = await contractTokenCEC.issue(issueAmountDefault, options);
     console.log('tokenCHEIssueAcc1Res ', tokenCHEIssueAcc1Res);
-    await contractTokenCEC.transfer(account_tj, issueAmountDefault);
+    await contractTokenCEC.transfer(account3, issueAmountDefault);
 
 
     let balanceAcc1 = await contractTokenWBTC.balanceOf(account1, options);

@@ -19,3 +19,9 @@ pub async fn gen_watcher() -> Node<Ws> {
     Node::<Ws>::new(crate::WATCHER.clone().as_str()).await
 }
 
+
+
+pub async fn get_current_block() -> u32 {
+    crate::PROVIDER.provide.get_block_number().await.unwrap().as_u32()
+}
+
