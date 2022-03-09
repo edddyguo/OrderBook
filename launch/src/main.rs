@@ -10,7 +10,7 @@ use ethers_providers::{Http, StreamExt};
 use rsmq_async::{Rsmq, RsmqConnection};
 use common::queue::*;
 
-use chemix_chain::bsc::{gen_watcher, get_block};
+use chemix_chain::bsc::{gen_watcher, get_block, get_current_block};
 use std::string::String;
 
 use serde::Serialize;
@@ -760,7 +760,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
         });
         //execute matched trade
         s.spawn(move |_| {
-            let mut last_launch_time = 0u64;
+            let mut last_height = 0u32;
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
                 loop {
@@ -782,10 +782,11 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 
                     //let mut agg_trades = Vec::new();
                     if !settle_trades.is_empty() {
-                        if  get_unix_time() - last_launch_time <= 10000 {
-                            info!("now {},last_launch_time {}",get_unix_time(),last_launch_time);
-                            tokio::time::sleep(time::Duration::from_millis(10000)).await;
+                        while get_current_block() - last_height > 0u32 {
+                            info!("current {},wait for next block",last_height);
+                            tokio::time::sleep(time::Duration::from_millis(500)).await;
                         }
+
                         let mut receipt = Default::default();
                             loop {
 //                            match chemix_main_client2.read().unwrap().settlement_trades(MARKET.base_token_address.as_str(),MARKET.quote_token_address.as_str(),settle_trades.clone()).await {
@@ -793,7 +794,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 match vault_settel_client.clone().read().unwrap().settlement_trades2(last_order.index,hash_data,settle_trades.clone()).await {
                                     Ok(data) => {
                                         receipt = data.unwrap();
-                                        last_launch_time = get_unix_time();
+                                        last_height = receipt.block_number.unwrap().as_u32();
                                         break;
                                     }
                                     Err(error) => {

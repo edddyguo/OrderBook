@@ -10,7 +10,7 @@ use chemix_chain::chemix::ChemixContractClient;
 use ethers_providers::{Http, Middleware, Provider, StreamExt};
 use rsmq_async::{Rsmq, RsmqConnection};
 
-use chemix_chain::bsc::{gen_watcher, get_block, get_last_block};
+use chemix_chain::bsc::{gen_watcher, get_block, get_current_block};
 use std::string::String;
 
 use serde::Serialize;
@@ -221,7 +221,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         order.block_height
                     },
                     None => {
-                        get_last_block().await
+                        get_current_block().await
                     }
                 };
                 while let Some(block) = stream.next().await {
