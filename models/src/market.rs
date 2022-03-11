@@ -28,12 +28,12 @@ pub fn list_markets() -> Vec<MarketInfo> {
             id: row.get(0),
             base_token_address: row.get(1),
             base_token_symbol: row.get(2),
-            base_contract_decimal: row.get(3),
-            base_front_decimal: row.get(4),
+            base_contract_decimal: row.get::<usize, i32>(3) as u32,
+            base_front_decimal: row.get::<usize, i32>(4) as u32,
             quote_token_address: row.get(5),
             quote_token_symbol: row.get(6),
-            quote_contract_decimal: row.get(7),
-            quote_front_decimal: row.get(8),
+            quote_contract_decimal: row.get::<usize, i32>(7) as u32,
+            quote_front_decimal: row.get::<usize, i32>(8) as u32,
         };
         markets.push(info);
     }
@@ -84,11 +84,11 @@ pub fn get_markets2(id: &str) -> Option<MarketInfo> {
         id: execute_res[0].get(0),
         base_token_address: execute_res[0].get(1),
         base_token_symbol: execute_res[0].get(2),
-        base_contract_decimal: execute_res[0].get(3),
-        base_front_decimal: execute_res[0].get(4),
+        base_contract_decimal: execute_res[0].get::<usize, i32>(3) as u32,
+        base_front_decimal: execute_res[0].get::<usize, i32>(4) as u32,
         quote_token_address: execute_res[0].get(5),
         quote_token_symbol: execute_res[0].get(6),
-        quote_contract_decimal: execute_res[0].get(7),
-        quote_front_decimal: execute_res[0].get(8),
+        quote_contract_decimal: execute_res[0].get::<usize, i32>(7) as u32,
+        quote_front_decimal: execute_res[0].get::<usize, i32>(8) as u32,
     })
 }
