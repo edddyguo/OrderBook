@@ -9,8 +9,7 @@ use crate::{AddBook, AddBook2};
 
 use chemix_chain::chemix::storage::CancelOrderState2;
 
-use chemix_models::order::IdOrIndex::Index;
-use chemix_models::order::{get_order, BookOrder, OrderInfo};
+use chemix_models::order::{BookOrder, list_orders, OrderFilter, OrderInfo};
 use chemix_models::trade::TradeInfo;
 use common::types::order::{Side, Status as OrderStatus};
 
@@ -163,8 +162,8 @@ pub fn match_order(
 pub fn cancel(new_cancel_orders: Vec<CancelOrderState2>) -> Vec<CancelOrderState2> {
     let mut legal_orders = Vec::new();
     for new_cancel_order in new_cancel_orders {
-        //todo: 处理异常
-        let order = get_order(Index(new_cancel_order.order_index.as_u32())).unwrap();
+        let orders = list_orders(OrderFilter::ByIndex(new_cancel_order.order_index.as_u32())).unwrap();
+        let order = orders[0].clone();
         match order.status {
             OrderStatus::FullFilled => {
                 warn!("Have already matched");

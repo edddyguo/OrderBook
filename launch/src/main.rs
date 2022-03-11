@@ -26,7 +26,7 @@ use tokio::runtime::Runtime;
 use tokio::time;
 
 use chemix_models::order::{
-    get_last_order, get_order, update_order_status, BookOrder, IdOrIndex,
+    update_order_status, BookOrder,list_orders,OrderFilter
 };
 use chemix_models::trade::{
     list_trades, list_trades2, update_trade, update_trade_by_hash, TradeInfo,
@@ -266,7 +266,8 @@ fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, AddBook> {
 
         //taker剩余的部分为插入
         for taker_order_id in taker_order_ids {
-            let taker_order = get_order(IdOrIndex::Id(taker_order_id.clone())).unwrap();
+            let taker_orders = list_orders(OrderFilter::ById(taker_order_id.clone())).unwrap();
+            let taker_order = taker_orders.first().unwrap();
             let matched_trades = list_trades2(
                 &taker_order_id,
                 &taker_order.hash_data,
@@ -764,7 +765,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     }
                     // info!("finish thaw balance res:{:?}",thaw_res);
                     info!("finish thaw balance res:{:?}", receipt);
-                    let txid = format!("{:?}", receipt.transaction_hash);
+                    let transaction_hash = format!("{:?}", receipt.transaction_hash);
                     let height = receipt.block_number.unwrap().as_u32() as i32;
                     let mut cancel_id_str = "".to_string();
                     for item in cancel_id {
@@ -778,7 +779,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         update_thaws1(
                             pending_thaw.order_id.as_str(),
                             cancel_id_str.as_str(),
-                            txid.as_str(),
+                            transaction_hash.as_str(),
                             height,
                             ThawStatus::Launched,
                         );
@@ -807,7 +808,8 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         tokio::time::sleep(time::Duration::from_millis(5000)).await;
                         continue;
                     }
-                    let last_order = get_last_order().unwrap();
+                    let last_orders = list_orders(OrderFilter::GetLastOne).unwrap();
+                    let last_order = last_orders.first().unwrap();
                     error!("db_trades = {:?}",db_trades);
 
                     let settle_trades = gen_settle_trades(db_trades.clone());
@@ -846,9 +848,9 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             }
 
                         let height = receipt.block_number.unwrap().to_string().parse::<u32>().unwrap();
-                        let txid = receipt.transaction_hash.to_string();
+                        let transaction_hash = format!("{:?}",receipt.transaction_hash);
                         for db_trade in db_trades.clone() {
-                            update_trade(db_trade.id.as_str(),TradeStatus::Launched,height,txid.as_str(),&last_order.hash_data);
+                            update_trade(db_trade.id.as_str(),TradeStatus::Launched,height,transaction_hash.as_str(),&last_order.hash_data);
                         }
 
                     }

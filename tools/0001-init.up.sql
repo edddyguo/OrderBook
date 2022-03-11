@@ -60,6 +60,7 @@ create index idx_local_chemix_trades_delete on chemix_trades (status,transaction
 create table chemix_orders(
   id text  primary key,
   index integer,
+  transaction_hash text,
   block_height integer,
   hash_data text,
   market_id text ,

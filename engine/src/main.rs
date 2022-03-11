@@ -29,8 +29,7 @@ use tokio::runtime::Runtime;
 
 use clap::{App, Arg};
 
-use chemix_models::order::{
-    get_last_order, get_order, insert_order, list_available_orders, update_order, BookOrder,
+use chemix_models::order::{insert_order, update_order, BookOrder,list_orders,OrderFilter,
     EngineOrder, OrderInfo, UpdateOrder,
 };
 use chemix_models::trade::{insert_trades, TradeInfo};
@@ -41,9 +40,8 @@ use common::utils::time::get_current_time;
 use common::utils::time::time2unix;
 use ethers_core::abi::ethereum_types::U64;
 
-use chemix_models::order::IdOrIndex::{Id, Index};
-
 use chemix_models::market::{get_markets, MarketInfo};
+use chemix_models::order::OrderFilter::ByIndex;
 use chemix_models::thaws::{insert_thaws, Thaws};
 use common::queue::*;
 use common::types::order::Side as OrderSide;
@@ -88,8 +86,8 @@ lazy_static! {
     };
 
     static ref BOOK: Mutex<EngineBook> = Mutex::new({
-        let available_sell : Vec<EngineOrder> = list_available_orders(MARKET.id.as_str(),OrderSide::Sell);
-        let available_buy : Vec<EngineOrder> = list_available_orders(MARKET.id.as_str(),OrderSide::Buy);
+        let mut available_buy = list_orders(OrderFilter::AvailableOrders(MARKET.id.clone(),OrderSide::Buy)).unwrap();
+        let mut available_sell = list_orders(OrderFilter::AvailableOrders(MARKET.id.clone(),OrderSide::Sell)).unwrap();
 
         //todo: 统一数据结构
         let mut available_sell2 = available_sell.iter().map(|x|{
@@ -214,10 +212,16 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
             rt.block_on(async move {
                 let watcher = gen_watcher().await;
                 let mut stream = watcher.provide.watch_blocks().await.unwrap();
-                let mut last_height = match get_last_order() {
-                    Some(order) => order.block_height,
-                    None => get_current_block().await,
+                let last_order = list_orders(OrderFilter::GetLastOne).unwrap();
+
+                let mut last_height = if  last_order.is_empty(){
+                    get_current_block().await
+                }else {
+                    last_order[0].block_height
                 };
+
+
+
                 while let Some(block) = stream.next().await {
                     info!("current_book {:#?}", crate::BOOK.lock().unwrap());
                     let current_height = get_block(block).await.unwrap().unwrap().as_u32();
@@ -243,8 +247,8 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         } else {
                             let mut pending_thaws = Vec::new();
                             for cancel_order in legal_orders {
-                                let order = get_order(Index(cancel_order.order_index.as_u32()))
-                                    .unwrap();
+                                let orders = list_orders(OrderFilter::ByIndex(cancel_order.order_index.as_u32())).unwrap();
+                                let order = orders.first().unwrap();
                                 let update_info = UpdateOrder {
                                     id: order.id.clone(),
                                     status: OrderStatus::PreCanceled,
@@ -258,7 +262,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 pending_thaws.push(Thaws::new(
                                     order.id.clone(),
                                     Address::from_str(order.account.as_str()).unwrap(),
-                                    order.market_id,
+                                    order.market_id.clone(),
                                     order.available_amount,
                                     order.price,
                                     order.side.clone(),
@@ -296,6 +300,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 db_new_orders.push(OrderInfo::new(
                                     order.id,
                                     order.index,
+                                    order.transaction_hash,
                                     height,
                                     order.hash_data,
                                     crate::MARKET.id.to_string(),
@@ -368,7 +373,8 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 //update marker orders
                 info!("db_marker_orders_reduce {:?}", db_marker_orders_reduce);
                 for orders in db_marker_orders_reduce {
-                    let marker_order_ori = get_order(Id(orders.0.clone())).unwrap();
+                    let market_orders = list_orders(OrderFilter::ById(orders.0.clone())).unwrap();
+                    let marker_order_ori = market_orders.first().unwrap();
                     let new_matched_amount = marker_order_ori.matched_amount + orders.1;
                     info!(
                         "marker_order_ori {};available_amount={},reduce_amount={}",

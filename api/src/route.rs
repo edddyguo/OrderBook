@@ -11,10 +11,7 @@ use log::info;
 use std::env;
 
 use chemix_models::market::{get_markets, list_markets as list_markets2};
-use chemix_models::order::{
-    get_order_volume, list_available_orders, list_users_orders, list_users_orders2,
-    EngineOrderTmp2,
-};
+use chemix_models::order::{get_order_volume, EngineOrderTmp2, list_orders as list_orders2, OrderFilter};
 use chemix_models::snapshot::get_snapshot;
 use chemix_models::trade::list_trades;
 use chemix_models::TimeScope;
@@ -224,13 +221,11 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     format!("symbol222 {}, limit:{}", info.market_id, info.limit);
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
-    //todo:错误码
-    let mut available_buy_orders =
-        list_available_orders(info.market_id.as_str(), OrderSide::Buy);
-    let mut available_sell_orders =
-        list_available_orders(info.market_id.as_str(), OrderSide::Sell);
-    available_buy_orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap().reverse());
+    //todo:BtreeMap
+    let mut available_buy_orders = list_orders2(OrderFilter::AvailableOrders(info.market_id.clone(),OrderSide::Buy)).unwrap();
+    let mut available_sell_orders = list_orders2(OrderFilter::AvailableOrders(info.market_id.clone(),OrderSide::Sell)).unwrap();
 
+    available_buy_orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap().reverse());
     available_sell_orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
 
     info!("0001__{:?}", available_buy_orders);
@@ -496,15 +491,8 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     let account = info.account.clone().to_lowercase();
-    let orders = list_users_orders(
-        account.as_str(),
-        vec![
-            OrderStatus::Pending,
-            OrderStatus::PreCanceled,
-            OrderStatus::PartialFilled,
-        ],
-        info.limit,
-    );
+    let orders = list_orders2(OrderFilter::UserOrders(
+        account, OrderStatus::Pending, OrderStatus::PartialFilled, info.limit)).unwrap();
     let orders = orders
         .iter()
         .map(|x| EngineOrderTmp2 {
@@ -531,14 +519,10 @@ struct OrderHistoryRequest {
 
 #[get("/chemix/orderHistory")]
 async fn order_history(web::Query(info): web::Query<OrderHistoryRequest>) -> impl Responder {
-    let _base_decimal = 18u32;
-    let _quote_decimal = 15u32;
     let account = info.account.clone().to_lowercase();
-    let orders = list_users_orders2(
-        account.as_str(),
-        vec![OrderStatus::FullFilled, OrderStatus::Canceled],
-        info.limit,
-    );
+    let orders = list_orders2(OrderFilter::UserOrders(
+        account, OrderStatus::FullFilled,
+        OrderStatus::Canceled, info.limit)).unwrap();
     let orders = orders
         .iter()
         .map(|x| get_order_detail(x))

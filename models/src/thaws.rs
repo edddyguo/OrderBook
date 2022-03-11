@@ -96,7 +96,7 @@ impl Thaws {
 pub fn update_thaws1(
     order_id: &str,
     cancel_id: &str,
-    tx_id: &str,
+    transaction_hash: &str,
     block_height: i32,
     status: ThawStatus,
 ) {
@@ -105,7 +105,7 @@ pub fn update_thaws1(
          transaction_hash,block_height,status,updated_at)=\
          ('{}','{}',{},'{}','{}') WHERE order_id='{}'",
         cancel_id,
-        tx_id,
+        transaction_hash,
         block_height,
         status.as_str(),
         get_current_time(),

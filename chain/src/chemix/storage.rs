@@ -34,7 +34,7 @@ pub struct CancelOrderState2 {
 #[derive(Clone, Debug)]
 pub struct ChainNewOrder {
     pub id: String,
-    pub txid: String,
+    pub transaction_hash: String,
     pub account: String,
     pub index: u32,
     pub num_power: u32,
@@ -129,11 +129,11 @@ impl ChemixContractClient<Storage> {
                     false => order::Side::Sell,
                 };
                 let account = format!("{:?}", event.order_user);
-                let txid = format!("{:?}", meta_data.transaction_hash);
+                let transaction_hash = format!("{:?}", meta_data.transaction_hash);
                 let hash_data_str = u8_arr_to_str(event.hash_data);
                 ChainNewOrder {
                     id: order_id,
-                    txid,
+                    transaction_hash,
                     account,
                     index: event.order_index.as_u32(),
                     num_power: event.num_power.as_u32(),
