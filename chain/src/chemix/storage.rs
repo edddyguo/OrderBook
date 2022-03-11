@@ -34,6 +34,7 @@ pub struct CancelOrderState2 {
 #[derive(Clone, Debug)]
 pub struct ChainNewOrder {
     pub id: String,
+    pub txid: String,
     pub account: String,
     pub index: u32,
     pub num_power: u32,
@@ -108,36 +109,38 @@ impl ChemixContractClient<Storage> {
         let base_token = Address::from_str(base_token.as_str()).unwrap();
         let quote_token = Address::from_str(quote_token.as_str()).unwrap();
         let contract = ChemixStorage::new(self.contract_addr, self.client.clone());
-        let new_orders: Vec<NewOrderCreatedFilter> = contract
+        let new_orders: Vec<(NewOrderCreatedFilter,LogMeta)> = contract
             .new_order_created_filter()
             .from_block(U64::from(height))
-            .query()
+            .query_with_meta()
             .await
             .unwrap();
 
         //过滤当前所在的market_id的服务引擎
         let new_orders2 = new_orders
             .iter()
-            .filter(|x| x.base_token == base_token && x.quote_token == quote_token)
-            .map(|x| {
+            .filter(|(event,_)| event.base_token == base_token && event.quote_token == quote_token)
+            .map(|(event,meta_data)| {
                 let now = Local::now().timestamp_millis() as u64;
-                let order_json = format!("{}{}", serde_json::to_string(&x).unwrap(), now);
+                let order_json = format!("{}{}", serde_json::to_string(&event).unwrap(), now);
                 let order_id = sha256(order_json);
-                let side = match x.side {
+                let side = match event.side {
                     true => order::Side::Buy,
                     false => order::Side::Sell,
                 };
-                let account = format!("{:?}", x.order_user);
-                let hash_data_str = u8_arr_to_str(x.hash_data);
+                let account = format!("{:?}", event.order_user);
+                let txid = format!("{:?}", meta_data.transaction_hash);
+                let hash_data_str = u8_arr_to_str(event.hash_data);
                 ChainNewOrder {
                     id: order_id,
+                    txid,
                     account,
-                    index: x.order_index.as_u32(),
-                    num_power: x.num_power.as_u32(),
+                    index: event.order_index.as_u32(),
+                    num_power: event.num_power.as_u32(),
                     hash_data: hash_data_str.clone(),
                     side,
-                    price: x.limit_price,
-                    amount: x.order_amount,
+                    price: event.limit_price,
+                    amount: event.order_amount,
                 }
             })
             .collect::<Vec<ChainNewOrder>>();

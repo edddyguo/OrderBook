@@ -75,7 +75,7 @@ impl ChemixContractClient<Main> {
                     .send()
                     .await?
                     .await?;
-                info!("new buy order result  {:?}", result.unwrap().block_number);
+                info!("new buy order result: block={:?},txid={:?}", result.as_ref().unwrap().block_number,result.as_ref().unwrap().transaction_hash);
             }
             Side::Sell => {
                 info!(
@@ -94,7 +94,8 @@ impl ChemixContractClient<Main> {
                     .send()
                     .await?
                     .await?;
-                info!("new sell order result  {:?}", result.unwrap().block_number);
+                info!("new sell order result: block={:?},txid={:?}", result.as_ref().unwrap().block_number,result.as_ref().unwrap().transaction_hash);
+
             }
         }
         Ok(())
