@@ -202,9 +202,8 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
 
     match value.downcast_ref::<Thaws>() {
         Some(thaw) => {
-            let account = format!("{:?}", thaw.account);
             values.push(thaw.order_id.string4sql());
-            values.push(account.string4sql());
+            values.push(thaw.account.string4sql());
             values.push(thaw.market_id.string4sql());
             values.push(thaw.transaction_hash.string4sql());
             values.push(thaw.block_height.to_string().string4sql());

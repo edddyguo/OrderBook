@@ -23,6 +23,8 @@ use common::types::thaw::Status as ThawStatus;
 pub enum ThawsFilter {
     //market,account
     NotConfirmed(String, String),
+    Status(ThawStatus),
+    ThawsHash(String)
 }
 
 impl ThawsFilter {
@@ -32,6 +34,14 @@ impl ThawsFilter {
                 let filter_str = format!("where market_id='{}' and account='{}' and (status='pending' or status='launched')  order by created_at ASC",market_id,account);
                 filter_str
             }
+            ThawsFilter::Status(status) => {
+                let filter_str = format!("where status='{}' order by created_at ASC",status.as_str());
+                filter_str
+            }
+            ThawsFilter::ThawsHash(hash) => {
+                let filter_str = format!("where thaws_hash='{}' order by created_at ASC",hash);
+                filter_str
+            }
         }
     }
 }
@@ -39,7 +49,7 @@ impl ThawsFilter {
 #[derive(Deserialize, Debug, Clone)]
 pub struct Thaws {
     pub order_id: String,
-    pub account: Address,
+    pub account: String,
     pub market_id: String,
     pub transaction_hash: String,
     pub block_height: i32,
@@ -88,7 +98,7 @@ pub struct BookOrder {
 impl Thaws {
     pub fn new(
         order_id: String,
-        account: Address,
+        account: String,
         market_id: String,
         amount: U256,
         price: U256,
@@ -152,100 +162,6 @@ pub fn insert_thaws(thaw_info: Vec<Thaws>) {
     }
 }
 
-pub fn list_thaws(status: ThawStatus) -> Vec<Thaws> {
-    let sql = format!(
-        "select order_id,\
-    account,\
-    market_id,\
-    transaction_hash,\
-    block_height,\
-    thaws_hash,\
-    side,\
-    status,\
-    amount,\
-    price,\
-    cast(updated_at as text),\
-    cast(created_at as text) from chemix_thaws \
-    where status='{}' order by created_at DESC",
-        status.as_str()
-    );
-    let mut thaws = Vec::<Thaws>::new();
-    info!("list_thaws sql {}", sql);
-    let rows = crate::query(sql.as_str()).unwrap();
-    for row in rows {
-        let side_str: String = row.get(6);
-        let side = OrderSide::from(side_str.as_str());
-
-        let status_str: String = row.get(7);
-        let status = ThawStatus::from(status_str.as_str());
-
-        let info = Thaws {
-            order_id: row.get::<usize, &str>(0).to_string(),
-            account: Address::from_str(row.get::<usize, &str>(1)).unwrap(),
-            market_id: row.get::<usize, &str>(2).to_string(),
-            transaction_hash: row.get::<usize, &str>(3).to_string(),
-            block_height: row.get::<usize, i32>(4),
-            thaws_hash: row.get::<usize, &str>(5).to_string(),
-            side,
-            status,
-            amount: U256::from_str_radix(row.get::<usize, &str>(8), 10).unwrap(),
-            price: U256::from_str_radix(row.get::<usize, &str>(9), 10).unwrap(),
-            updated_at: row.get::<usize, &str>(10).to_string(),
-            created_at: row.get::<usize, &str>(11).to_string(),
-        };
-        thaws.push(info);
-    }
-    thaws
-}
-
-//flag足够，该flag在此时全部launched
-pub fn list_thaws2(flag: &str) -> Vec<Thaws> {
-    let sql = format!(
-        "select order_id,\
-    account,\
-    market_id,\
-    transaction_hash,\
-    block_height,\
-    thaws_hash,\
-    side,\
-    status,\
-    amount,\
-    price,\
-    cast(updated_at as text),\
-    cast(created_at as text) from chemix_thaws \
-    where thaws_hash='{}' order by created_at DESC",
-        flag
-    );
-    let mut thaws = Vec::<Thaws>::new();
-    info!("list_thaws sql {}", sql);
-    let rows = crate::query(sql.as_str()).unwrap();
-    for row in rows {
-        let side_str: String = row.get(6);
-        let side = OrderSide::from(side_str.as_str());
-
-        let status_str: String = row.get(7);
-        let status = ThawStatus::from(status_str.as_str());
-
-        let info = Thaws {
-            order_id: row.get::<usize, &str>(0).to_string(),
-            account: Address::from_str(row.get::<usize, &str>(1)).unwrap(),
-            market_id: row.get::<usize, &str>(2).to_string(),
-            transaction_hash: row.get::<usize, &str>(3).to_string(),
-            block_height: row.get::<usize, i32>(4),
-            thaws_hash: row.get::<usize, &str>(5).to_string(),
-            side,
-            status,
-            amount: U256::from_str_radix(row.get::<usize, &str>(8), 10).unwrap(),
-            price: U256::from_str_radix(row.get::<usize, &str>(9), 10).unwrap(),
-            updated_at: row.get::<usize, &str>(10).to_string(),
-            created_at: row.get::<usize, &str>(11).to_string(),
-        };
-        thaws.push(info);
-    }
-    thaws
-}
-
-
 pub fn list_thaws3(filter: ThawsFilter) -> Vec<Thaws> {
     let sql = format!(
         "select order_id,\
@@ -274,7 +190,7 @@ pub fn list_thaws3(filter: ThawsFilter) -> Vec<Thaws> {
 
         let info = Thaws {
             order_id: row.get::<usize, &str>(0).to_string(),
-            account: Address::from_str(row.get::<usize, &str>(1)).unwrap(),
+            account: row.get::<usize, &str>(1).to_string(),
             market_id: row.get::<usize, &str>(2).to_string(),
             transaction_hash: row.get::<usize, &str>(3).to_string(),
             block_height: row.get::<usize, i32>(4),

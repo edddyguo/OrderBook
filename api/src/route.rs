@@ -19,7 +19,7 @@ use chemix_models::trade::list_trades;
 use chemix_models::TimeScope;
 use common::utils::time::{get_current_time, get_unix_time, time2unix};
 use serde::{Deserialize, Serialize};
-use chemix_models::thaws::{list_thaws, list_thaws3, ThawsFilter};
+use chemix_models::thaws::{list_thaws3, ThawsFilter};
 
 use chemix_models::tokens::get_token;
 

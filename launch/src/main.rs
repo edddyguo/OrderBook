@@ -40,7 +40,7 @@ use chemix_models::market::get_markets;
 use log::info;
 
 //use common::env::CONF as ENV_CONF;
-use chemix_models::thaws::{list_thaws2, Thaws};
+use chemix_models::thaws::{list_thaws3, Thaws, ThawsFilter};
 use common::env::CONF as ENV_CONF;
 
 use common::types::order::{Side as OrderSide, Side};
@@ -61,7 +61,7 @@ static QuoteTokenDecimal: u32 = 15;
 
 const CONFIRM_HEIGHT: u32 = 2;
 
-use chemix_models::thaws::{list_thaws, update_thaws1};
+use chemix_models::thaws::{update_thaws1};
 
 #[derive(Clone, Serialize, Debug)]
 struct EngineBook {
@@ -522,7 +522,7 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<
     for new_thaw_flag in new_thaw_flags {
         //推解冻信息
         ////flag足够，该flag在此时全部launched
-        let pending_thaws = list_thaws2(&new_thaw_flag);
+        let pending_thaws = list_thaws3(ThawsFilter::ThawsHash(new_thaw_flag.clone()));
         let iters = pending_thaws.group_by(|a, b| a.market_id == b.market_id);
 
         for iter in iters.into_iter() {
@@ -563,7 +563,7 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<
                 };
                 thaw_infos.push(ThawBalances {
                     token: Address::from_str(token_address.as_str()).unwrap(),
-                    from: pending_thaw.account,
+                    from: Address::from_str(pending_thaw.account.as_str()).unwrap(),
                     decimal: decimal as u32,
                     amount,
                 });
@@ -683,7 +683,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
                 loop {
-                    let pending_thaws = list_thaws(ThawStatus::Pending);
+                    let pending_thaws = list_thaws3(ThawsFilter::Status(ThawStatus::Pending));
                     if pending_thaws.is_empty() {
                         info!("Have no thaws need deal,and wait 5 seconds for next check");
                         tokio::time::sleep(time::Duration::from_millis(5000)).await;
@@ -724,7 +724,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         };
                         thaw_infos.push(ThawBalances {
                             token: Address::from_str(token_address.as_str()).unwrap(),
-                            from: pending_thaw.account,
+                            from: Address::from_str(pending_thaw.account.as_str()).unwrap(),
                             decimal: decimal as u32,
                             amount,
                         });

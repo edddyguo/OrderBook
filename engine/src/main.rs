@@ -394,7 +394,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                     update_order(&update_info);
                                     pending_thaws.push(Thaws::new(
                                         order.id.clone(),
-                                        Address::from_str(order.account.as_str()).unwrap(),
+                                        order.account.clone(),
                                         order.market_id.clone(),
                                         order.available_amount,
                                         order.price,
