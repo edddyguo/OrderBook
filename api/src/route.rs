@@ -19,6 +19,7 @@ use chemix_models::trade::list_trades;
 use chemix_models::TimeScope;
 use common::utils::time::{get_current_time, get_unix_time, time2unix};
 use serde::{Deserialize, Serialize};
+use chemix_models::thaws::{list_thaws, list_thaws3, ThawsFilter};
 
 use chemix_models::tokens::get_token;
 
@@ -504,27 +505,53 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
     let account = info.account.clone().to_lowercase();
     let market_id = info.market_id.clone();
     let orders = list_orders2(OrderFilter::UserOrders(
-        market_id,
-        account,
+        market_id.clone(),
+        account.clone(),
         OrderStatus::Pending,
         OrderStatus::PartialFilled,
         info.limit,
     ))
     .unwrap();
-    let orders = orders
+
+    let mut orders = orders
         .iter()
         .map(|x| EngineOrderTmp2 {
             id: info.market_id.clone(),
             transaction_hash: x.transaction_hash.clone(),
+            thaws_hash: "".to_string(),
             index: x.index.to_string(),
             account: x.account.clone(),
             price: u256_to_f64(x.price, quote_decimal),
             amount: u256_to_f64(x.amount, base_decimal),
             side: x.side.clone(),
             status: x.status.as_str().to_string(),
-            created_at: get_unix_time(),
+            created_at: time2unix(x.created_at.clone()),
         })
         .collect::<Vec<EngineOrderTmp2>>();
+    let thaws = list_thaws3(ThawsFilter::NotConfirmed(market_id.clone(),account.clone()));
+    //todo：优化
+    let mut mock_order = thaws.iter().map(|x| {
+        //todo: thaws 的数据结构
+        let account = format!("{:?}", x.account);
+        let origin_order = list_orders2(OrderFilter::ById(x.order_id.clone())).unwrap();
+        EngineOrderTmp2 {
+            id: x.market_id.clone(),
+            transaction_hash: origin_order[0].transaction_hash.clone(),
+            thaws_hash: x.thaws_hash.clone(),
+            index: origin_order[0].index.to_string(),
+            account,
+            price: u256_to_f64(x.price, quote_decimal),
+            amount: u256_to_f64(x.amount, base_decimal),
+            side: x.side.clone(),
+            status: x.status.as_str().to_string(),
+            created_at: time2unix(origin_order[0].created_at.clone()),
+        }
+    }).collect::<Vec<EngineOrderTmp2>>();
+    orders.append(&mut mock_order);
+    orders.sort_by(|a,b| {
+        a.created_at.partial_cmp(&b.created_at).unwrap()
+    });
+
     respond_json(200, "".to_string(), serde_json::to_string(&orders).unwrap())
 }
 
