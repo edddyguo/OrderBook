@@ -236,7 +236,7 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     'buy_orders: for available_buy_order in available_buy_orders {
         'bids: for mut bid in bids.iter_mut() {
             if u256_to_f64(available_buy_order.price, quote_decimal) == bid.0 {
-                bid.1 += u256_to_f64(available_buy_order.amount, base_decimal);
+                bid.1 += u256_to_f64(available_buy_order.available_amount, base_decimal);
                 continue 'buy_orders;
             }
         }
@@ -245,14 +245,14 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
         }
         bids.push((
             u256_to_f64(available_buy_order.price, quote_decimal),
-            u256_to_f64(available_buy_order.amount, base_decimal),
+            u256_to_f64(available_buy_order.available_amount, base_decimal),
         ));
     }
 
     'sell_orders: for available_sell_order in available_sell_orders {
         'asks: for mut ask in asks.iter_mut() {
             if u256_to_f64(available_sell_order.price, quote_decimal) == ask.0 {
-                ask.1 += u256_to_f64(available_sell_order.amount, base_decimal);
+                ask.1 += u256_to_f64(available_sell_order.available_amount, base_decimal);
                 continue 'sell_orders;
             }
         }
@@ -261,7 +261,7 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
         }
         asks.push((
             u256_to_f64(available_sell_order.price, quote_decimal),
-            u256_to_f64(available_sell_order.amount, base_decimal),
+            u256_to_f64(available_sell_order.available_amount, base_decimal),
         ));
     }
 
@@ -491,8 +491,9 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     let account = info.account.clone().to_lowercase();
+    let market_id = info.market_id.clone();
     let orders = list_orders2(OrderFilter::UserOrders(
-        account, OrderStatus::Pending, OrderStatus::PartialFilled, info.limit)).unwrap();
+        market_id,account, OrderStatus::Pending, OrderStatus::PartialFilled, info.limit)).unwrap();
     let orders = orders
         .iter()
         .map(|x| EngineOrderTmp2 {
@@ -520,7 +521,8 @@ struct OrderHistoryRequest {
 #[get("/chemix/orderHistory")]
 async fn order_history(web::Query(info): web::Query<OrderHistoryRequest>) -> impl Responder {
     let account = info.account.clone().to_lowercase();
-    let orders = list_orders2(OrderFilter::UserOrders(
+    let market_id = info.market_id.clone();
+    let orders = list_orders2(OrderFilter::UserOrders(market_id,
         account, OrderStatus::FullFilled,
         OrderStatus::Canceled, info.limit)).unwrap();
     let orders = orders

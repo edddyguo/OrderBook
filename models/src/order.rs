@@ -105,8 +105,8 @@ pub enum OrderFilter {
     ByIndex(u32),
     //market_id
     AvailableOrders(String, order::Side),
-    //account,status_arr,limit
-    UserOrders(String,order::Status,order::Status,u32)
+    //account,market_id,status_arr,limit
+    UserOrders(String,String,order::Status,order::Status,u32)
 }
 
 impl OrderFilter {
@@ -127,8 +127,8 @@ impl OrderFilter {
                 let filter_str = format!("where market_id='{}' and available_amount!='0' and side='{}' order by created_at ASC",market_id,side.as_str());
                 filter_str
             }
-            OrderFilter::UserOrders(account, status1, status2,limit) => {
-                let filter_str = format!("where market_id='{}' and (status='{}' or status='{}')  order by created_at ASC limit {}",account,status1.as_str(),status2.as_str(),limit);
+            OrderFilter::UserOrders(market_id,account, status1, status2,limit) => {
+                let filter_str = format!("where market_id='{}' and account='{}' and (status='{}' or status='{}')  order by created_at ASC limit {}",market_id,account,status1.as_str(),status2.as_str(),limit);
                 filter_str
             }
         }

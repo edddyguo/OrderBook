@@ -132,8 +132,8 @@ impl ChemixContractClient<Vault> {
     pub async fn filter_thaws_event(&mut self, block_hash: H256) -> Result<Vec<String>> {
         let contract = ChemixVault::new(self.contract_addr, self.client.clone());
         let new_orders: Vec<ThawBalanceFilter> = contract
-            .thaw_balance_filter(block_hash)
-            .at_block_hash()
+            .thaw_balance_filter()
+            .at_block_hash(block_hash)
             .query()
             .await
             .unwrap();

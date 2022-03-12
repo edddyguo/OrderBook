@@ -18,6 +18,7 @@ use std::convert::TryFrom;
 
 use ethers::types::Address;
 use std::fmt::Debug;
+use std::ops::Sub;
 
 use std::str::FromStr;
 
@@ -45,7 +46,7 @@ use chemix_models::market::{get_markets, MarketInfo};
 use chemix_models::order::OrderFilter::ByIndex;
 use chemix_models::thaws::{insert_thaws, Thaws};
 use common::queue::*;
-use common::types::order::Side as OrderSide;
+use common::types::order::{Side as OrderSide, Side};
 use common::types::order::Status as OrderStatus;
 
 #[macro_use]
@@ -197,25 +198,55 @@ async fn get_balance() -> Result<()> {
     Ok(())
 }
 
+fn gen_depth_from_cancel_orders(pending_thaws: Vec<Thaws>) -> AddBook2{
+    let mut add_depth = AddBook2 {
+        asks: HashMap::<U256, I256>::new(),
+        bids: HashMap::<U256, I256>::new(),
+    };
+
+    let mut update_depth = |x: Thaws| {
+        let amount = I256::try_from(x.amount).unwrap();
+        match x.side {
+            Side::Buy => {
+                match add_depth.bids.get_mut(&x.price) {
+                    None => {
+                        add_depth.bids.insert(x.price, -amount);
+                    }
+                    Some(mut tmp1) => {
+                        tmp1 = &mut tmp1.sub(amount);
+                    }
+                };
+            }
+            Side::Sell => {
+                match add_depth.asks.get_mut(&x.price) {
+                    None => {
+                        add_depth.asks.insert(x.price, -amount);
+                    }
+                    Some(mut tmp1) => {
+                        tmp1 = &mut tmp1.sub(amount);
+                    }
+                };
+            }
+        }
+    };
+
+    for pending_thaw in pending_thaws.clone() {
+        update_depth(pending_thaw);
+    }
+    add_depth
+}
+
 fn gen_depth_from_raw(add_depth: AddBook2) -> AddBook {
     let asks2 = add_depth
         .asks
         .iter()
         .map(|(x, y)| {
             let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
-            // let user_volume = u256_to_f64(y.to_owned(), BaseTokenDecimal);
-            info!(
-                            "__test_decimal_0001_{}_{}_{}",
-                            y,
-                            y.into_raw(),
-                            y.abs().into_raw()
-                        );
             let user_volume = if y < &I256::from(0u32) {
                 u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
             } else {
                 u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
             };
-
             (user_price, user_volume)
         })
         .filter(|(p, v)| p != &0.0 && v != &0.0)
@@ -225,12 +256,6 @@ fn gen_depth_from_raw(add_depth: AddBook2) -> AddBook {
         .bids
         .iter()
         .map(|(x, y)| {
-            info!(
-                            "__test_decimal_0002_{}_{}_{}",
-                            y,
-                            y.into_raw(),
-                            y.abs().into_raw()
-                        );
             let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
             let user_volume = if y < &I256::from(0u32) {
                 u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
@@ -261,26 +286,21 @@ fn gen_agg_trade_from_raw(trades: Vec<TradeInfo>) -> Vec<LastTrade2> {
 }
 
 
-fn send_depth_message(depth: AddBook, arc_queue: Arc<RwLock<Rsmq>>) {
+async fn send_depth_message(depth: AddBook, arc_queue: Arc<RwLock<Rsmq>>) {
     let mut market_depth = HashMap::new();
     market_depth.insert(crate::MARKET.id.clone(), depth);
-    let rt = Runtime::new().unwrap();
-    rt.block_on(async move {
-        let json_str = serde_json::to_string(&market_depth).unwrap();
+    let json_str = serde_json::to_string(&market_depth).unwrap();
         arc_queue
             .write()
             .unwrap()
             .send_message(&QueueType::Depth.to_string(), json_str, None)
             .await
             .expect("failed to send message");
-    });
 }
 
-fn send_agg_trade_message(agg_trade: Vec<LastTrade2>, arc_queue: Arc<RwLock<Rsmq>>) {
+async fn send_agg_trade_message(agg_trade: Vec<LastTrade2>, arc_queue: Arc<RwLock<Rsmq>>) {
     let mut market_agg_trade = HashMap::new();
     market_agg_trade.insert(crate::MARKET.id.clone(), agg_trade);
-    let rt = Runtime::new().unwrap();
-    rt.block_on(async move {
         let json_str = serde_json::to_string(&market_agg_trade).unwrap();
         arc_queue
             .write()
@@ -288,12 +308,12 @@ fn send_agg_trade_message(agg_trade: Vec<LastTrade2>, arc_queue: Arc<RwLock<Rsmq
             .send_message(QueueType::Trade.to_string().as_str(), json_str, None)
             .await
             .expect("failed to send message");
-    });
 }
 
 async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
     let (event_sender, event_receiver) = mpsc::sync_channel(0);
     let arc_queue = Arc::new(RwLock::new(queue));
+    let arc_queue_cancel = arc_queue.clone();
     //不考虑安全性,随便写个私钥
     let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
     let chemix_storage_client = ChemixContractClient::<Storage>::new(pri_key);
@@ -351,7 +371,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                     let update_info = UpdateOrder {
                                         id: order.id.clone(),
                                         status: OrderStatus::Canceled,
-                                        available_amount: order.available_amount,
+                                        available_amount: U256_ZERO,
                                         matched_amount: order.matched_amount,
                                         canceled_amount: order.available_amount,
                                         updated_at: get_current_time(),
@@ -367,7 +387,10 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                         order.side.clone(),
                                     ));
                                 }
-                                insert_thaws(pending_thaws);
+                                insert_thaws(pending_thaws.clone());
+                                let raw_depth = gen_depth_from_cancel_orders(pending_thaws);
+                                let depth = gen_depth_from_raw(raw_depth);
+                                send_depth_message(depth,arc_queue_cancel.clone()).await;
                                 //todo: 推送取消的深度
                             }
 
@@ -508,11 +531,16 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 
                 //撮合信息推到ws模块
                 let depth = gen_depth_from_raw(add_depth);
-                send_depth_message(depth, arc_queue.clone());
-                if !db_trades.is_empty() {
-                    let trade = gen_agg_trade_from_raw(db_trades);
-                    send_agg_trade_message(trade, arc_queue.clone());
-                }
+                let rt = Runtime::new().unwrap();
+                let arc_queue = arc_queue.clone();
+                rt.block_on(async move {
+                    send_depth_message(depth, arc_queue.clone()).await;
+                    if !db_trades.is_empty() {
+                        let trade = gen_agg_trade_from_raw(db_trades);
+                        send_agg_trade_message(trade, arc_queue.clone()).await;
+                    }
+                });
+
             }
         });
     });
@@ -523,7 +551,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
-    let queue = Queue::regist(vec![QueueType::Depth,QueueType::Trade,QueueType::Thaws]).await;
+    let queue = Queue::regist(vec![QueueType::Depth, QueueType::Trade, QueueType::Thaws]).await;
     info!("market {}", MARKET.base_token_address);
     info!("initial book {:#?}", crate::BOOK.lock().unwrap());
     listen_blocks(queue).await;
