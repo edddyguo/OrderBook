@@ -806,9 +806,9 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
         });
         //execute matched trade
         s.spawn(move |_| {
-            let mut last_height = 0u32;
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
+                let mut last_height = get_current_block().await - 1;
                 loop {
                     //market_orders的移除或者减少
                     //fix: 10000是经验值，放到外部参数注入
@@ -829,7 +829,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 
                     //let mut agg_trades = Vec::new();
                     if !settle_trades.is_empty() {
-                        while get_current_block().await - last_height > 0u32 {
+                        while get_current_block().await - last_height == 0u32 {
                             info!("current {},wait for next block",last_height);
                             tokio::time::sleep(time::Duration::from_millis(500)).await;
                         }
