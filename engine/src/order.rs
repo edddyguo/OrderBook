@@ -160,9 +160,13 @@ pub fn match_order(
 }
 
 pub fn cancel(new_cancel_orders: Vec<CancelOrderState2>) -> Vec<CancelOrderState2> {
-    let mut legal_orders = Vec::new();
+    let mut legal_orders = Vec::<CancelOrderState2>::new();
     for new_cancel_order in new_cancel_orders {
         let orders = list_orders(OrderFilter::ByIndex(new_cancel_order.order_index.as_u32())).unwrap();
+        if orders.is_empty() {
+            warn!("Order index {} not found",new_cancel_order.order_index);
+            return legal_orders;
+        }
         let order = orders[0].clone();
         match order.status {
             OrderStatus::FullFilled => {
@@ -201,12 +205,6 @@ pub fn cancel(new_cancel_orders: Vec<CancelOrderState2>) -> Vec<CancelOrderState
             },
             OrderStatus::Canceled => {
                 warn!("Have already Canceled");
-            }
-            OrderStatus::PreCanceled => {
-                warn!("Have already Canceled");
-            }
-            OrderStatus::Abandoned => {
-                todo!()
             }
         }
     }

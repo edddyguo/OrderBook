@@ -198,9 +198,6 @@ async fn get_balance() -> Result<()> {
 }
 
 async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
-    //todo: 重启从上次结束的块开始扫
-    info!("0000");
-    let _last_height: U64 = U64::from(200u64);
     let (event_sender, event_receiver) = mpsc::sync_channel(0);
     let arc_queue = Arc::new(RwLock::new(queue));
     //不考虑安全性,随便写个私钥
@@ -254,11 +251,12 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             } else {
                                 let mut pending_thaws = Vec::new();
                                 for cancel_order in legal_orders {
+                                    //todo: 重复list_order了
                                     let orders = list_orders(OrderFilter::ByIndex(cancel_order.order_index.as_u32())).unwrap();
                                     let order = orders.first().unwrap();
                                     let update_info = UpdateOrder {
                                         id: order.id.clone(),
-                                        status: OrderStatus::PreCanceled,
+                                        status: OrderStatus::Canceled,
                                         available_amount: order.available_amount,
                                         matched_amount: order.matched_amount,
                                         canceled_amount: order.available_amount,
@@ -276,6 +274,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                     ));
                                 }
                                 insert_thaws(pending_thaws);
+                                //todo: 推送取消的深度
                             }
 
                             //过滤新下订单
