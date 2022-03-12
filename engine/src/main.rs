@@ -99,7 +99,7 @@ lazy_static! {
                 account: x.account.clone(),
                 side: x.side.clone(),
                 price: x.price,
-                amount: x.amount,
+                amount: x.available_amount,
                 created_at: time2unix(x.created_at.clone())
             }
          }).collect::<Vec<BookOrder>>();
@@ -114,7 +114,7 @@ lazy_static! {
                 account: x.account.clone(),
                 side: x.side.clone(),
                 price: x.price,
-                amount: x.amount,
+                amount: x.available_amount,
                 created_at: time2unix(x.created_at.clone())
             }
         }).collect::<Vec<BookOrder>>();
