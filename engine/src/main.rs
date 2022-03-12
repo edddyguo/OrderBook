@@ -522,7 +522,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
-    let queue = Queue::regist(vec![QueueType::Depth]).await;
+    let queue = Queue::regist(vec![QueueType::Depth,QueueType::Trade,QueueType::Thaws]).await;
     info!("market {}", MARKET.base_token_address);
     info!("initial book {:#?}", crate::BOOK.lock().unwrap());
     listen_blocks(queue).await;

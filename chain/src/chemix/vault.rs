@@ -112,11 +112,11 @@ impl ChemixContractClient<Vault> {
         Ok(result)
     }
 
-    pub async fn filter_settlement_event(&mut self, height: U64) -> Result<Vec<String>> {
+    pub async fn filter_settlement_event(&mut self, height: u32) -> Result<Vec<String>> {
         let contract = ChemixVault::new(self.contract_addr, self.client.clone());
         let new_orders: Vec<SettlementFilter> = contract
             .settlement_filter()
-            .from_block(height)
+            .from_block(U64::from(height))
             .query()
             .await
             .unwrap();
@@ -129,11 +129,11 @@ impl ChemixContractClient<Vault> {
     }
 
     //thaws
-    pub async fn filter_thaws_event(&mut self, height: U64) -> Result<Vec<String>> {
+    pub async fn filter_thaws_event(&mut self, height: u32) -> Result<Vec<String>> {
         let contract = ChemixVault::new(self.contract_addr, self.client.clone());
         let new_orders: Vec<ThawBalanceFilter> = contract
             .thaw_balance_filter()
-            .from_block(height)
+            .from_block(U64::from(height))
             .query()
             .await
             .unwrap();

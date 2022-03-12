@@ -26,7 +26,7 @@ use tokio::runtime::Runtime;
 use tokio::time;
 
 use chemix_models::order::{
-    update_order_status, BookOrder,list_orders,OrderFilter
+    update_order_status, BookOrder, list_orders, OrderFilter,
 };
 use chemix_models::trade::{
     list_trades, list_trades2, update_trade, update_trade_by_hash, TradeInfo,
@@ -61,6 +61,8 @@ extern crate common;
 
 static BaseTokenDecimal: u32 = 18;
 static QuoteTokenDecimal: u32 = 15;
+
+const CONFIRM_HEIGHT: u32 = 8;
 
 use chemix_models::thaws::{list_thaws, update_thaws1};
 
@@ -624,55 +626,71 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
         s.spawn(move |_| {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
-                //todo 过滤所有的thaws和battle，更新confirm状态,并且推ws消息（解冻，depth、aggtrade）
-                let watcher = gen_watcher().await;
-                let mut stream = watcher.provide.watch_blocks().await.unwrap();
-                while let Some(block) = stream.next().await {
-                    info!("block {}", block);
-                    //last_height = last_height.add(1i32);
-                    let current_height = get_block(block).await.unwrap().unwrap();
-                    //todo: 处理块高异常的情况,get block from http
-                    //assert_eq!(last_height.add(1u64), current_height);
-                    info!("new_orders_event {:?}", current_height);
+                //todo 过滤所有的thaws和battle，更新confirm状态或者是未处理状态
+                //fixme： 可以从第一个一个未处理的高度，如果都处理则从最后确认的高度开始
+                let last_order = list_orders(OrderFilter::GetLastOne).unwrap();
+                let mut last_process_height = if last_order.is_empty() {
+                    get_current_block().await
+                } else {
+                    last_order[0].block_height
+                };
 
-                    let new_settlements = vault_listen_client
-                        .clone()
-                        .write()
-                        .unwrap()
-                        .filter_settlement_event(current_height)
-                        .await
-                        .unwrap();
-                    if new_settlements.is_empty() {
-                        info!(
-                            "Not found settlement orders created at height {}",
-                            current_height
-                        );
-                    } else {
+                loop {
+                    let current_height = get_current_block().await;
+                    assert!(current_height > last_process_height);
+                    if current_height - last_process_height <= CONFIRM_HEIGHT {
+                        info!("current chain height {},wait for new block",current_height);
                         tokio::time::sleep(time::Duration::from_millis(1000)).await;
-                        deal_launched_trade(
-                            new_settlements,
-                            arc_queue.clone(),
-                            current_height.as_u32(),
-                        )
-                        .await;
-                    }
-
-                    let new_thaws = vault_listen_client
-                        .clone()
-                        .write()
-                        .unwrap()
-                        .filter_thaws_event(current_height)
-                        .await
-                        .unwrap();
-                    info!("new_orders_event {:?}", new_thaws);
-
-                    if new_thaws.is_empty() {
-                        info!("Not found new order created at height {}", current_height);
+                        continue;
                     } else {
-                        deal_launched_thaws(new_thaws, arc_queue.clone()).await;
+                        //规避RPC阻塞等网络问题导致的没有及时获取到最新块高，以及系统重启时期对离线期间区块的处理
+                        //绝大多数情况last_process_height + 1 等于current_height - CONFIRM_HEIGHT
+                        for height in last_process_height + 1..=current_height - CONFIRM_HEIGHT {
+                            let new_settlements = vault_listen_client
+                                .clone()
+                                .write()
+                                .unwrap()
+                                .filter_settlement_event(height)
+                                .await
+                                .unwrap();
+                            if new_settlements.is_empty() {
+                                info!(
+                                "Not found settlement orders created at height {}",
+                                current_height
+                                );
+                            } else {
+                                //todo: 判断链上数据和数据库是否匹配，不匹配的则重置为未处理
+                                /***
+                                deal_launched_trade(
+                                    new_settlements,
+                                    arc_queue.clone(),
+                                    current_height.as_u32(),
+                                )
+                                .await;
+
+                                 */
+                            }
+
+                            let new_thaws = vault_listen_client
+                                .clone()
+                                .write()
+                                .unwrap()
+                                .filter_thaws_event(height)
+                                .await
+                                .unwrap();
+                            info!("new_orders_event {:?}", new_thaws);
+
+                            if new_thaws.is_empty() {
+                                info!("Not found new order created at height {}", current_height);
+                            } else {
+                                //todo: 判断链上数据和数据库是否匹配，不匹配的则重置为未处理
+                                //todo： 另外起一个服务，循环判断是否有超8个区块还没确认的处理，有的话将起launch重新设置为pending
+                                //deal_launched_thaws(new_thaws, arc_queue.clone()).await;
+                            }
+                        }
                     }
 
-                    last_height = current_height;
+                    last_process_height = current_height - CONFIRM_HEIGHT;
                 }
             });
         });
@@ -783,13 +801,6 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             height,
                             ThawStatus::Launched,
                         );
-                        //todo： 放到事件监听之后处理
-                        update_order_status(
-                            OrderStatus::Canceled,
-                            U256_ZERO,
-                            pending_thaw.amount,
-                            pending_thaw.order_id.as_str(),
-                        );
                     }
                 }
             });
@@ -802,7 +813,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 loop {
                     //market_orders的移除或者减少
                     //fix: 10000是经验值，放到外部参数注入
-                    let db_trades = list_trades(None, None,Some(TradeStatus::Matched), None,None,50);
+                    let db_trades = list_trades(None, None, Some(TradeStatus::Matched), None, None, 50);
                     if db_trades.is_empty() {
                         info!("Have no matched trade need launch,and wait 5 seconds for next check");
                         tokio::time::sleep(time::Duration::from_millis(5000)).await;
@@ -825,38 +836,36 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         }
 
                         let mut receipt = Default::default();
-                            loop {
-//                            match chemix_main_client2.read().unwrap().settlement_trades(MARKET.base_token_address.as_str(),MARKET.quote_token_address.as_str(),settle_trades.clone()).await {
-                                info!("settlement_trades____ trade={:?}_index={},hash={:?}",settle_trades,last_order.index,hash_data);
-                                match vault_settel_client.clone().read().unwrap().settlement_trades2(last_order.index,hash_data,settle_trades.clone()).await {
-                                    Ok(data) => {
-                                        receipt = data.unwrap();
-                                        last_height = receipt.block_number.unwrap().as_u32();
-                                        break;
-                                    }
-                                    Err(error) => {
-                                        if error.to_string().contains("underpriced") {
-                                            warn!("gas too low and try again");
-                                            tokio::time::sleep(time::Duration::from_millis(5000)).await;
-                                        } else {
-                                            //tmp code
-                                            error!("{}",error);
-                                            unreachable!()
-                                        }
+                        loop {
+                            //                            match chemix_main_client2.read().unwrap().settlement_trades(MARKET.base_token_address.as_str(),MARKET.quote_token_address.as_str(),settle_trades.clone()).await {
+                            info!("settlement_trades____ trade={:?}_index={},hash={:?}",settle_trades,last_order.index,hash_data);
+                            match vault_settel_client.clone().read().unwrap().settlement_trades2(last_order.index, hash_data, settle_trades.clone()).await {
+                                Ok(data) => {
+                                    receipt = data.unwrap();
+                                    last_height = receipt.block_number.unwrap().as_u32();
+                                    break;
+                                }
+                                Err(error) => {
+                                    if error.to_string().contains("underpriced") {
+                                        warn!("gas too low and try again");
+                                        tokio::time::sleep(time::Duration::from_millis(5000)).await;
+                                    } else {
+                                        //tmp code
+                                        error!("{}",error);
+                                        unreachable!()
                                     }
                                 }
                             }
-
-                        let height = receipt.block_number.unwrap().to_string().parse::<u32>().unwrap();
-                        let transaction_hash = format!("{:?}",receipt.transaction_hash);
-                        for db_trade in db_trades.clone() {
-                            update_trade(db_trade.id.as_str(),TradeStatus::Launched,height,transaction_hash.as_str(),&last_order.hash_data);
                         }
 
+                        let height = receipt.block_number.unwrap().to_string().parse::<u32>().unwrap();
+                        let transaction_hash = format!("{:?}", receipt.transaction_hash);
+                        for db_trade in db_trades.clone() {
+                            update_trade(db_trade.id.as_str(), TradeStatus::Launched, height, transaction_hash.as_str(), &last_order.hash_data);
+                        }
                     }
                 }
             });
-
         });
     });
     Ok(())
