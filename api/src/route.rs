@@ -324,6 +324,7 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
     .iter()
     .map(|x| trade::Trade {
         id: x.id.clone(),
+        transaction_hash: x.transaction_hash.clone(),
         market_id: info.market_id.clone(),
         price: u256_to_f64(x.price, quote_decimal),
         amount: u256_to_f64(x.amount, base_decimal),
@@ -602,6 +603,7 @@ async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> imp
             };
             trade::Trade {
                 id: x.id.clone(),
+                transaction_hash: x.transaction_hash.clone(),
                 market_id: info.market_id.clone(),
                 price: u256_to_f64(x.price, quote_decimal),
                 amount: u256_to_f64(x.amount, base_decimal),

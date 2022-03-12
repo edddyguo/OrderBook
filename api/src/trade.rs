@@ -5,6 +5,7 @@ use common::types::order::Side as OrderSide;
 #[derive(Serialize)]
 pub struct Trade {
     pub id: String,
+    pub transaction_hash: String,
     pub market_id: String,
     pub price: f64,
     pub amount: f64,
