@@ -36,7 +36,7 @@ use chemix_models::order::{insert_order, update_order, BookOrder, list_orders, O
 use chemix_models::trade::{insert_trades, TradeInfo};
 
 use chemix_chain::chemix::storage::Storage;
-use common::utils::math::U256_ZERO;
+use common::utils::math::{u256_to_f64, U256_ZERO};
 use common::utils::time::get_current_time;
 use common::utils::time::time2unix;
 use ethers_core::abi::ethereum_types::U64;
@@ -158,7 +158,7 @@ pub struct LastTrade {
 pub struct LastTrade2 {
     price: f64,
     amount: f64,
-    height: u32,
+    height: i32,
     taker_side: OrderSide,
 }
 
@@ -197,6 +197,100 @@ async fn get_balance() -> Result<()> {
     Ok(())
 }
 
+fn gen_depth_from_raw(add_depth: AddBook2) -> AddBook {
+    let asks2 = add_depth
+        .asks
+        .iter()
+        .map(|(x, y)| {
+            let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
+            // let user_volume = u256_to_f64(y.to_owned(), BaseTokenDecimal);
+            info!(
+                            "__test_decimal_0001_{}_{}_{}",
+                            y,
+                            y.into_raw(),
+                            y.abs().into_raw()
+                        );
+            let user_volume = if y < &I256::from(0u32) {
+                u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
+            } else {
+                u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
+            };
+
+            (user_price, user_volume)
+        })
+        .filter(|(p, v)| p != &0.0 && v != &0.0)
+        .collect::<Vec<(f64, f64)>>();
+
+    let bids2 = add_depth
+        .bids
+        .iter()
+        .map(|(x, y)| {
+            info!(
+                            "__test_decimal_0002_{}_{}_{}",
+                            y,
+                            y.into_raw(),
+                            y.abs().into_raw()
+                        );
+            let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
+            let user_volume = if y < &I256::from(0u32) {
+                u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
+            } else {
+                u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
+            };
+            (user_price, user_volume)
+        })
+        .filter(|(p, v)| p != &0.0 && v != &0.0)
+        .collect::<Vec<(f64, f64)>>();
+
+    AddBook {
+        asks: asks2,
+        bids: bids2,
+    }
+}
+
+
+fn gen_agg_trade_from_raw(trades: Vec<TradeInfo>) -> Vec<LastTrade2> {
+    trades.into_iter().map(|x| {
+        LastTrade2 {
+            price: u256_to_f64(x.price, crate::MARKET.quote_contract_decimal),
+            amount: u256_to_f64(x.amount, crate::MARKET.base_contract_decimal),
+            height: -1,
+            taker_side: x.taker_side,
+        }
+    }).collect::<Vec<LastTrade2>>()
+}
+
+
+fn send_depth_message(depth: AddBook, arc_queue: Arc<RwLock<Rsmq>>) {
+    let mut market_depth = HashMap::new();
+    market_depth.insert(crate::MARKET.id.clone(), depth);
+    let rt = Runtime::new().unwrap();
+    rt.block_on(async move {
+        let json_str = serde_json::to_string(&market_depth).unwrap();
+        arc_queue
+            .write()
+            .unwrap()
+            .send_message(&QueueType::Depth.to_string(), json_str, None)
+            .await
+            .expect("failed to send message");
+    });
+}
+
+fn send_agg_trade_message(agg_trade: Vec<LastTrade2>, arc_queue: Arc<RwLock<Rsmq>>) {
+    let mut market_agg_trade = HashMap::new();
+    market_agg_trade.insert(crate::MARKET.id.clone(), agg_trade);
+    let rt = Runtime::new().unwrap();
+    rt.block_on(async move {
+        let json_str = serde_json::to_string(&market_agg_trade).unwrap();
+        arc_queue
+            .write()
+            .unwrap()
+            .send_message(QueueType::Trade.to_string().as_str(), json_str, None)
+            .await
+            .expect("failed to send message");
+    });
+}
+
 async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
     let (event_sender, event_receiver) = mpsc::sync_channel(0);
     let arc_queue = Arc::new(RwLock::new(queue));
@@ -225,7 +319,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     if current_height - last_process_height <= CONFIRM_HEIGHT {
                         info!("current chain height {},wait for new block",current_height);
                         tokio::time::sleep(time::Duration::from_millis(1000)).await;
-                        continue
+                        continue;
                     } else {
                         info!("current_book {:#?}", crate::BOOK.lock().unwrap());
                         //规避RPC阻塞等网络问题导致的没有及时获取到最新块高，以及系统重启时期对离线期间区块的处理
@@ -337,13 +431,17 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 );
                 //TODO: matched order
                 //update OrderBook
+                let mut add_depth = AddBook2 {
+                    asks: HashMap::<U256, I256>::new(),
+                    bids: HashMap::<U256, I256>::new(),
+                };
 
                 let mut db_trades = Vec::<TradeInfo>::new();
                 //market_orders的移除或者减少
                 let mut db_marker_orders_reduce = HashMap::<String, U256>::new();
                 for (index, db_order) in orders.iter_mut().enumerate() {
                     let _matched_amount =
-                        match_order(db_order, &mut db_trades, &mut db_marker_orders_reduce);
+                        match_order(db_order, &mut db_trades, &mut add_depth, &mut db_marker_orders_reduce);
 
                     info!(
                         "index {},taker amount {},matched-amount {}",
@@ -407,22 +505,12 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     update_order(&update_info);
                 }
 
-                //todo: 放在luanch模块在交易确认后推送？
-                orders.retain(|x| x.matched_amount == U256_ZERO);
-                if !orders.is_empty() {
-                    //todo：没有成交的里面推ws
-                    let market_add_depth = gen_depth_from_order(orders);
-                    let arc_queue = arc_queue.clone();
-                    let rt = Runtime::new().unwrap();
-                    rt.block_on(async move {
-                        let json_str = serde_json::to_string(&market_add_depth).unwrap();
-                        arc_queue
-                            .write()
-                            .unwrap()
-                            .send_message(&QueueType::Depth.to_string(), json_str, None)
-                            .await
-                            .expect("failed to send message");
-                    });
+                //撮合信息推到ws模块
+                let depth = gen_depth_from_raw(add_depth);
+                send_depth_message(depth, arc_queue.clone());
+                if !db_trades.is_empty() {
+                    let trade = gen_agg_trade_from_raw(db_trades);
+                    send_agg_trade_message(trade, arc_queue.clone());
                 }
             }
         });

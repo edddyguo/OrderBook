@@ -28,6 +28,7 @@ pub struct EventOrder {
 pub fn match_order(
     mut taker_order: &mut OrderInfo,
     trades: &mut Vec<TradeInfo>,
+    raw_depth: &mut AddBook2,
     marker_reduced_orders: &mut HashMap<String, U256>,
 ) -> U256 {
     let book = &mut crate::BOOK.lock().unwrap();
@@ -48,6 +49,14 @@ pub fn match_order(
                         amount: taker_order.available_amount,
                         created_at: get_unix_time(),
                     });
+
+                    //剩余的订单使深度增加
+                    let stat = raw_depth
+                        .bids
+                        .entry(taker_order.price.clone())
+                        .or_insert(I256::from(0i32));
+                    *stat += I256::from_raw(taker_order.available_amount);
+
                     book.buy
                         .sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
                     book.buy.reverse();
@@ -67,6 +76,13 @@ pub fn match_order(
                         marker_order.id.clone(),
                         taker_order.id.clone(),
                     ));
+
+                    //吃掉的订单使卖单深度减少
+                    let stat = raw_depth
+                        .asks
+                        .entry(marker_order.price.clone())
+                        .or_insert(I256::from(0i32));
+                    *stat -= I256::from_raw(matched_amount);
 
                     //get marker_order change value
                     marker_reduced_orders.insert(marker_order.id.clone(), matched_amount);
@@ -106,6 +122,13 @@ pub fn match_order(
                         amount: taker_order.available_amount,
                         created_at: get_unix_time(),
                     });
+
+                    let stat = raw_depth
+                        .asks
+                        .entry(taker_order.price.clone())
+                        .or_insert(I256::from(0i32));
+                    *stat += I256::from_raw(taker_order.available_amount);
+
                     book.sell
                         .sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
                     break 'marker_orders;
@@ -124,6 +147,12 @@ pub fn match_order(
                         marker_order.id.clone(),
                         taker_order.id.clone(),
                     ));
+
+                    let stat = raw_depth
+                        .bids
+                        .entry(marker_order.price.clone())
+                        .or_insert(I256::from(0i32));
+                    *stat -= I256::from_raw(matched_amount);
 
                     //get change marker order
                     marker_reduced_orders.insert(marker_order.id.clone(), matched_amount);
