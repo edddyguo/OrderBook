@@ -41,7 +41,7 @@ pub struct Client {
 pub struct LastTrade2 {
     price: f64,
     amount: f64,
-    height: u32,
+    height: i32,
     taker_side: String,
 }
 

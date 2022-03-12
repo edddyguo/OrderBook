@@ -61,7 +61,7 @@ extern crate common;
 static BaseTokenDecimal: u32 = 18;
 static QuoteTokenDecimal: u32 = 15;
 
-const CONFIRM_HEIGHT: u32 = 8;
+const CONFIRM_HEIGHT: u32 = 2;
 
 #[derive(Clone, Serialize, Debug)]
 struct EngineBook {
@@ -282,7 +282,9 @@ fn gen_agg_trade_from_raw(trades: Vec<TradeInfo>) -> Vec<LastTrade2> {
             height: -1,
             taker_side: x.taker_side,
         }
-    }).collect::<Vec<LastTrade2>>()
+    })
+    .filter(|x| x.price != 0.0 && x.amount != 0.0)
+    .collect::<Vec<LastTrade2>>()
 }
 
 
@@ -301,13 +303,14 @@ async fn send_depth_message(depth: AddBook, arc_queue: Arc<RwLock<Rsmq>>) {
 async fn send_agg_trade_message(agg_trade: Vec<LastTrade2>, arc_queue: Arc<RwLock<Rsmq>>) {
     let mut market_agg_trade = HashMap::new();
     market_agg_trade.insert(crate::MARKET.id.clone(), agg_trade);
-        let json_str = serde_json::to_string(&market_agg_trade).unwrap();
-        arc_queue
-            .write()
-            .unwrap()
-            .send_message(QueueType::Trade.to_string().as_str(), json_str, None)
-            .await
-            .expect("failed to send message");
+    let json_str = serde_json::to_string(&market_agg_trade).unwrap();
+    info!("trade_push {}",json_str);
+    arc_queue
+        .write()
+        .unwrap()
+        .send_message(QueueType::Trade.to_string().as_str(), json_str, None)
+        .await
+        .expect("failed to send message");
 }
 
 async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
@@ -535,9 +538,10 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 let arc_queue = arc_queue.clone();
                 rt.block_on(async move {
                     send_depth_message(depth, arc_queue.clone()).await;
-                    if !db_trades.is_empty() {
-                        let trade = gen_agg_trade_from_raw(db_trades);
-                        send_agg_trade_message(trade, arc_queue.clone()).await;
+                    let trades = gen_agg_trade_from_raw(db_trades);
+                    if !trades.is_empty() {
+                        info!("agg_trade {:?}",trades);
+                        send_agg_trade_message(trades, arc_queue.clone()).await;
                     }
                 });
 

@@ -62,7 +62,7 @@ extern crate common;
 static BaseTokenDecimal: u32 = 18;
 static QuoteTokenDecimal: u32 = 15;
 
-const CONFIRM_HEIGHT: u32 = 8;
+const CONFIRM_HEIGHT: u32 = 2;
 
 use chemix_models::thaws::{list_thaws, update_thaws1};
 
