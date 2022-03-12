@@ -10,7 +10,7 @@ use chemix_chain::chemix::ChemixContractClient;
 use ethers_providers::{Http, Middleware, Provider, StreamExt};
 use rsmq_async::{Rsmq, RsmqConnection};
 
-use chemix_chain::bsc::{gen_watcher, get_block, get_current_block};
+use chemix_chain::bsc::{get_block, get_current_block};
 use std::string::String;
 
 use serde::Serialize;
@@ -22,7 +22,7 @@ use std::ops::Sub;
 
 use std::str::FromStr;
 
-use crate::order::{cancel, gen_depth_from_order, match_order};
+use crate::order::{cancel, match_order};
 use std::sync::Mutex;
 use std::sync::{mpsc, Arc, RwLock};
 use std::time;
@@ -31,8 +31,8 @@ use tokio::runtime::Runtime;
 
 use clap::{App, Arg};
 
-use chemix_models::order::{insert_order, update_order, BookOrder, list_orders, OrderFilter,
-                           EngineOrder, OrderInfo, UpdateOrder,
+use chemix_models::order::{
+    insert_order, list_orders, update_order, BookOrder, OrderFilter, OrderInfo, UpdateOrder,
 };
 use chemix_models::trade::{insert_trades, TradeInfo};
 
@@ -40,14 +40,13 @@ use chemix_chain::chemix::storage::Storage;
 use common::utils::math::{u256_to_f64, U256_ZERO};
 use common::utils::time::get_current_time;
 use common::utils::time::time2unix;
-use ethers_core::abi::ethereum_types::U64;
 
 use chemix_models::market::{get_markets, MarketInfo};
-use chemix_models::order::OrderFilter::ByIndex;
+
 use chemix_models::thaws::{insert_thaws, Thaws};
 use common::queue::*;
-use common::types::order::{Side as OrderSide, Side};
 use common::types::order::Status as OrderStatus;
+use common::types::order::{Side as OrderSide, Side};
 
 #[macro_use]
 extern crate lazy_static;
@@ -90,8 +89,8 @@ lazy_static! {
     };
 
     static ref BOOK: Mutex<EngineBook> = Mutex::new({
-        let mut available_buy = list_orders(OrderFilter::AvailableOrders(MARKET.id.clone(),OrderSide::Buy)).unwrap();
-        let mut available_sell = list_orders(OrderFilter::AvailableOrders(MARKET.id.clone(),OrderSide::Sell)).unwrap();
+        let available_buy = list_orders(OrderFilter::AvailableOrders(MARKET.id.clone(),OrderSide::Buy)).unwrap();
+        let available_sell = list_orders(OrderFilter::AvailableOrders(MARKET.id.clone(),OrderSide::Sell)).unwrap();
 
         //todo: 统一数据结构
         let mut available_sell2 = available_sell.iter().map(|x|{
@@ -198,7 +197,7 @@ async fn get_balance() -> Result<()> {
     Ok(())
 }
 
-fn gen_depth_from_cancel_orders(pending_thaws: Vec<Thaws>) -> AddBook2{
+fn gen_depth_from_cancel_orders(pending_thaws: Vec<Thaws>) -> AddBook2 {
     let mut add_depth = AddBook2 {
         asks: HashMap::<U256, I256>::new(),
         bids: HashMap::<U256, I256>::new(),
@@ -273,38 +272,36 @@ fn gen_depth_from_raw(add_depth: AddBook2) -> AddBook {
     }
 }
 
-
 fn gen_agg_trade_from_raw(trades: Vec<TradeInfo>) -> Vec<LastTrade2> {
-    trades.into_iter().map(|x| {
-        LastTrade2 {
+    trades
+        .into_iter()
+        .map(|x| LastTrade2 {
             price: u256_to_f64(x.price, crate::MARKET.quote_contract_decimal),
             amount: u256_to_f64(x.amount, crate::MARKET.base_contract_decimal),
             height: -1,
             taker_side: x.taker_side,
-        }
-    })
-    .filter(|x| x.price != 0.0 && x.amount != 0.0)
-    .collect::<Vec<LastTrade2>>()
+        })
+        .filter(|x| x.price != 0.0 && x.amount != 0.0)
+        .collect::<Vec<LastTrade2>>()
 }
-
 
 async fn send_depth_message(depth: AddBook, arc_queue: Arc<RwLock<Rsmq>>) {
     let mut market_depth = HashMap::new();
     market_depth.insert(crate::MARKET.id.clone(), depth);
     let json_str = serde_json::to_string(&market_depth).unwrap();
-        arc_queue
-            .write()
-            .unwrap()
-            .send_message(&QueueType::Depth.to_string(), json_str, None)
-            .await
-            .expect("failed to send message");
+    arc_queue
+        .write()
+        .unwrap()
+        .send_message(&QueueType::Depth.to_string(), json_str, None)
+        .await
+        .expect("failed to send message");
 }
 
 async fn send_agg_trade_message(agg_trade: Vec<LastTrade2>, arc_queue: Arc<RwLock<Rsmq>>) {
     let mut market_agg_trade = HashMap::new();
     market_agg_trade.insert(crate::MARKET.id.clone(), agg_trade);
     let json_str = serde_json::to_string(&market_agg_trade).unwrap();
-    info!("trade_push {}",json_str);
+    info!("trade_push {}", json_str);
     arc_queue
         .write()
         .unwrap()
@@ -340,14 +337,20 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     let current_height = get_current_block().await;
                     assert!(current_height >= last_process_height);
                     if current_height - last_process_height <= CONFIRM_HEIGHT {
-                        info!("current chain height {},wait for new block",current_height);
+                        info!("current chain height {},wait for new block", current_height);
                         tokio::time::sleep(time::Duration::from_millis(1000)).await;
                     } else {
                         info!("current_book {:#?}", crate::BOOK.lock().unwrap());
                         //规避RPC阻塞等网络问题导致的没有及时获取到最新块高，以及系统重启时期对离线期间区块的处理
                         //绝大多数情况last_process_height + 1 等于current_height - CONFIRM_HEIGHT
-                        for height in last_process_height + 1..=current_height - CONFIRM_HEIGHT {
-                            let block_hash = get_block(BlockId::from(height as u64)).await.unwrap().unwrap().hash.unwrap();
+                        for height in last_process_height + 1..=current_height - CONFIRM_HEIGHT
+                        {
+                            let block_hash = get_block(BlockId::from(height as u64))
+                                .await
+                                .unwrap()
+                                .unwrap()
+                                .hash
+                                .unwrap();
                             info!("deal with block height {}", height);
                             //取消订单
                             let new_cancel_orders = chemix_storage_client
@@ -364,12 +367,18 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             info!("new_cancel_orders_event {:?}", new_cancel_orders);
                             let legal_orders = cancel(new_cancel_orders.clone());
                             if legal_orders.is_empty() {
-                                info!("Not found legal_cancel orders created at height {}", height);
+                                info!(
+                                    "Not found legal_cancel orders created at height {}",
+                                    height
+                                );
                             } else {
                                 let mut pending_thaws = Vec::new();
                                 for cancel_order in legal_orders {
                                     //todo: 重复list_order了
-                                    let orders = list_orders(OrderFilter::ByIndex(cancel_order.order_index.as_u32())).unwrap();
+                                    let orders = list_orders(OrderFilter::ByIndex(
+                                        cancel_order.order_index.as_u32(),
+                                    ))
+                                    .unwrap();
                                     let order = orders.first().unwrap();
                                     let update_info = UpdateOrder {
                                         id: order.id.clone(),
@@ -393,7 +402,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 insert_thaws(pending_thaws.clone());
                                 let raw_depth = gen_depth_from_cancel_orders(pending_thaws);
                                 let depth = gen_depth_from_raw(raw_depth);
-                                send_depth_message(depth,arc_queue_cancel.clone()).await;
+                                send_depth_message(depth, arc_queue_cancel.clone()).await;
                                 //todo: 推送取消的深度
                             }
 
@@ -409,18 +418,21 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 )
                                 .await
                                 .unwrap();
-                            info!("new_orders_event {:?} at height {}", new_orders,height);
+                            info!("new_orders_event {:?} at height {}", new_orders, height);
 
                             if new_orders.is_empty() {
                                 info!("Not found new order created at height {}", height);
                             } else {
                                 let mut db_new_orders = Vec::new();
                                 for order in new_orders {
-                                    let base_decimal = crate::MARKET.base_contract_decimal as u32;
+                                    let base_decimal =
+                                        crate::MARKET.base_contract_decimal as u32;
                                     let raw_amount = if base_decimal > order.num_power {
-                                        order.amount * teen_power!(base_decimal - order.num_power)
+                                        order.amount
+                                            * teen_power!(base_decimal - order.num_power)
                                     } else {
-                                        order.amount * teen_power!(order.num_power - base_decimal)
+                                        order.amount
+                                            * teen_power!(order.num_power - base_decimal)
                                     };
                                     //todo: 非法数据过滤
                                     db_new_orders.push(OrderInfo::new(
@@ -443,7 +455,10 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         }
                     }
                     last_process_height = current_height - CONFIRM_HEIGHT;
-                    info!("test1:: last_process_height {}, current_height {}",last_process_height,current_height);
+                    info!(
+                        "test1:: last_process_height {}, current_height {}",
+                        last_process_height, current_height
+                    );
                 }
             });
         });
@@ -467,8 +482,12 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 //market_orders的移除或者减少
                 let mut db_marker_orders_reduce = HashMap::<String, U256>::new();
                 for (index, db_order) in orders.iter_mut().enumerate() {
-                    let _matched_amount =
-                        match_order(db_order, &mut db_trades, &mut add_depth, &mut db_marker_orders_reduce);
+                    let _matched_amount = match_order(
+                        db_order,
+                        &mut db_trades,
+                        &mut add_depth,
+                        &mut db_marker_orders_reduce,
+                    );
 
                     info!(
                         "index {},taker amount {},matched-amount {}",
@@ -505,7 +524,8 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 //update marker orders
                 info!("db_marker_orders_reduce {:?}", db_marker_orders_reduce);
                 for orders in db_marker_orders_reduce {
-                    let market_orders = list_orders(OrderFilter::ById(orders.0.clone())).unwrap();
+                    let market_orders =
+                        list_orders(OrderFilter::ById(orders.0.clone())).unwrap();
                     let marker_order_ori = market_orders.first().unwrap();
                     let new_matched_amount = marker_order_ori.matched_amount + orders.1;
                     info!(
@@ -540,11 +560,10 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     send_depth_message(depth, arc_queue.clone()).await;
                     let trades = gen_agg_trade_from_raw(db_trades);
                     if !trades.is_empty() {
-                        info!("agg_trade {:?}",trades);
+                        info!("agg_trade {:?}", trades);
                         send_agg_trade_message(trades, arc_queue.clone()).await;
                     }
                 });
-
             }
         });
     });

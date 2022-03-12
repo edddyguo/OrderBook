@@ -17,7 +17,6 @@ pub enum Status {
     Pending,
     #[serde(rename = "canceled")]
     Canceled,
-
 }
 
 impl Status {

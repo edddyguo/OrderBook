@@ -10,7 +10,7 @@ use common::queue::*;
 use ethers_providers::StreamExt;
 use rsmq_async::{Rsmq, RsmqConnection};
 
-use chemix_chain::bsc::{gen_watcher, get_block, get_current_block};
+use chemix_chain::bsc::{get_block, get_current_block};
 use std::string::String;
 
 use serde::Serialize;
@@ -25,9 +25,7 @@ use std::sync::{Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::time;
 
-use chemix_models::order::{
-    update_order_status, BookOrder, list_orders, OrderFilter,
-};
+use chemix_models::order::{list_orders, BookOrder, OrderFilter};
 use chemix_models::trade::{
     list_trades, list_trades2, update_trade, update_trade_by_hash, TradeInfo,
 };
@@ -45,7 +43,6 @@ use log::info;
 use chemix_models::thaws::{list_thaws2, Thaws};
 use common::env::CONF as ENV_CONF;
 
-use common::types::order::Status as OrderStatus;
 use common::types::order::{Side as OrderSide, Side};
 use common::types::thaw::Status as ThawStatus;
 use common::types::trade::Status as TradeStatus;
@@ -590,7 +587,7 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<
 }
 
 async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
-    let mut last_height: U64 = U64::from(200u64);
+    let _last_height: U64 = U64::from(200u64);
     let arc_queue = Arc::new(RwLock::new(queue));
 
     let pri_key = ENV_CONF.chemix_relayer_prikey.to_owned().unwrap();
@@ -621,13 +618,19 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     assert!(current_height >= last_process_height);
 
                     if current_height - last_process_height <= CONFIRM_HEIGHT {
-                        info!("current chain height {},wait for new block",current_height);
+                        info!("current chain height {},wait for new block", current_height);
                         tokio::time::sleep(time::Duration::from_millis(1000)).await;
                     } else {
                         //规避RPC阻塞等网络问题导致的没有及时获取到最新块高，以及系统重启时期对离线期间区块的处理
                         //绝大多数情况last_process_height + 1 等于current_height - CONFIRM_HEIGHT
-                        for height in last_process_height + 1..=current_height - CONFIRM_HEIGHT {
-                            let block_hash = get_block(BlockId::from(height as u64)).await.unwrap().unwrap().hash.unwrap();
+                        for height in last_process_height + 1..=current_height - CONFIRM_HEIGHT
+                        {
+                            let block_hash = get_block(BlockId::from(height as u64))
+                                .await
+                                .unwrap()
+                                .unwrap()
+                                .hash
+                                .unwrap();
                             let new_settlements = vault_listen_client
                                 .clone()
                                 .write()
@@ -637,17 +640,12 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 .unwrap();
                             if new_settlements.is_empty() {
                                 info!(
-                                "Not found settlement orders created at height {}",
-                                current_height
+                                    "Not found settlement orders created at height {}",
+                                    current_height
                                 );
                             } else {
-
-                                deal_launched_trade(
-                                    new_settlements,
-                                    arc_queue.clone(),
-                                    height,
-                                )
-                                .await;
+                                deal_launched_trade(new_settlements, arc_queue.clone(), height)
+                                    .await;
                             }
 
                             let new_thaws = vault_listen_client
@@ -660,7 +658,10 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             info!("new_orders_event {:?}", new_thaws);
 
                             if new_thaws.is_empty() {
-                                info!("Not found new order created at height {}", current_height);
+                                info!(
+                                    "Not found new order created at height {}",
+                                    current_height
+                                );
                             } else {
                                 //只要拿到事件的hashdata就可以判断这个解冻是ok的，不需要比对其他
                                 //todo： 另外起一个服务，循环判断是否有超8个区块还没确认的处理，有的话将起launch重新设置为pending

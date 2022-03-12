@@ -11,7 +11,9 @@ use log::info;
 use std::env;
 
 use chemix_models::market::{get_markets, list_markets as list_markets2};
-use chemix_models::order::{get_order_volume, EngineOrderTmp2, list_orders as list_orders2, OrderFilter};
+use chemix_models::order::{
+    get_order_volume, list_orders as list_orders2, EngineOrderTmp2, OrderFilter,
+};
 use chemix_models::snapshot::get_snapshot;
 use chemix_models::trade::list_trades;
 use chemix_models::TimeScope;
@@ -222,8 +224,16 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     //todo:BtreeMap
-    let mut available_buy_orders = list_orders2(OrderFilter::AvailableOrders(info.market_id.clone(),OrderSide::Buy)).unwrap();
-    let mut available_sell_orders = list_orders2(OrderFilter::AvailableOrders(info.market_id.clone(),OrderSide::Sell)).unwrap();
+    let mut available_buy_orders = list_orders2(OrderFilter::AvailableOrders(
+        info.market_id.clone(),
+        OrderSide::Buy,
+    ))
+    .unwrap();
+    let mut available_sell_orders = list_orders2(OrderFilter::AvailableOrders(
+        info.market_id.clone(),
+        OrderSide::Sell,
+    ))
+    .unwrap();
 
     available_buy_orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap().reverse());
     available_sell_orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
@@ -493,7 +503,13 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
     let account = info.account.clone().to_lowercase();
     let market_id = info.market_id.clone();
     let orders = list_orders2(OrderFilter::UserOrders(
-        market_id,account, OrderStatus::Pending, OrderStatus::PartialFilled, info.limit)).unwrap();
+        market_id,
+        account,
+        OrderStatus::Pending,
+        OrderStatus::PartialFilled,
+        info.limit,
+    ))
+    .unwrap();
     let orders = orders
         .iter()
         .map(|x| EngineOrderTmp2 {
@@ -522,9 +538,14 @@ struct OrderHistoryRequest {
 async fn order_history(web::Query(info): web::Query<OrderHistoryRequest>) -> impl Responder {
     let account = info.account.clone().to_lowercase();
     let market_id = info.market_id.clone();
-    let orders = list_orders2(OrderFilter::UserOrders(market_id,
-        account, OrderStatus::FullFilled,
-        OrderStatus::Canceled, info.limit)).unwrap();
+    let orders = list_orders2(OrderFilter::UserOrders(
+        market_id,
+        account,
+        OrderStatus::FullFilled,
+        OrderStatus::Canceled,
+        info.limit,
+    ))
+    .unwrap();
     let orders = orders
         .iter()
         .map(|x| get_order_detail(x))

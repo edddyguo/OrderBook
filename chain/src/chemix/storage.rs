@@ -109,7 +109,7 @@ impl ChemixContractClient<Storage> {
         let base_token = Address::from_str(base_token.as_str()).unwrap();
         let quote_token = Address::from_str(quote_token.as_str()).unwrap();
         let contract = ChemixStorage::new(self.contract_addr, self.client.clone());
-        let new_orders: Vec<(NewOrderCreatedFilter,LogMeta)> = contract
+        let new_orders: Vec<(NewOrderCreatedFilter, LogMeta)> = contract
             .new_order_created_filter()
             .at_block_hash(block_hash)
             .query_with_meta()
@@ -120,8 +120,10 @@ impl ChemixContractClient<Storage> {
         //过滤当前所在的market_id的服务引擎
         let new_orders2 = new_orders
             .iter()
-            .filter(|(event,_)| event.base_token == base_token && event.quote_token == quote_token)
-            .map(|(event,meta_data)| {
+            .filter(|(event, _)| {
+                event.base_token == base_token && event.quote_token == quote_token
+            })
+            .map(|(event, meta_data)| {
                 let now = Local::now().timestamp_millis() as u64;
                 let order_json = format!("{}{}", serde_json::to_string(&event).unwrap(), now);
                 let order_id = sha256(order_json);

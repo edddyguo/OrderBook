@@ -14,9 +14,9 @@ use common::types::*;
 
 use common::types::order::Status as OrderStatus;
 
+use anyhow::Result;
 use common::types::order::Side as OrderSide;
 use common::utils::math::U256_ZERO;
-use anyhow::Result;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct UpdateOrder {
@@ -106,28 +106,26 @@ pub enum OrderFilter {
     //market_id
     AvailableOrders(String, order::Side),
     //account,market_id,status_arr,limit
-    UserOrders(String,String,order::Status,order::Status,u32)
+    UserOrders(String, String, order::Status, order::Status, u32),
 }
 
 impl OrderFilter {
-    pub fn to_string(&self) ->  String{
+    pub fn to_string(&self) -> String {
         match self {
-            OrderFilter::GetLastOne => {
-                "order by index desc limit 1".to_string()
-            }
+            OrderFilter::GetLastOne => "order by index desc limit 1".to_string(),
             OrderFilter::ById(id) => {
-                let filter_str = format!("where id='{}'",id);
+                let filter_str = format!("where id='{}'", id);
                 filter_str
             }
             OrderFilter::ByIndex(index) => {
-                let filter_str = format!("where index='{}'",index);
+                let filter_str = format!("where index='{}'", index);
                 filter_str
             }
             OrderFilter::AvailableOrders(market_id, side) => {
                 let filter_str = format!("where market_id='{}' and available_amount!='0' and side='{}' order by created_at ASC",market_id,side.as_str());
                 filter_str
             }
-            OrderFilter::UserOrders(market_id,account, status1, status2,limit) => {
+            OrderFilter::UserOrders(market_id, account, status1, status2, limit) => {
                 let filter_str = format!("where market_id='{}' and account='{}' and (status='{}' or status='{}')  order by created_at ASC limit {}",market_id,account,status1.as_str(),status2.as_str(),limit);
                 filter_str
             }
@@ -226,7 +224,6 @@ pub fn update_order_status(
     let execute_res = crate::execute(sql.as_str()).unwrap();
     info!("success update order {} rows", execute_res);
 }
-
 
 pub fn list_orders(filter: OrderFilter) -> Result<Vec<OrderInfo>> {
     let sql = format!(

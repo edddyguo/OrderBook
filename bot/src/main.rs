@@ -115,7 +115,7 @@ async fn auto_take_order(
             amount
         );
 
-        let result = new_order(
+        let _result = new_order(
             client.clone(),
             base_token,
             quote_token,
