@@ -103,7 +103,7 @@ pub struct LastTrade {
 pub struct LastTrade2 {
     price: f64,
     amount: f64,
-    height: u32,
+    height: i32,
     taker_side: OrderSide,
 }
 
@@ -461,10 +461,8 @@ async fn deal_launched_trade(
     arc_queue: Arc<RwLock<Rsmq>>,
     block_height: u32,
 ) {
-    //let mut agg_trades = Vec::<LastTrade2>::new();
     info!("Get settlement event {:?}", new_settlements);
     let mut agg_trades = HashMap::<String, Vec<LastTrade2>>::new();
-    let _add_depth = HashMap::<String, AddBook2>::new();
     //目前来说一个区块里只有一个清算
     for hash_data in new_settlements {
         //todo: limit
@@ -477,8 +475,6 @@ async fn deal_launched_trade(
             10000,
         );
 
-        //todo: push ws aggTrade
-        //todo: push ws depth
         for x in db_trades.clone() {
             let user_price = u256_to_f64(x.price, QuoteTokenDecimal);
             let user_amount = u256_to_f64(x.amount, BaseTokenDecimal);
@@ -490,7 +486,7 @@ async fn deal_launched_trade(
                             vec![LastTrade2 {
                                 price: user_price,
                                 amount: user_amount,
-                                height: x.block_height as u32,
+                                height: x.block_height,
                                 taker_side: x.taker_side.clone(),
                             }],
                         );
@@ -499,7 +495,7 @@ async fn deal_launched_trade(
                         trades.push(LastTrade2 {
                             price: user_price,
                             amount: user_amount,
-                            height: x.block_height as u32,
+                            height: x.block_height,
                             taker_side: x.taker_side.clone(),
                         });
                     }
@@ -507,7 +503,6 @@ async fn deal_launched_trade(
             }
         }
 
-        let all_markets_depth = gen_depth_from_trades(db_trades.clone());
         update_trade_by_hash(TradeStatus::Confirmed, &hash_data, block_height);
 
         //push agg trade
@@ -520,15 +515,6 @@ async fn deal_launched_trade(
                 .await
                 .expect("failed to send message");
         }
-
-        //push update depth
-        let json_str = serde_json::to_string(&all_markets_depth).unwrap();
-        arc_queue
-            .write()
-            .unwrap()
-            .send_message(QueueType::Depth.to_string().as_str(), json_str, None)
-            .await
-            .expect("failed to send message");
     }
 }
 
@@ -540,9 +526,16 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<
         let iters = pending_thaws.group_by(|a, b| a.market_id == b.market_id);
 
         for iter in iters.into_iter() {
-            let market_id = get_markets(iter[0].market_id.as_str()).unwrap().id;
             let mut thaw_infos = Vec::new();
             for pending_thaw in iter.clone() {
+                update_thaws1(
+                    pending_thaw.order_id.as_str(),
+                    pending_thaw.thaws_hash.as_str(),
+                    pending_thaw.transaction_hash.as_str(),
+                    pending_thaw.block_height,
+                    ThawStatus::Confirmed,
+                );
+
                 let market = get_markets(pending_thaw.market_id.as_str()).unwrap();
                 let token_base_decimal = teen_power!(market.base_contract_decimal);
                 let (token_address, amount, decimal) = match pending_thaw.side {
@@ -592,18 +585,6 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<
                 .send_message(QueueType::Thaws.to_string().as_str(), json_str, None)
                 .await
                 .expect("failed to send message");
-
-            //更新单个交易对的深度信息
-            let add_depth = gen_depth_from_thaws(iter.to_vec());
-            let mut market_add_depth = HashMap::new();
-            market_add_depth.insert(market_id, add_depth);
-            let json_str = serde_json::to_string(&market_add_depth).unwrap();
-            arc_queue
-                .write()
-                .unwrap()
-                .send_message(QueueType::Depth.to_string().as_str(), json_str, None)
-                .await
-                .expect("failed to send message");
         }
     }
 }
@@ -627,7 +608,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
                 //todo 过滤所有的thaws和battle，更新confirm状态或者是未处理状态
-                //fixme： 可以从第一个一个未处理的高度，如果都处理则从最后确认的高度开始
+                //fixme： 可以从第一个一个未处理的高度，如果都处理则从最后确认的高度开始，校验的时候判断是否已经是确认状态，防止重复确认
                 let last_order = list_orders(OrderFilter::GetLastOne).unwrap();
                 let mut last_process_height = if last_order.is_empty() {
                     get_current_block().await
@@ -660,16 +641,13 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 current_height
                                 );
                             } else {
-                                //todo: 判断链上数据和数据库是否匹配，不匹配的则重置为未处理
-                                /***
+
                                 deal_launched_trade(
                                     new_settlements,
                                     arc_queue.clone(),
-                                    current_height.as_u32(),
+                                    height,
                                 )
                                 .await;
-
-                                 */
                             }
 
                             let new_thaws = vault_listen_client
@@ -684,9 +662,10 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             if new_thaws.is_empty() {
                                 info!("Not found new order created at height {}", current_height);
                             } else {
-                                //todo: 判断链上数据和数据库是否匹配，不匹配的则重置为未处理
+                                //只要拿到事件的hashdata就可以判断这个解冻是ok的，不需要比对其他
                                 //todo： 另外起一个服务，循环判断是否有超8个区块还没确认的处理，有的话将起launch重新设置为pending
-                                //deal_launched_thaws(new_thaws, arc_queue.clone()).await;
+                                deal_launched_thaws(new_thaws, arc_queue.clone()).await;
+                                //update状态为confirm
                             }
                         }
                     }
