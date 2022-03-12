@@ -31,7 +31,7 @@ use chemix_models::order::{
 use chemix_models::trade::{
     list_trades, list_trades2, update_trade, update_trade_by_hash, TradeInfo,
 };
-use common::utils::algorithm::{sha256, u8_arr_from_str};
+use common::utils::algorithm::{sha256, u8_arr_from_str, u8_arr_to_str};
 use common::utils::math::{u256_to_f64, U256_ZERO};
 use common::utils::time::get_current_time;
 
@@ -638,6 +638,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 loop {
                     let current_height = get_current_block().await;
                     assert!(current_height >= last_process_height);
+
                     if current_height - last_process_height <= CONFIRM_HEIGHT {
                         info!("current chain height {},wait for new block",current_height);
                         tokio::time::sleep(time::Duration::from_millis(1000)).await;
@@ -645,11 +646,12 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         //规避RPC阻塞等网络问题导致的没有及时获取到最新块高，以及系统重启时期对离线期间区块的处理
                         //绝大多数情况last_process_height + 1 等于current_height - CONFIRM_HEIGHT
                         for height in last_process_height + 1..=current_height - CONFIRM_HEIGHT {
+                            let block_hash = get_block(BlockId::from(height as u64)).await.unwrap().unwrap().hash.unwrap();
                             let new_settlements = vault_listen_client
                                 .clone()
                                 .write()
                                 .unwrap()
-                                .filter_settlement_event(height)
+                                .filter_settlement_event(block_hash.clone())
                                 .await
                                 .unwrap();
                             if new_settlements.is_empty() {
@@ -674,7 +676,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 .clone()
                                 .write()
                                 .unwrap()
-                                .filter_thaws_event(height)
+                                .filter_thaws_event(block_hash)
                                 .await
                                 .unwrap();
                             info!("new_orders_event {:?}", new_thaws);
@@ -784,12 +786,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     info!("finish thaw balance res:{:?}", receipt);
                     let transaction_hash = format!("{:?}", receipt.transaction_hash);
                     let height = receipt.block_number.unwrap().as_u32() as i32;
-                    let mut cancel_id_str = "".to_string();
-                    for item in cancel_id {
-                        //fixme: 0>2x?
-                        let tmp = format!("{:0>2x}", item);
-                        cancel_id_str += &tmp;
-                    }
+                    let cancel_id_str = u8_arr_to_str(cancel_id);
                     //todo: 批处理
                     //pub fn update_thaws1(order_id:&str,cancel_id: &str,tx_id: &str,block_height:i32,status: ThawStatus) {
                     for pending_thaw in pending_thaws.clone() {
