@@ -7,10 +7,10 @@ use ethers_providers::{Middleware, Ws};
 
 pub async fn get_block<T: Into<BlockId> + Send + Sync>(
     height_or_hash: T,
-) -> Result<Option<U64>> {
+) -> Result<Option<Block<H256>>> {
     match crate::PROVIDER.provide.get_block(height_or_hash).await? {
         None => Ok(None),
-        Some(block) => Ok(block.number),
+        Some(block) => Ok(Some(block)),
     }
 }
 

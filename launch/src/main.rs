@@ -637,11 +637,10 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 
                 loop {
                     let current_height = get_current_block().await;
-                    assert!(current_height > last_process_height);
+                    assert!(current_height >= last_process_height);
                     if current_height - last_process_height <= CONFIRM_HEIGHT {
                         info!("current chain height {},wait for new block",current_height);
                         tokio::time::sleep(time::Duration::from_millis(1000)).await;
-                        continue;
                     } else {
                         //规避RPC阻塞等网络问题导致的没有及时获取到最新块高，以及系统重启时期对离线期间区块的处理
                         //绝大多数情况last_process_height + 1 等于current_height - CONFIRM_HEIGHT

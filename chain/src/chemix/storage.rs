@@ -71,7 +71,7 @@ impl ChemixContractClient<Storage> {
 
     pub async fn filter_new_cancel_order_created_event(
         &mut self,
-        height: u32,
+        block_hash: H256,
         base_token: String,
         quote_token: String,
     ) -> Result<Vec<CancelOrderState2>> {
@@ -81,7 +81,7 @@ impl ChemixContractClient<Storage> {
         let contract = ChemixStorage::new(self.contract_addr, self.client.clone());
         let canceled_orders: Vec<NewCancelOrderCreatedFilter> = contract
             .new_cancel_order_created_filter()
-            .from_block(U64::from(height))
+            .at_block_hash(block_hash)
             .query()
             .await
             .unwrap();
@@ -102,7 +102,7 @@ impl ChemixContractClient<Storage> {
 
     pub async fn filter_new_order_event(
         &mut self,
-        height: u32,
+        block_hash: H256,
         base_token: String,
         quote_token: String,
     ) -> Result<Vec<ChainNewOrder>> {
@@ -111,11 +111,12 @@ impl ChemixContractClient<Storage> {
         let contract = ChemixStorage::new(self.contract_addr, self.client.clone());
         let new_orders: Vec<(NewOrderCreatedFilter,LogMeta)> = contract
             .new_order_created_filter()
-            .from_block(U64::from(height))
+            .at_block_hash(block_hash)
             .query_with_meta()
             .await
             .unwrap();
 
+        //info!("chain::filter_new_orders_event {:?},,,from block u64_height {},u32_height {}",new_orders,U64::from(height),height);
         //过滤当前所在的market_id的服务引擎
         let new_orders2 = new_orders
             .iter()

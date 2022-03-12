@@ -315,16 +315,16 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 
                 loop {
                     let current_height = get_current_block().await;
-                    assert!(current_height > last_process_height);
+                    assert!(current_height >= last_process_height);
                     if current_height - last_process_height <= CONFIRM_HEIGHT {
                         info!("current chain height {},wait for new block",current_height);
                         tokio::time::sleep(time::Duration::from_millis(1000)).await;
-                        continue;
                     } else {
                         info!("current_book {:#?}", crate::BOOK.lock().unwrap());
                         //规避RPC阻塞等网络问题导致的没有及时获取到最新块高，以及系统重启时期对离线期间区块的处理
                         //绝大多数情况last_process_height + 1 等于current_height - CONFIRM_HEIGHT
                         for height in last_process_height + 1..=current_height - CONFIRM_HEIGHT {
+                            let block_hash = get_block(BlockId::from(height as u64)).await.unwrap().unwrap().hash.unwrap();
                             info!("deal with block height {}", height);
                             //取消订单
                             let new_cancel_orders = chemix_storage_client
@@ -332,7 +332,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 .write()
                                 .unwrap()
                                 .filter_new_cancel_order_created_event(
-                                    height,
+                                    block_hash.clone(),
                                     crate::MARKET.base_token_address.clone(),
                                     crate::MARKET.quote_token_address.clone(),
                                 )
@@ -377,13 +377,13 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 .write()
                                 .unwrap()
                                 .filter_new_order_event(
-                                    height,
+                                    block_hash,
                                     crate::MARKET.base_token_address.clone(),
                                     crate::MARKET.quote_token_address.clone(),
                                 )
                                 .await
                                 .unwrap();
-                            info!("new_orders_event {:?}", new_orders);
+                            info!("new_orders_event {:?} at height {}", new_orders,height);
 
                             if new_orders.is_empty() {
                                 info!("Not found new order created at height {}", height);
@@ -415,8 +415,9 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                     .expect("failed to send orders");
                             }
                         }
-                        last_process_height = current_height - CONFIRM_HEIGHT;
                     }
+                    last_process_height = current_height - CONFIRM_HEIGHT;
+                    info!("test1:: last_process_height {}, current_height {}",last_process_height,current_height);
                 }
             });
         });

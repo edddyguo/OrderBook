@@ -128,7 +128,7 @@ impl OrderFilter {
                 filter_str
             }
             OrderFilter::UserOrders(account, status1, status2,limit) => {
-                let filter_str = format!("where market_id='{}' and (status1='{}' or status2='{}') limit {} order by created_at ASC",account,status1.as_str(),status2.as_str(),limit);
+                let filter_str = format!("where market_id='{}' and (status='{}' or status='{}')  order by created_at ASC limit {}",account,status1.as_str(),status2.as_str(),limit);
                 filter_str
             }
         }
@@ -226,96 +226,6 @@ pub fn update_order_status(
     let execute_res = crate::execute(sql.as_str()).unwrap();
     info!("success update order {} rows", execute_res);
 }
-
-/***
-pub fn list_available_orders(market_id: &str, side: order::Side) -> Vec<EngineOrder> {
-    let sql = format!(
-        "select id,\
-    account,\
-    price,\
-    available_amount,\
-    side,\
-    cast(created_at as text) from chemix_orders \
-    where market_id='{}' and available_amount!=\'0\' and side='{}' order by created_at ASC",
-        market_id,
-        side.as_str()
-    );
-    let mut orders = Vec::<EngineOrder>::new();
-    info!("list_available_orders sql {}", sql);
-    let rows = crate::query(sql.as_str()).unwrap();
-    for row in rows {
-        let side_str: String = row.get(4);
-        let side = OrderSide::from(side_str.as_str());
-        let info = EngineOrder {
-            id: row.get(0),
-            account: row.get(1),
-            price: U256::from_str_radix(row.get::<usize, &str>(2), 10).unwrap(),
-            amount: U256::from_str_radix(row.get::<usize, &str>(3), 10).unwrap(),
-            side,
-            created_at: row.get(5),
-        };
-        orders.push(info);
-    }
-    orders
-}
-
-
-pub fn list_users_orders2(
-    account: &str,
-    status_arr: Vec<order::Status>,
-    limit: u32,
-) -> Vec<OrderInfo> {
-    let mut status_filter = "(".to_string();
-    for (index, status) in status_arr.iter().enumerate() {
-        let filter = if index < status_arr.len() - 1 {
-            format!("'{}',", status.as_str())
-        } else {
-            format!("'{}')", status.as_str())
-        };
-        status_filter += filter.as_str();
-    }
-    let sql = format!(
-        "select id,index,block_height,hash_data,market_id,account,side,
-         price,\
-         amount,\
-         status,\
-         available_amount,\
-         matched_amount,\
-         canceled_amount,\
-         cast(updated_at as text) ,\
-         cast(created_at as text)  from chemix_orders \
-    where account='{}' and status in {} order by created_at DESC limit {}",
-        account, status_filter, limit
-    );
-    info!("list_users_orders2 raw sql {}", sql);
-    let mut orders = Vec::<OrderInfo>::new();
-    let rows = crate::query(sql.as_str()).unwrap();
-    for row in rows {
-        let info = OrderInfo {
-            id: row.get(0),
-            index: row.get::<usize, i32>(1) as u32,
-            block_height: row.get::<usize, i32>(2) as u32,
-            hash_data: row.get(3),
-            market_id: row.get(4),
-            account: row.get(5),
-            side: OrderSide::from(row.get::<usize, &str>(6usize)), //row.get(4),
-            price: U256::from_str_radix(row.get::<usize, &str>(7usize), 10).unwrap(),
-            amount: U256::from_str_radix(row.get::<usize, &str>(8usize), 10).unwrap(),
-            status: order::Status::from(row.get::<usize, &str>(9usize)),
-            available_amount: U256::from_str_radix(row.get::<usize, &str>(10usize), 10)
-                .unwrap(),
-            matched_amount: U256::from_str_radix(row.get::<usize, &str>(11usize), 10).unwrap(),
-            canceled_amount: U256::from_str_radix(row.get::<usize, &str>(12usize), 10).unwrap(),
-            updated_at: row.get(13),
-            created_at: row.get(14),
-        };
-        orders.push(info);
-    }
-    orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
-    orders
-}
-*/
-
 
 
 pub fn list_orders(filter: OrderFilter) -> Result<Vec<OrderInfo>> {
