@@ -156,6 +156,7 @@ pub struct LastTrade {
 
 #[derive(Clone, Serialize, Debug)]
 pub struct LastTrade2 {
+    id: String,
     price: f64,
     amount: f64,
     height: i32,
@@ -276,6 +277,7 @@ fn gen_agg_trade_from_raw(trades: Vec<TradeInfo>) -> Vec<LastTrade2> {
     trades
         .into_iter()
         .map(|x| LastTrade2 {
+            id: x.id,
             price: u256_to_f64(x.price, crate::MARKET.quote_contract_decimal),
             amount: u256_to_f64(x.amount, crate::MARKET.base_contract_decimal),
             height: -1,

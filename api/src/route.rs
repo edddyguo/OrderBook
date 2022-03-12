@@ -514,6 +514,7 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
         .iter()
         .map(|x| EngineOrderTmp2 {
             id: info.market_id.clone(),
+            transaction_hash: x.transaction_hash.clone(),
             index: x.index.to_string(),
             account: x.account.clone(),
             price: u256_to_f64(x.price, quote_decimal),

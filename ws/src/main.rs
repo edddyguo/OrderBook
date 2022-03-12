@@ -39,6 +39,7 @@ pub struct Client {
 
 #[derive(Clone, Serialize, Debug, Deserialize)]
 pub struct LastTrade2 {
+    id:String,
     price: f64,
     amount: f64,
     height: i32,

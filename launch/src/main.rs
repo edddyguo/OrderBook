@@ -98,6 +98,7 @@ pub struct LastTrade {
 
 #[derive(Clone, Serialize, Debug)]
 pub struct LastTrade2 {
+    id: String,
     price: f64,
     amount: f64,
     height: i32,
@@ -481,6 +482,7 @@ async fn deal_launched_trade(
                         agg_trades.insert(
                             x.market_id.clone(),
                             vec![LastTrade2 {
+                                id: x.id,
                                 price: user_price,
                                 amount: user_amount,
                                 height: x.block_height,
@@ -490,6 +492,7 @@ async fn deal_launched_trade(
                     }
                     Some(trades) => {
                         trades.push(LastTrade2 {
+                            id: x.id,
                             price: user_price,
                             amount: user_amount,
                             height: x.block_height,

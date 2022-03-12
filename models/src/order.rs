@@ -53,6 +53,7 @@ pub struct EngineOrderTmp1 {
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct EngineOrderTmp2 {
     pub id: String,
+    pub transaction_hash: String,
     pub index: String,
     pub account: String,
     pub price: f64,
