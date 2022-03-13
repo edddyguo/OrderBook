@@ -543,7 +543,7 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
             price: u256_to_f64(x.price, quote_decimal),
             amount: u256_to_f64(x.amount, base_decimal),
             side: x.side.clone(),
-            status: x.status.as_str().to_string(),
+            status: "thawing".to_string(), //tmp code
             created_at: time2unix(origin_order[0].created_at.clone()),
         }
     }).collect::<Vec<EngineOrderTmp2>>();

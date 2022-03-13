@@ -3,7 +3,7 @@
 pub mod order;
 pub mod book;
 
-use std::cmp::Ordering;
+
 use anyhow::Result;
 use ethers::prelude::*;
 use std::collections::{BTreeMap, HashMap};
@@ -20,12 +20,12 @@ use std::string::String;
 use serde::Serialize;
 use std::convert::TryFrom;
 
-use ethers::types::Address;
+
 use std::fmt::Debug;
 use std::iter::FromIterator;
 use std::ops::Sub;
 
-use std::str::FromStr;
+
 
 use crate::order::{cancel, match_order};
 use std::sync::Mutex;
@@ -37,21 +37,23 @@ use tokio::runtime::Runtime;
 use clap::{App, Arg};
 
 use chemix_models::order::{
-    insert_order, list_orders, update_order, BookOrder, OrderFilter, OrderInfo, UpdateOrder,
+    insert_order, list_orders, update_order, OrderFilter, OrderInfo, UpdateOrder,
 };
 use chemix_models::trade::{insert_trades, TradeInfo};
 
 use chemix_chain::chemix::storage::Storage;
 use common::utils::math::{u256_to_f64, U256_ZERO};
 use common::utils::time::get_current_time;
-use common::utils::time::time2unix;
+
 
 use chemix_models::market::{get_markets, MarketInfo};
 
 use chemix_models::thaws::{insert_thaws, Thaws};
 use common::queue::*;
+use common::types::depth::{Depth, RawDepth};
 use common::types::order::Status as OrderStatus;
 use common::types::order::{Side as OrderSide, Side};
+use common::types::trade::AggTrade;
 use crate::book::{Book, BookValue, SellPriority,BuyPriority, gen_engine_buy_order,gen_engine_sell_order};
 
 #[macro_use]
@@ -94,11 +96,11 @@ lazy_static! {
         let available_sell_orders = list_orders(OrderFilter::AvailableOrders(MARKET.id.clone(),OrderSide::Sell)).unwrap();
 
         //todo: 统一数据结构
-        let mut available_sell = available_sell_orders.iter().map(|x|{
+        let available_sell = available_sell_orders.iter().map(|x|{
             gen_engine_sell_order(x)
         }).collect::<Vec<(SellPriority,BookValue)>>();
 
-        let mut available_buy = available_buy_orders.iter().map(|x|{
+        let available_buy = available_buy_orders.iter().map(|x|{
             gen_engine_buy_order(x)
         }).collect::<Vec<(BuyPriority,BookValue)>>();
 
@@ -111,73 +113,8 @@ lazy_static! {
 
 }
 
-#[derive(Clone, Serialize)]
-pub struct AddBook {
-    pub asks: Vec<(f64, f64)>,
-    pub bids: Vec<(f64, f64)>,
-}
-
-#[derive(Clone, Serialize, Debug)]
-pub struct AddBook2 {
-    pub asks: HashMap<U256, I256>,
-    pub bids: HashMap<U256, I256>,
-}
-
-#[derive(RustcEncodable, Clone, Serialize)]
-pub struct LastTrade {
-    id: String,
-    price: f64,
-    amount: f64,
-    taker_side: String,
-    updated_at: u64,
-}
-
-#[derive(Clone, Serialize, Debug)]
-pub struct LastTrade2 {
-    id: String,
-    price: f64,
-    amount: f64,
-    height: i32,
-    taker_side: OrderSide,
-}
-
-//block content logs [NewOrderFilter { user: 0xfaa56b120b8de4597cf20eff21045a9883e82aad, base_token: "BTC", quote_token: "USDT", amount: 3, price: 4 }]
-/**
-#[derive(RustcEncodable, Clone, Serialize,Debug,Deserialize)]
-struct NewOrderFilter2 {
-    user: Address,
-    base_token: String,
-    quote_token: String,
-    side: String,
-    amount: u64,
-    price: u64,
-}
- */
-
-abigen!(
-    SimpleContract,
-    //"../contract/chemix_trade_abi.json",
-    "../contract/ChemixStorage.json",
-    event_derives(serde::Deserialize, serde::Serialize)
-);
-
-pub fn sign() -> Result<()> {
-    println!("in sign");
-    Ok(())
-}
-
-async fn get_balance() -> Result<()> {
-    let host = "https://mainnet.infura.io/v3/8b4e814a07474456828cc110195adca2";
-    let provider_http = Provider::<Http>::try_from(host).unwrap();
-    let addr = "90a97d253608B2090326097a44eA289d172c30Ec".parse().unwrap();
-    let union = NameOrAddress::Address(addr);
-    let balance_before = provider_http.get_balance(union, None).await?;
-    eprintln!("balance {}", balance_before);
-    Ok(())
-}
-
-fn gen_depth_from_cancel_orders(pending_thaws: Vec<Thaws>) -> AddBook2 {
-    let mut add_depth = AddBook2 {
+fn gen_depth_from_cancel_orders(pending_thaws: Vec<Thaws>) -> RawDepth {
+    let mut add_depth = RawDepth {
         asks: HashMap::<U256, I256>::new(),
         bids: HashMap::<U256, I256>::new(),
     };
@@ -214,7 +151,7 @@ fn gen_depth_from_cancel_orders(pending_thaws: Vec<Thaws>) -> AddBook2 {
     add_depth
 }
 
-fn gen_depth_from_raw(add_depth: AddBook2) -> AddBook {
+fn gen_depth_from_raw(add_depth: RawDepth) -> Depth {
     let asks2 = add_depth
         .asks
         .iter()
@@ -245,16 +182,16 @@ fn gen_depth_from_raw(add_depth: AddBook2) -> AddBook {
         .filter(|(p, v)| p != &0.0 && v != &0.0)
         .collect::<Vec<(f64, f64)>>();
 
-    AddBook {
+    Depth {
         asks: asks2,
         bids: bids2,
     }
 }
 
-fn gen_agg_trade_from_raw(trades: Vec<TradeInfo>) -> Vec<LastTrade2> {
+fn gen_agg_trade_from_raw(trades: Vec<TradeInfo>) -> Vec<AggTrade> {
     trades
         .into_iter()
-        .map(|x| LastTrade2 {
+        .map(|x| AggTrade {
             id: x.id,
             price: u256_to_f64(x.price, crate::MARKET.quote_contract_decimal),
             amount: u256_to_f64(x.amount, crate::MARKET.base_contract_decimal),
@@ -262,10 +199,10 @@ fn gen_agg_trade_from_raw(trades: Vec<TradeInfo>) -> Vec<LastTrade2> {
             taker_side: x.taker_side,
         })
         .filter(|x| x.price != 0.0 && x.amount != 0.0)
-        .collect::<Vec<LastTrade2>>()
+        .collect::<Vec<AggTrade>>()
 }
 
-async fn send_depth_message(depth: AddBook, arc_queue: Arc<RwLock<Rsmq>>) {
+async fn send_depth_message(depth: Depth, arc_queue: Arc<RwLock<Rsmq>>) {
     let mut market_depth = HashMap::new();
     market_depth.insert(crate::MARKET.id.clone(), depth);
     let json_str = serde_json::to_string(&market_depth).unwrap();
@@ -277,7 +214,7 @@ async fn send_depth_message(depth: AddBook, arc_queue: Arc<RwLock<Rsmq>>) {
         .expect("failed to send message");
 }
 
-async fn send_agg_trade_message(agg_trade: Vec<LastTrade2>, arc_queue: Arc<RwLock<Rsmq>>) {
+async fn send_agg_trade_message(agg_trade: Vec<AggTrade>, arc_queue: Arc<RwLock<Rsmq>>) {
     let mut market_agg_trade = HashMap::new();
     market_agg_trade.insert(crate::MARKET.id.clone(), agg_trade);
     let json_str = serde_json::to_string(&market_agg_trade).unwrap();
@@ -453,7 +390,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 );
                 //TODO: matched order
                 //update OrderBook
-                let mut add_depth = AddBook2 {
+                let mut add_depth = RawDepth {
                     asks: HashMap::<U256, I256>::new(),
                     bids: HashMap::<U256, I256>::new(),
                 };

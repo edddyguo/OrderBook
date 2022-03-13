@@ -22,6 +22,8 @@ use tokio::sync::{mpsc, RwLock};
 use tokio::time;
 use warp::http::Method;
 use warp::{ws::Message, Filter, Rejection};
+use common::types::depth::Depth;
+use common::types::trade::AggTrade;
 
 mod handler;
 mod ws;
@@ -35,21 +37,6 @@ pub struct Client {
     pub topics: Vec<String>,
     pub user_address: Option<String>,
     pub sender: Option<mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
-}
-
-#[derive(Clone, Serialize, Debug, Deserialize)]
-pub struct LastTrade2 {
-    id:String,
-    price: f64,
-    amount: f64,
-    height: i32,
-    taker_side: String,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct AddBook {
-    pub asks: Vec<(f64, f64)>,
-    pub bids: Vec<(f64, f64)>,
 }
 
 fn with_clients(
@@ -105,7 +92,7 @@ async fn listen_depth(rsmq: Queues, clients: Clients, queue_name: &str) {
             .expect("cannot receive message");
         if let Some(message) = message {
             info!("receive new message {:?}", message);
-            let markets_depth: HashMap<String, AddBook> =
+            let markets_depth: HashMap<String, Depth> =
                 serde_json::from_str(message.message.as_str()).unwrap();
             for market_depth in markets_depth {
                 let event = Event {
@@ -170,7 +157,7 @@ async fn listen_trade(rsmq: Queues, clients: Clients, queue_name: &str) {
         if let Some(message) = message {
             //println!("receive new message {:?}", message);
 
-            let last_trades: HashMap<String, Vec<LastTrade2>> =
+            let last_trades: HashMap<String, Vec<AggTrade>> =
                 serde_json::from_str(message.message.as_str()).unwrap();
             //遍历所有交易对逐个发送
             for last_trade in last_trades {

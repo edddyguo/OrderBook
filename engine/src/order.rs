@@ -4,18 +4,19 @@ use std::ops::{Add, Sub};
 
 use serde::Serialize;
 
-use crate::{AddBook, AddBook2, BookValue, BuyPriority, gen_engine_buy_order};
+use crate::{ BookValue, BuyPriority};
 //use ethers::{prelude::*,types::{U256}};
 
 use chemix_chain::chemix::storage::CancelOrderState2;
 
 use chemix_models::order::{list_orders, OrderFilter, OrderInfo};
 use chemix_models::trade::TradeInfo;
+use common::types::depth::{Depth, RawDepth};
 use common::types::order::{Side, Status as OrderStatus};
 
 use common::types::order::Side as OrderSide;
 use common::utils::math::{u256_to_f64, U256_ZERO};
-use common::utils::time::get_unix_time;
+
 use crate::book::SellPriority;
 
 #[derive(RustcEncodable, Clone, Serialize)]
@@ -29,7 +30,7 @@ pub struct EventOrder {
 pub fn match_order(
     mut taker_order: &mut OrderInfo,
     trades: &mut Vec<TradeInfo>,
-    raw_depth: &mut AddBook2,
+    raw_depth: &mut RawDepth,
     marker_reduced_orders: &mut HashMap<String, U256>,
 ) -> U256 {
     let book = &mut crate::BOOK.lock().unwrap();
@@ -243,8 +244,8 @@ pub fn cancel(new_cancel_orders: Vec<CancelOrderState2>) -> Vec<CancelOrderState
 }
 
 //根据未成交的订单生成深度数据
-pub fn gen_depth_from_order(orders: Vec<OrderInfo>) -> HashMap<String, AddBook> {
-    let mut raw_depth = AddBook2 {
+pub fn gen_depth_from_order(orders: Vec<OrderInfo>) -> HashMap<String, Depth> {
+    let mut raw_depth = RawDepth {
         asks: HashMap::new(),
         bids: HashMap::new(),
     };
@@ -303,6 +304,6 @@ pub fn gen_depth_from_order(orders: Vec<OrderInfo>) -> HashMap<String, AddBook> 
         .collect::<Vec<(f64, f64)>>();
 
     let mut market_add_depth = HashMap::new();
-    market_add_depth.insert(crate::MARKET.id.clone(), AddBook { asks, bids });
+    market_add_depth.insert(crate::MARKET.id.clone(), Depth { asks, bids });
     market_add_depth
 }

@@ -62,6 +62,7 @@ static QuoteTokenDecimal: u32 = 15;
 const CONFIRM_HEIGHT: u32 = 2;
 
 use chemix_models::thaws::{update_thaws1};
+use common::types::depth::{Depth, RawDepth};
 
 #[derive(Clone, Serialize, Debug)]
 struct EngineBook {
@@ -75,17 +76,6 @@ pub struct EnigneSettleValues {
     pub incomeBaseToken: I256,
 }
 
-#[derive(Clone, Serialize)]
-pub struct AddBook {
-    pub asks: Vec<(f64, f64)>,
-    pub bids: Vec<(f64, f64)>,
-}
-
-#[derive(Clone, Serialize, Debug)]
-pub struct AddBook2 {
-    pub asks: HashMap<U256, I256>,
-    pub bids: HashMap<U256, I256>,
-}
 
 #[derive(RustcEncodable, Clone, Serialize)]
 pub struct LastTrade {
@@ -218,7 +208,7 @@ fn gen_settle_trades(db_trades: Vec<TradeInfo>) -> Vec<SettleValues3> {
     settle_trades
 }
 
-fn update_depth(depth_ori: &mut AddBook2, x: &TradeInfo) {
+fn update_depth(depth_ori: &mut RawDepth, x: &TradeInfo) {
     let amount = I256::try_from(x.amount).unwrap();
     //maker吃掉的部分都做减法
     match x.taker_side {
@@ -245,14 +235,14 @@ fn update_depth(depth_ori: &mut AddBook2, x: &TradeInfo) {
     }
 }
 
-fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, AddBook> {
-    let mut all_market_depth = HashMap::<String, AddBook2>::new();
+fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, Depth> {
+    let mut all_market_depth = HashMap::<String, RawDepth>::new();
     let iters = trades.group_by(|a, b| a.market_id == b.market_id);
     for iter in iters.into_iter() {
         //todo:底层封装
 
         let market_id = iter[0].market_id.clone();
-        let mut market_AddBook2 = AddBook2 {
+        let mut market_AddBook2 = RawDepth {
             asks: HashMap::new(),
             bids: HashMap::new(),
         };
@@ -334,7 +324,7 @@ fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, AddBook> {
         all_market_depth.insert(market_id, market_AddBook2);
     }
 
-    let mut all_market_depth2 = HashMap::<String, AddBook>::new();
+    let mut all_market_depth2 = HashMap::<String, Depth>::new();
     for (market_id, depth_raw) in all_market_depth.iter() {
         let asks2 = depth_raw
             .asks
@@ -370,7 +360,7 @@ fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, AddBook> {
 
         all_market_depth2.insert(
             market_id.to_string(),
-            AddBook {
+            Depth {
                 asks: asks2,
                 bids: bids2,
             },
@@ -379,8 +369,8 @@ fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, AddBook> {
     all_market_depth2
 }
 
-fn gen_depth_from_thaws(pending_thaws: Vec<Thaws>) -> AddBook {
-    let mut add_depth = AddBook2 {
+fn gen_depth_from_thaws(pending_thaws: Vec<Thaws>) -> Depth {
+    let mut add_depth = RawDepth {
         asks: HashMap::<U256, I256>::new(),
         bids: HashMap::<U256, I256>::new(),
     };
@@ -448,7 +438,7 @@ fn gen_depth_from_thaws(pending_thaws: Vec<Thaws>) -> AddBook {
         .filter(|(p, v)| p != &0.0 && v != &0.0)
         .collect::<Vec<(f64, f64)>>();
 
-    AddBook {
+    Depth {
         asks: asks2,
         bids: bids2,
     }

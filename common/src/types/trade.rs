@@ -1,9 +1,8 @@
 extern crate rustc_serialize;
-
-use serde::Deserialize;
-
 //#[derive(Serialize)]
-use serde::Serialize;
+use crate::types::order;
+use serde::{Deserialize, Serialize};
+
 
 #[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
 pub enum Status {
@@ -38,4 +37,13 @@ impl From<&str> for Status {
             _ => unreachable!(),
         }
     }
+}
+
+#[derive(Clone, Serialize, Debug,Deserialize)]
+pub struct AggTrade {
+    pub id: String,
+    pub price: f64,
+    pub amount: f64,
+    pub height: i32,
+    pub taker_side: order::Side,
 }
