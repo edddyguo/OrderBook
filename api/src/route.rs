@@ -317,7 +317,7 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
     let trades = list_trades(
         None,
         Some(info.market_id.clone()),
-        Some(TradeStatus::Launched),
+        Some(TradeStatus::Confirmed),
         None,
         None,
         info.limit,

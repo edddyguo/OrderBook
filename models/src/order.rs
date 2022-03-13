@@ -74,6 +74,16 @@ pub struct BookOrder {
     pub created_at: u64,
 }
 
+#[derive(Clone, Serialize, Debug)]
+pub struct BookOrder2 {
+    pub id: String,
+    pub order_index: u32,
+    pub account: String,
+    pub side: OrderSide,
+    pub price: U256,
+    pub amount: U256,
+}
+
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct OrderInfo {
     pub id: String,

@@ -1,8 +1,12 @@
-pub mod order;
+#![feature(map_first_last)]
 
+pub mod order;
+pub mod book;
+
+use std::cmp::Ordering;
 use anyhow::Result;
 use ethers::prelude::*;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 //use ethers::providers::Ws;
 
@@ -18,6 +22,7 @@ use std::convert::TryFrom;
 
 use ethers::types::Address;
 use std::fmt::Debug;
+use std::iter::FromIterator;
 use std::ops::Sub;
 
 use std::str::FromStr;
@@ -47,6 +52,7 @@ use chemix_models::thaws::{insert_thaws, Thaws};
 use common::queue::*;
 use common::types::order::Status as OrderStatus;
 use common::types::order::{Side as OrderSide, Side};
+use crate::book::{Book, BookValue, SellPriority,BuyPriority, gen_engine_buy_order,gen_engine_sell_order};
 
 #[macro_use]
 extern crate lazy_static;
@@ -62,11 +68,6 @@ static QuoteTokenDecimal: u32 = 15;
 
 const CONFIRM_HEIGHT: u32 = 2;
 
-#[derive(Clone, Serialize, Debug)]
-struct EngineBook {
-    pub buy: Vec<BookOrder>,
-    pub sell: Vec<BookOrder>,
-}
 
 #[derive(Clone, Serialize, Debug)]
 pub struct EnigneSettleValues {
@@ -84,49 +85,26 @@ lazy_static! {
             .required(true)
             .index(1))
         .get_matches();
-    let market_id : &str = matches.value_of("market_id").unwrap();
+        let market_id : &str = matches.value_of("market_id").unwrap();
         get_markets(market_id).unwrap()
     };
 
-    static ref BOOK: Mutex<EngineBook> = Mutex::new({
-        let available_buy = list_orders(OrderFilter::AvailableOrders(MARKET.id.clone(),OrderSide::Buy)).unwrap();
-        let available_sell = list_orders(OrderFilter::AvailableOrders(MARKET.id.clone(),OrderSide::Sell)).unwrap();
+    static ref BOOK: Mutex<Book> = Mutex::new({
+        let available_buy_orders = list_orders(OrderFilter::AvailableOrders(MARKET.id.clone(),OrderSide::Buy)).unwrap();
+        let available_sell_orders = list_orders(OrderFilter::AvailableOrders(MARKET.id.clone(),OrderSide::Sell)).unwrap();
 
         //todo: 统一数据结构
-        let mut available_sell2 = available_sell.iter().map(|x|{
-            BookOrder {
-                id: x.id.clone(),
-                account: x.account.clone(),
-                side: x.side.clone(),
-                price: x.price,
-                amount: x.available_amount,
-                created_at: time2unix(x.created_at.clone())
-            }
-         }).collect::<Vec<BookOrder>>();
+        let mut available_sell = available_sell_orders.iter().map(|x|{
+            gen_engine_sell_order(x)
+        }).collect::<Vec<(SellPriority,BookValue)>>();
 
-        available_sell2.sort_by(|a,b|{
-            a.price.partial_cmp(&b.price).unwrap()
-        });
+        let mut available_buy = available_buy_orders.iter().map(|x|{
+            gen_engine_buy_order(x)
+        }).collect::<Vec<(BuyPriority,BookValue)>>();
 
-        let mut available_buy2 = available_buy.iter().map(|x|{
-            BookOrder {
-                id: x.id.clone(),
-                account: x.account.clone(),
-                side: x.side.clone(),
-                price: x.price,
-                amount: x.available_amount,
-                created_at: time2unix(x.created_at.clone())
-            }
-        }).collect::<Vec<BookOrder>>();
-        available_buy2.sort_by(|a,b|{
-            a.price.partial_cmp(&b.price).unwrap().reverse()
-        });
-
-        //let available_sell = Vec::<BookOrder>::new();
-        //let available_buy = Vec::<BookOrder>::new();
-        EngineBook {
-            buy: available_buy2,
-            sell: available_sell2
+        Book {
+            buy: BTreeMap::from_iter(available_buy.into_iter()),
+            sell: BTreeMap::from_iter(available_sell.into_iter()),
         }
     });
 
