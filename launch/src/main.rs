@@ -607,7 +607,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
         s.spawn(move |_| {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
-                //todo 过滤所有的thaws和battle，更新confirm状态或者是未处理状态
+                //过滤所有的thaws和battle，更新confirm状态或者是未处理状态
                 //fixme： 可以从第一个一个未处理的高度，如果都处理则从最后确认的高度开始，校验的时候判断是否已经是确认状态，防止重复确认
                 let last_order = list_orders(OrderFilter::GetLastOne).unwrap();
                 let mut last_process_height = if last_order.is_empty() {

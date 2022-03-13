@@ -63,7 +63,7 @@ pub fn get_order_detail(order: &OrderInfo) -> OrderDetail {
             (trade.amount * trade.price / teen_power!(base_decimal)).to_string()
         );
     }
-    let average_price = total_volume / (order.amount / base_decimal);
+    let average_price = total_volume / (order.amount / teen_power!(base_decimal));
     OrderDetail {
         id: order.id.clone(),
         market_id: order.market_id.clone(),
@@ -75,7 +75,7 @@ pub fn get_order_detail(order: &OrderInfo) -> OrderDetail {
         price: u256_to_f64(order.price, quote_decimal),
         average_price: u256_to_f64(average_price, quote_decimal),
         total_volume: u256_to_f64(total_volume, quote_decimal),
-        side: Side::Buy,
+        side: order.side.clone(),
         status: order.status.as_str().to_string(),
         trades: trades2,
         created_at: time2unix(order.created_at.clone()),
