@@ -198,12 +198,13 @@ pub fn cancel(new_cancel_orders: Vec<CancelOrderState2>) -> Vec<CancelOrderState
             return legal_orders;
         }
         let order = orders[0].clone();
+        //防止一个区块内的多次取消的情况，多次取消以最后一次为有效
+        legal_orders.retain(|x| {x.order_index.as_u32() != order.index});
         match order.status {
             OrderStatus::FullFilled => {
                 warn!("Have already matched");
             }
             OrderStatus::PartialFilled => {
-                //todo: side 处理
                 match order.side {
                     OrderSide::Buy => {
                         crate::BOOK.lock().unwrap().buy.retain(|_,v| v.id != order.id);
