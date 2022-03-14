@@ -25,7 +25,7 @@ use std::sync::{Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::time;
 
-use chemix_models::order::{list_orders, BookOrder, OrderFilter};
+use chemix_models::order::{list_orders, OrderFilter};
 use chemix_models::trade::{
     list_trades, list_trades2, update_trade, update_trade_by_hash, TradeInfo,
 };
@@ -63,12 +63,6 @@ const CONFIRM_HEIGHT: u32 = 2;
 
 use chemix_models::thaws::{update_thaws1};
 use common::types::depth::{Depth, RawDepth};
-
-#[derive(Clone, Serialize, Debug)]
-struct EngineBook {
-    pub buy: Vec<BookOrder>,
-    pub sell: Vec<BookOrder>,
-}
 
 #[derive(Clone, Serialize, Debug)]
 pub struct EnigneSettleValues {

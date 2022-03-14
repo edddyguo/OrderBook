@@ -28,28 +28,6 @@ pub struct UpdateOrder {
     pub updated_at: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
-pub struct EngineOrder {
-    pub id: String,
-    pub account: String,
-    pub price: U256,
-    pub amount: U256,
-    pub side: OrderSide,
-    pub created_at: String,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct EngineOrderTmp1 {
-    pub id: String,
-    pub index: U256,
-    pub account: String,
-    pub price: U256,
-    pub amount: U256,
-    pub side: OrderSide,
-    pub status: OrderStatus,
-    pub created_at: String,
-}
-
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct EngineOrderTmp2 {
     pub id: String,
@@ -63,26 +41,6 @@ pub struct EngineOrderTmp2 {
     pub side: OrderSide,
     pub status: String,
     pub created_at: u64,
-}
-
-#[derive(Clone, Serialize, Debug)]
-pub struct BookOrder {
-    pub id: String,
-    pub account: String,
-    pub side: OrderSide,
-    pub price: U256,
-    pub amount: U256,
-    pub created_at: u64,
-}
-
-#[derive(Clone, Serialize, Debug)]
-pub struct BookOrder2 {
-    pub id: String,
-    pub order_index: u32,
-    pub account: String,
-    pub side: OrderSide,
-    pub price: U256,
-    pub amount: U256,
 }
 
 #[derive(Deserialize, Debug, Clone, Serialize)]

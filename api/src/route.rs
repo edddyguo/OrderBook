@@ -38,15 +38,6 @@ async fn index(web::Path((id, name)): web::Path<(u32, String)>) -> impl Responde
     format!("Hello {}! id:{}", name, id)
 }
 
-#[derive(Serialize)]
-struct Markets {
-    quote_token_address: String,
-    base_token_address: String,
-    quote_token_name: String,
-    base_token_name: String,
-    engine_address: String,
-}
-
 #[derive(Deserialize, Serialize)]
 struct DexProfile {
     cumulativeTVL: f64,

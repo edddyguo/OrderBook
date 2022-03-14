@@ -110,7 +110,6 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
     let mut locked = clients.write().await;
     if let Some(v) = locked.get_mut(id) {
         info!("new subcribe topics {:?}", topics_req.params.channel);
-        //todo: match  method
         match topics_req.method {
             WSMethod::SUBSCRIBE => {
                 for item in topics_req.params.channel {

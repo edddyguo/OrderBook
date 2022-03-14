@@ -105,11 +105,8 @@ async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let task1 = tokio::spawn(async move {
-        let _chemix_vault = ENV_CONF.chemix_vault.to_owned().unwrap();
-        //test1
-        //let pri_key = "a26660eb5dfaa144ae6da222068de3a865ffe33999604d45bd0167ff1f4e2882";
+        //tmp code
         let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
-
         let chemix_vault_client = ChemixContractClient::<Vault>::new(pri_key);
         loop {
             gen_chemix_profile(&chemix_vault_client).await;
