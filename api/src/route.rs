@@ -308,7 +308,7 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
     let trades = list_trades(
         None,
         Some(info.market_id.clone()),
-        Some(TradeStatus::Confirmed),
+        None,
         None,
         None,
         info.limit,
@@ -320,7 +320,7 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
         market_id: info.market_id.clone(),
         price: u256_to_f64(x.price, quote_decimal),
         amount: u256_to_f64(x.amount, base_decimal),
-        height: x.block_height as u32,
+        height: x.block_height,
         taker_side: x.taker_side.clone(),
         updated_at: time2unix(x.created_at.clone()),
     })
@@ -627,7 +627,7 @@ async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> imp
                 market_id: info.market_id.clone(),
                 price: u256_to_f64(x.price, quote_decimal),
                 amount: u256_to_f64(x.amount, base_decimal),
-                height: 12345u32,
+                height: 12345i32,
                 // fixme: maybe side?
                 taker_side: side,
                 updated_at: time2unix(x.created_at.clone()),

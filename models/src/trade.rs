@@ -43,7 +43,7 @@ impl TradeInfo {
         let now = get_current_time();
         let mut trade = TradeInfo {
             id: "".to_string(),
-            block_height: 0, //todo: 待加逻辑
+            block_height: -1,
             transaction_hash: "".to_string(),
             hash_data: "".to_string(),
             status: TradeStatus::Matched,
@@ -130,11 +130,10 @@ pub fn list_trades(
                 market_id.as_str()
             )
         }
-        (None, Some(id), Some(status), None, None) => {
+        (None, Some(id), None, None, None) => {
             format!(
-                " where market_id='{}' and status='{}' ",
-                id,
-                status.as_str()
+                " where market_id='{}' ",
+                id
             )
         }
         (Some(account), Some(id), None, None, None) => {

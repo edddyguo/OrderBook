@@ -22,6 +22,7 @@ async function main() {
 
     let account2 = "0x37BA121cdE7a0e24e483364185E80ceF655346DD"
     let account3 = "0xca9B361934fc7A7b07814D34423d665268111726"
+    let account4 = "0xF668b864756a2fB53b679bb13e0F9AB2d9C5fEE0"
 
     let account_tj = "0x3bB395b668Ff9Cb84e55aadFC8e646Dd9184Da9d"
 
@@ -176,22 +177,22 @@ async function main() {
     //issue tokenB to account1
     let tokenAIssueAcc1Res = await contractTokenWBTC.issue(issueAmountDefault, options);
     console.log('tokenAIssueAcc1Res ', tokenAIssueAcc1Res);
-    await contractTokenWBTC.transfer(account3, issueAmountDefault);
+    await contractTokenWBTC.transfer(account4, issueAmountDefault);
 
     let tokenBIssueAcc1Res = await contractTokenUSDT.issue(issueAmountDefault, options);
     console.log('tokenAIssueAcc2Res ', tokenBIssueAcc1Res);
-    await contractTokenUSDT.transfer(account3, issueAmountDefault);
+    await contractTokenUSDT.transfer(account4, issueAmountDefault);
 
     console.log("deployTokenC:  ", contractTokenWETH.address);
     let tokenCIssueAcc1Res = await contractTokenWETH.issue(issueAmountDefault, options);
     console.log('tokenCIssueAcc1Res ', tokenCIssueAcc1Res);
-    await contractTokenWETH.transfer(account3, issueAmountDefault);
+    await contractTokenWETH.transfer(account4, issueAmountDefault);
 
 
     console.log("deployTokenCHE:  ", contractTokenCEC.address);
     let tokenCHEIssueAcc1Res = await contractTokenCEC.issue(issueAmountDefault, options);
     console.log('tokenCHEIssueAcc1Res ', tokenCHEIssueAcc1Res);
-    await contractTokenCEC.transfer(account3, issueAmountDefault);
+    await contractTokenCEC.transfer(account4, issueAmountDefault);
 
 
     let balanceAcc1 = await contractTokenWBTC.balanceOf(account1, options);

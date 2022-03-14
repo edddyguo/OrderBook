@@ -42,6 +42,8 @@ impl From<&str> for Status {
 #[derive(Clone, Serialize, Debug,Deserialize)]
 pub struct AggTrade {
     pub id: String,
+    pub taker: String,
+    pub maker: String,
     pub price: f64,
     pub amount: f64,
     pub height: i32,

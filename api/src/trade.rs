@@ -9,7 +9,7 @@ pub struct Trade {
     pub market_id: String,
     pub price: f64,
     pub amount: f64,
-    pub height: u32,
+    pub height: i32,
     pub taker_side: OrderSide,
     pub updated_at: u64,
 }

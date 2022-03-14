@@ -193,6 +193,8 @@ fn gen_agg_trade_from_raw(trades: Vec<TradeInfo>) -> Vec<AggTrade> {
         .into_iter()
         .map(|x| AggTrade {
             id: x.id,
+            taker: x.taker.clone(),
+            maker: x.maker.clone(),
             price: u256_to_f64(x.price, crate::MARKET.quote_contract_decimal),
             amount: u256_to_f64(x.amount, crate::MARKET.base_contract_decimal),
             height: -1,

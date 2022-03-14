@@ -45,7 +45,7 @@ use common::env::CONF as ENV_CONF;
 
 use common::types::order::{Side as OrderSide, Side};
 use common::types::thaw::Status as ThawStatus;
-use common::types::trade::Status as TradeStatus;
+use common::types::trade::{AggTrade, Status as TradeStatus};
 
 #[macro_use]
 extern crate lazy_static;
@@ -444,7 +444,7 @@ async fn deal_launched_trade(
     block_height: u32,
 ) {
     info!("Get settlement event {:?}", new_settlements);
-    let mut agg_trades = HashMap::<String, Vec<LastTrade2>>::new();
+    let mut agg_trades = HashMap::<String, Vec<AggTrade>>::new();
     //目前来说一个区块里只有一个清算
     for hash_data in new_settlements {
         //todo: limit
@@ -465,8 +465,10 @@ async fn deal_launched_trade(
                     None => {
                         agg_trades.insert(
                             x.market_id.clone(),
-                            vec![LastTrade2 {
+                            vec![AggTrade {
                                 id: x.id,
+                                taker: x.taker.clone(),
+                                maker: x.maker.clone(),
                                 price: user_price,
                                 amount: user_amount,
                                 height: x.block_height,
@@ -475,8 +477,10 @@ async fn deal_launched_trade(
                         );
                     }
                     Some(trades) => {
-                        trades.push(LastTrade2 {
+                        trades.push(AggTrade {
                             id: x.id,
+                            taker: x.taker.clone(),
+                            maker: x.maker.clone(),
                             price: user_price,
                             amount: user_amount,
                             height: x.block_height,
