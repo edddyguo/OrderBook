@@ -59,6 +59,7 @@ pub struct EngineOrderTmp2 {
     pub account: String,
     pub price: f64,
     pub amount: f64,
+    pub matched_amount: f64,
     pub side: OrderSide,
     pub status: String,
     pub created_at: u64,
@@ -134,11 +135,11 @@ impl OrderFilter {
                 filter_str
             }
             OrderFilter::AvailableOrders(market_id, side) => {
-                let filter_str = format!("where market_id='{}' and available_amount!='0' and side='{}' order by created_at ASC",market_id,side.as_str());
+                let filter_str = format!("where market_id='{}' and available_amount!='0' and side='{}' order by created_at DESC",market_id,side.as_str());
                 filter_str
             }
             OrderFilter::UserOrders(market_id, account, status1, status2, limit) => {
-                let filter_str = format!("where market_id='{}' and account='{}' and (status='{}' or status='{}')  order by created_at ASC limit {}",market_id,account,status1.as_str(),status2.as_str(),limit);
+                let filter_str = format!("where market_id='{}' and account='{}' and (status='{}' or status='{}')  order by created_at DESC limit {}",market_id,account,status1.as_str(),status2.as_str(),limit);
                 filter_str
             }
         }

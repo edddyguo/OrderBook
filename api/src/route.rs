@@ -523,6 +523,7 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
             account: x.account.clone(),
             price: u256_to_f64(x.price, quote_decimal),
             amount: u256_to_f64(x.amount, base_decimal),
+            matched_amount: u256_to_f64(x.matched_amount, base_decimal),
             side: x.side.clone(),
             status: x.status.as_str().to_string(),
             created_at: time2unix(x.created_at.clone()),
@@ -542,6 +543,7 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
             account,
             price: u256_to_f64(x.price, quote_decimal),
             amount: u256_to_f64(x.amount, base_decimal),
+            matched_amount: u256_to_f64(x.amount, base_decimal),//tmpcode
             side: x.side.clone(),
             status: "thawing".to_string(), //tmp code
             created_at: time2unix(origin_order[0].created_at.clone()),
@@ -549,7 +551,7 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
     }).collect::<Vec<EngineOrderTmp2>>();
     orders.append(&mut mock_order);
     orders.sort_by(|a,b| {
-        a.created_at.partial_cmp(&b.created_at).unwrap()
+        b.created_at.partial_cmp(&a.created_at).unwrap()
     });
 
     respond_json(200, "".to_string(), serde_json::to_string(&orders).unwrap())
