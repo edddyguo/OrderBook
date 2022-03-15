@@ -51,7 +51,6 @@ fn get_token_price(quote_symbol: &str) -> Option<U256> {
 }
 
 async fn gen_chemix_profile(vault_client: &ChemixContractClient<Vault>) {
-    //todo: 从链上拿
     let mut current_withdraw_value = U256_ZERO;
     for token in list_tokens() {
         let base_token_decimal = teen_power!(token.base_contract_decimal);

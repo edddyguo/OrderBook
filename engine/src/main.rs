@@ -43,7 +43,7 @@ use chemix_models::trade::{insert_trades, TradeInfo};
 
 use chemix_chain::chemix::storage::Storage;
 use common::utils::math::{u256_to_f64, U256_ZERO};
-use common::utils::time::get_current_time;
+use common::utils::time::{get_current_time, get_unix_time};
 
 
 use chemix_models::market::{get_markets, MarketInfo};
@@ -199,6 +199,7 @@ fn gen_agg_trade_from_raw(trades: Vec<TradeInfo>) -> Vec<AggTrade> {
             amount: u256_to_f64(x.amount, crate::MARKET.base_contract_decimal),
             height: -1,
             taker_side: x.taker_side,
+            updated_at: get_unix_time(),
         })
         .filter(|x| x.price != 0.0 && x.amount != 0.0)
         .collect::<Vec<AggTrade>>()

@@ -48,4 +48,5 @@ pub struct AggTrade {
     pub amount: f64,
     pub height: i32,
     pub taker_side: order::Side,
+    pub updated_at: u64,
 }

@@ -47,38 +47,6 @@ impl TradeFilter {
     }
 }
 
-
-/***
-      format!(" where taker='{}' or maker='{}' ", account, account)
-        }
-        (Some(account), Some(market_id), Some(status), None, None) => {
-            format!(
-                " where (taker='{}' or maker='{}') and status='{}' and market_id='{}' ",
-                account,
-                account,
-                status.as_str(),
-                market_id.as_str()
-            )
-        }
-
-        (Some(account), Some(id), None, None, None) => {
-            format!(
-                " where market_id='{}' and (taker='{}' or maker='{}') ",
-                id, account, account
-            )
-        }
-        (None, None, Some(status), None, None) => {
-            format!(" where status='{}' ", status.as_str())
-        }
-        (None, None, Some(status), Some(hash_data), Some(height)) => {
-            format!(
-                " where status='{}' and hash_data='{}' and block_height={} ",
-                status.as_str(),
-                hash_data.as_str(),
-                height
-            )
-*/
-
 #[derive(Serialize, Debug, Clone, Deserialize)]
 pub struct TradeInfo {
     pub id: String,

@@ -594,8 +594,8 @@ struct RecentTradesRequest {
 
 #[get("/chemix/recentTrades")]
 async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> impl Responder {
-    let base_decimal = 18u32;
-    let quote_decimal = 15u32;
+    let market_info = get_markets(info.market_id.as_str()).unwrap();
+    let (base_decimal,quote_decimal) = (market_info.base_contract_decimal,market_info.quote_contract_decimal);
     let account = info.account.clone().to_lowercase();
     let trades = list_trades(TradeFilter::Recent(account.clone(),info.market_id.clone(),
                                                  TradeStatus::Confirmed,info.limit));

@@ -29,7 +29,7 @@ use chemix_models::order::{list_orders, OrderFilter};
 use chemix_models::trade::{list_trades, update_trade, update_trade_by_hash, TradeInfo, TradeFilter};
 use common::utils::algorithm::{sha256, u8_arr_from_str, u8_arr_to_str};
 use common::utils::math::{u256_to_f64, U256_ZERO};
-use common::utils::time::get_current_time;
+use common::utils::time::{get_current_time, get_unix_time};
 
 use ethers_core::abi::ethereum_types::U64;
 
@@ -254,6 +254,7 @@ async fn deal_launched_trade(
                                 amount: user_amount,
                                 height: x.block_height,
                                 taker_side: x.taker_side.clone(),
+                                updated_at: get_unix_time(),
                             }],
                         );
                     }
@@ -266,6 +267,7 @@ async fn deal_launched_trade(
                             amount: user_amount,
                             height: x.block_height,
                             taker_side: x.taker_side.clone(),
+                            updated_at: get_unix_time(),
                         });
                     }
                 }
