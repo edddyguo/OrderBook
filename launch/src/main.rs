@@ -56,9 +56,6 @@ extern crate log;
 #[macro_use]
 extern crate common;
 
-static BaseTokenDecimal: u32 = 18;
-static QuoteTokenDecimal: u32 = 15;
-
 const CONFIRM_HEIGHT: u32 = 2;
 
 use chemix_models::thaws::{update_thaws1};
@@ -320,16 +317,20 @@ fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, Depth> {
 
     let mut all_market_depth2 = HashMap::<String, Depth>::new();
     for (market_id, depth_raw) in all_market_depth.iter() {
+        let market_info = get_markets(market_id).unwrap();
+        let base_token_decimal = market_info.base_contract_decimal;
+        let quote_token_decimal = market_info.quote_contract_decimal;
+
         let asks2 = depth_raw
             .asks
             .iter()
             .map(|(x, y)| {
-                let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
+                let user_price = u256_to_f64(x.to_owned(), quote_token_decimal);
                 // let user_volume = u256_to_f64(y.to_owned(), BaseTokenDecimal);
                 let user_volume = if y < &I256::from(0u32) {
-                    u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
+                    u256_to_f64(y.abs().into_raw(), base_token_decimal) * -1.0f64
                 } else {
-                    u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
+                    u256_to_f64(y.abs().into_raw(), base_token_decimal)
                 };
 
                 (user_price, user_volume)
@@ -341,11 +342,11 @@ fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, Depth> {
             .bids
             .iter()
             .map(|(x, y)| {
-                let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
+                let user_price = u256_to_f64(x.to_owned(), quote_token_decimal);
                 let user_volume = if y < &I256::from(0u32) {
-                    u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
+                    u256_to_f64(y.abs().into_raw(), base_token_decimal) * -1.0f64
                 } else {
-                    u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
+                    u256_to_f64(y.abs().into_raw(), base_token_decimal)
                 };
                 (user_price, user_volume)
             })
@@ -361,81 +362,6 @@ fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, Depth> {
         );
     }
     all_market_depth2
-}
-
-fn gen_depth_from_thaws(pending_thaws: Vec<Thaws>) -> Depth {
-    let mut add_depth = RawDepth {
-        asks: HashMap::<U256, I256>::new(),
-        bids: HashMap::<U256, I256>::new(),
-    };
-
-    let mut update_depth = |x: Thaws| {
-        let amount = I256::try_from(x.amount).unwrap();
-        match x.side {
-            Side::Buy => {
-                match add_depth.bids.get_mut(&x.price) {
-                    None => {
-                        add_depth.bids.insert(x.price, -amount);
-                    }
-                    Some(mut tmp1) => {
-                        tmp1 = &mut tmp1.sub(amount);
-                    }
-                };
-            }
-            Side::Sell => {
-                match add_depth.asks.get_mut(&x.price) {
-                    None => {
-                        add_depth.asks.insert(x.price, -amount);
-                    }
-                    Some(mut tmp1) => {
-                        tmp1 = &mut tmp1.sub(amount);
-                    }
-                };
-            }
-        }
-    };
-
-    for pending_thaw in pending_thaws.clone() {
-        update_depth(pending_thaw);
-    }
-
-    info!("finished compute  ,add_depth {:?}", add_depth);
-    let asks2 = add_depth
-        .asks
-        .iter()
-        .map(|(x, y)| {
-            let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
-            // let user_volume = u256_to_f64(y.to_owned(), BaseTokenDecimal);
-            let user_volume = if y < &I256::from(0u32) {
-                u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
-            } else {
-                u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
-            };
-
-            (user_price, user_volume)
-        })
-        .filter(|(p, v)| p != &0.0 && v != &0.0)
-        .collect::<Vec<(f64, f64)>>();
-
-    let bids2 = add_depth
-        .bids
-        .iter()
-        .map(|(x, y)| {
-            let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
-            let user_volume = if y < &I256::from(0u32) {
-                u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
-            } else {
-                u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
-            };
-            (user_price, user_volume)
-        })
-        .filter(|(p, v)| p != &0.0 && v != &0.0)
-        .collect::<Vec<(f64, f64)>>();
-
-    Depth {
-        asks: asks2,
-        bids: bids2,
-    }
 }
 
 async fn deal_launched_trade(
@@ -458,8 +384,11 @@ async fn deal_launched_trade(
         );
 
         for x in db_trades.clone() {
-            let user_price = u256_to_f64(x.price, QuoteTokenDecimal);
-            let user_amount = u256_to_f64(x.amount, BaseTokenDecimal);
+            let market_info = get_markets(x.market_id.as_str()).unwrap();
+            let base_token_decimal = market_info.base_contract_decimal;
+            let quote_token_decimal = market_info.quote_contract_decimal;
+            let user_price = u256_to_f64(x.price, quote_token_decimal);
+            let user_amount = u256_to_f64(x.amount, base_token_decimal);
             if user_price != 0.0 && user_amount != 0.0 {
                 match agg_trades.get_mut(x.market_id.as_str()) {
                     None => {

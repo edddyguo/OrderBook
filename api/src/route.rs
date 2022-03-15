@@ -213,8 +213,9 @@ struct DepthRequest {
 #[get("/chemix/depth")]
 async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     format!("symbol222 {}, limit:{}", info.market_id, info.limit);
-    let base_decimal = 18u32;
-    let quote_decimal = 15u32;
+    let market_info = get_markets(info.market_id.as_str()).unwrap();
+    let base_decimal = market_info.base_contract_decimal;
+    let quote_decimal = market_info.quote_contract_decimal;
     //todo:BtreeMap
     let mut available_buy_orders = list_orders2(OrderFilter::AvailableOrders(
         info.market_id.clone(),

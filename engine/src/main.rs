@@ -65,9 +65,6 @@ extern crate log;
 #[macro_use]
 extern crate common;
 
-static BaseTokenDecimal: u32 = 18;
-static QuoteTokenDecimal: u32 = 15;
-
 const CONFIRM_HEIGHT: u32 = 2;
 
 
@@ -152,15 +149,18 @@ fn gen_depth_from_cancel_orders(pending_thaws: Vec<Thaws>) -> RawDepth {
 }
 
 fn gen_depth_from_raw(add_depth: RawDepth) -> Depth {
+    let base_token_decimal = crate::MARKET.base_contract_decimal;
+    let quote_token_decimal = crate::MARKET.quote_contract_decimal;
+    info!("test_decimal {:?}",*crate::MARKET);
     let asks2 = add_depth
         .asks
         .iter()
         .map(|(x, y)| {
-            let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
+            let user_price = u256_to_f64(x.to_owned(), quote_token_decimal);
             let user_volume = if y < &I256::from(0u32) {
-                u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
+                u256_to_f64(y.abs().into_raw(), base_token_decimal) * -1.0f64
             } else {
-                u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
+                u256_to_f64(y.abs().into_raw(), base_token_decimal)
             };
             (user_price, user_volume)
         })
@@ -171,11 +171,11 @@ fn gen_depth_from_raw(add_depth: RawDepth) -> Depth {
         .bids
         .iter()
         .map(|(x, y)| {
-            let user_price = u256_to_f64(x.to_owned(), QuoteTokenDecimal);
+            let user_price = u256_to_f64(x.to_owned(), quote_token_decimal);
             let user_volume = if y < &I256::from(0u32) {
-                u256_to_f64(y.abs().into_raw(), BaseTokenDecimal) * -1.0f64
+                u256_to_f64(y.abs().into_raw(), base_token_decimal) * -1.0f64
             } else {
-                u256_to_f64(y.abs().into_raw(), BaseTokenDecimal)
+                u256_to_f64(y.abs().into_raw(), base_token_decimal)
             };
             (user_price, user_volume)
         })
@@ -346,13 +346,16 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 for order in new_orders {
                                     let base_decimal =
                                         crate::MARKET.base_contract_decimal as u32;
+
                                     let raw_amount = if base_decimal > order.num_power {
                                         order.amount
                                             * teen_power!(base_decimal - order.num_power)
                                     } else {
                                         order.amount
-                                            * teen_power!(order.num_power - base_decimal)
+                                            / teen_power!(order.num_power - base_decimal)
                                     };
+                                    info!("amount_ori {},order.num_power {},amount_cur {}",
+                                        order.amount,order.num_power,raw_amount);
                                     //todo: 非法数据过滤
                                     db_new_orders.push(OrderInfo::new(
                                         order.id,
