@@ -403,6 +403,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
             rt.block_on(async move {
                 //过滤所有的thaws和battle，更新confirm状态或者是未处理状态
                 let mut last_process_height = get_last_process_height().await;
+                info!("Start check history block from  {}",last_process_height);
                 loop {
                     let current_height = get_current_block().await;
                     assert!(current_height >= last_process_height);
@@ -415,6 +416,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         //绝大多数情况last_process_height + 1 等于current_height - CONFIRM_HEIGHT
                         for height in last_process_height + 1..=current_height - CONFIRM_HEIGHT
                         {
+                            info!("check height {}",height);
                             let block_hash = get_block(BlockId::from(height as u64))
                                 .await
                                 .unwrap()
@@ -449,7 +451,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 
                             if new_thaws.is_empty() {
                                 info!(
-                                    "Not found new order created at height {}",
+                                    "Not found new thaws created at height {}",
                                     current_height
                                 );
                             } else {
