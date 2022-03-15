@@ -2,7 +2,7 @@ use crate::trade::Trade2;
 use crate::OrderSide;
 use chemix_models::market::get_markets2;
 use chemix_models::order::OrderInfo;
-use chemix_models::trade::list_trades3;
+use chemix_models::trade::{list_trades, TradeFilter};
 use common::types::order::Side;
 use common::utils::math::{u256_to_f64, U256_ZERO};
 use common::utils::time::time2unix;
@@ -43,7 +43,7 @@ pub fn get_order_detail(order: &OrderInfo) -> OrderDetail {
         market_info.base_contract_decimal as u32,
         market_info.quote_contract_decimal as u32,
     );
-    let trades = list_trades3(order.id.as_str());
+    let trades = list_trades(TradeFilter::OrderId(order.id.clone()));
     let mut total_volume = U256_ZERO;
     let mut trades2 = Vec::<Trade2>::new();
     for trade in trades.clone() {

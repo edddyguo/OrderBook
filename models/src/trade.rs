@@ -10,6 +10,75 @@ use common::types::order::Side as OrderSide;
 use common::types::trade::Status as TradeStatus;
 use common::utils::math::U256_ZERO;
 
+#[derive(Clone, Debug)]
+pub enum TradeFilter {
+    //id
+    OrderId(String),
+    //market,limit
+    MarketId(String,u32),
+    //account,market,status,limit
+    Recent(String,String,TradeStatus,u32),
+    //hashdata,block_height
+    DelayConfirm(String,u32),
+    //status, limit
+    Status(TradeStatus,u32),
+}
+impl TradeFilter {
+    pub fn to_string(&self) -> String {
+        let filter_str = match self {
+            TradeFilter::OrderId(id) => {
+                format!("where taker_order_id='{}' or maker_order_id='{}'",id,id)
+            }
+            TradeFilter::Status(status,limit) => {
+                format!("where status='{}' limit {}",status.as_str(),limit)
+            }
+            TradeFilter::MarketId(market_id,limit) => {
+                format!("where market_id='{}' order by created_at desc  limit {}",market_id,limit)
+            }
+            TradeFilter::Recent(account,market_id,status,limit) => {
+                format!(" where (taker='{}' or maker='{}') and market_id='{}' \
+                and status='{}' limit {}", account,account,market_id,status.as_str(),limit)
+            }
+            TradeFilter::DelayConfirm(hash,height) => {
+                format!(" where status='launched' and hash_data='{}' and block_height='{}' ", hash,height)
+            }
+        };
+        filter_str
+    }
+}
+
+
+/***
+      format!(" where taker='{}' or maker='{}' ", account, account)
+        }
+        (Some(account), Some(market_id), Some(status), None, None) => {
+            format!(
+                " where (taker='{}' or maker='{}') and status='{}' and market_id='{}' ",
+                account,
+                account,
+                status.as_str(),
+                market_id.as_str()
+            )
+        }
+
+        (Some(account), Some(id), None, None, None) => {
+            format!(
+                " where market_id='{}' and (taker='{}' or maker='{}') ",
+                id, account, account
+            )
+        }
+        (None, None, Some(status), None, None) => {
+            format!(" where status='{}' ", status.as_str())
+        }
+        (None, None, Some(status), Some(hash_data), Some(height)) => {
+            format!(
+                " where status='{}' and hash_data='{}' and block_height={} ",
+                status.as_str(),
+                hash_data.as_str(),
+                height
+            )
+*/
+
 #[derive(Serialize, Debug, Clone, Deserialize)]
 pub struct TradeInfo {
     pub id: String,
@@ -105,59 +174,7 @@ pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
     info!("success insert traders {} rows", execute_res);
 }
 
-pub fn list_trades(
-    user: Option<String>,
-    market_id: Option<String>,
-    status: Option<TradeStatus>,
-    hash_data: Option<String>,
-    block_height: Option<u32>,
-    limit: u32,
-) -> Vec<TradeInfo> {
-    //todo: 待补充场景
-    let filter_str = match (user, market_id, status, hash_data, block_height) {
-        (None, None, None, None, None) => {
-            format!("")
-        }
-        (Some(account), None, None, None, None) => {
-            format!(" where taker='{}' or maker='{}' ", account, account)
-        }
-        (Some(account), Some(market_id), Some(status), None, None) => {
-            format!(
-                " where (taker='{}' or maker='{}') and status='{}' and market_id='{}' ",
-                account,
-                account,
-                status.as_str(),
-                market_id.as_str()
-            )
-        }
-        (None, Some(id), None, None, None) => {
-            format!(
-                " where market_id='{}' ",
-                id
-            )
-        }
-        (Some(account), Some(id), None, None, None) => {
-            format!(
-                " where market_id='{}' and (taker='{}' or maker='{}') ",
-                id, account, account
-            )
-        }
-        (None, None, Some(status), None, None) => {
-            format!(" where status='{}' ", status.as_str())
-        }
-        (None, None, Some(status), Some(hash_data), Some(height)) => {
-            format!(
-                " where status='{}' and hash_data='{}' and block_height={} ",
-                status.as_str(),
-                hash_data.as_str(),
-                height
-            )
-        }
-        _ => {
-            unreachable!()
-        }
-    };
-
+pub fn list_trades(filter: TradeFilter) -> Vec<TradeInfo> {
     let sql = format!(
         "select \
     id,\
@@ -175,9 +192,8 @@ pub fn list_trades(
     taker_order_id,\
     cast(created_at as text), \
     cast(updated_at as text) \
-    from chemix_trades \
-    {} order by created_at DESC limit {}",
-        filter_str, limit
+    from chemix_trades {}",
+        filter.to_string()
     );
     let mut trades: Vec<TradeInfo> = Vec::new();
     info!("list_trades_sql {}", sql);
@@ -208,111 +224,6 @@ pub fn list_trades(
     trades
 }
 
-pub fn list_trades2(
-    taker_order_id: &str,
-    hash_data: &str,
-    status: TradeStatus,
-) -> Vec<TradeInfo> {
-    let sql = format!(
-        "select \
-    id,\
-    block_height,\
-    transaction_hash,\
-    hash_data,\
-    status,\
-    market_id,\
-    taker,\
-    maker,\
-    price,\
-    amount,\
-    taker_side,\
-    maker_order_id, \
-    taker_order_id,\
-    cast(created_at as text), \
-    cast(updated_at as text) \
-    from chemix_trades \
-    where taker_order_id='{}' and hash_data='{}'  and status='{}' order by created_at DESC",
-        taker_order_id,
-        hash_data,
-        status.as_str()
-    );
-    let mut trades: Vec<TradeInfo> = Vec::new();
-    info!("list_trades_sql {}", sql);
-    let rows = crate::query(sql.as_str()).unwrap();
-    for row in rows {
-        let side_str: String = row.get(10);
-        let side = order::Side::from(side_str.as_str());
-        let info = TradeInfo {
-            id: row.get(0),
-            block_height: row.get(1), //todo: 待加逻辑
-            transaction_hash: row.get(2),
-            hash_data: row.get(3),
-            status: TradeStatus::from(row.get::<usize, &str>(4usize)), //row.get(3),
-            market_id: row.get(5),
-            taker: row.get(6),
-            maker: row.get(7),
-            price: U256::from_str_radix(row.get::<usize, &str>(8), 10).unwrap(),
-            amount: U256::from_str_radix(row.get::<usize, &str>(9), 10).unwrap(),
-            taker_side: side,
-            maker_order_id: row.get(11),
-            taker_order_id: row.get(12),
-            updated_at: row.get(13),
-            created_at: row.get(14),
-        };
-        trades.push(info);
-    }
-    trades
-}
-
-pub fn list_trades3(order_id: &str) -> Vec<TradeInfo> {
-    let sql = format!(
-        "select \
-    id,\
-    block_height,\
-    transaction_hash,\
-    hash_data,\
-    status,\
-    market_id,\
-    taker,\
-    maker,\
-    price,\
-    amount,\
-    taker_side,\
-    maker_order_id, \
-    taker_order_id,\
-    cast(created_at as text), \
-    cast(updated_at as text) \
-    from chemix_trades \
-    where  (taker_order_id='{}' or maker_order_id='{}')",
-        order_id, order_id
-    );
-    let mut trades: Vec<TradeInfo> = Vec::new();
-    info!("list_trades_sql {}", sql);
-    let rows = crate::query(sql.as_str()).unwrap();
-    for row in rows {
-        let side_str: String = row.get(10);
-        let side = order::Side::from(side_str.as_str());
-        let info = TradeInfo {
-            id: row.get(0),
-            block_height: row.get(1), //todo: 待加逻辑
-            transaction_hash: row.get(2),
-            hash_data: row.get(3),
-            status: TradeStatus::from(row.get::<usize, &str>(4usize)), //row.get(3),
-            market_id: row.get(5),
-            taker: row.get(6),
-            maker: row.get(7),
-            price: U256::from_str_radix(row.get::<usize, &str>(8), 10).unwrap(),
-            amount: U256::from_str_radix(row.get::<usize, &str>(9), 10).unwrap(),
-            taker_side: side,
-            maker_order_id: row.get(11),
-            taker_order_id: row.get(12),
-            updated_at: row.get(13),
-            created_at: row.get(14),
-        };
-        trades.push(info);
-    }
-    trades
-}
 
 pub fn update_trade(
     id: &str,

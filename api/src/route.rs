@@ -11,11 +11,9 @@ use log::info;
 use std::env;
 
 use chemix_models::market::{get_markets, list_markets as list_markets2};
-use chemix_models::order::{
-    get_order_volume, list_orders as list_orders2, EngineOrderTmp2, OrderFilter,
-};
+use chemix_models::order::{get_order_volume, list_orders as list_orders2, EngineOrderTmp2, OrderFilter, get_user_number};
 use chemix_models::snapshot::get_snapshot;
-use chemix_models::trade::list_trades;
+use chemix_models::trade::{list_trades, TradeFilter};
 use chemix_models::TimeScope;
 use common::utils::time::{get_current_time, get_unix_time, time2unix};
 use serde::{Deserialize, Serialize};
@@ -306,14 +304,7 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
     let market = get_markets(&info.market_id).unwrap();
     let (base_decimal, quote_decimal) =
         (market.base_contract_decimal, market.quote_contract_decimal);
-    let trades = list_trades(
-        None,
-        Some(info.market_id.clone()),
-        None,
-        None,
-        None,
-        info.limit,
-    )
+    let trades = list_trades(TradeFilter::MarketId(info.market_id.clone(),info.limit))
     .iter()
     .map(|x| trade::Trade {
         id: x.id.clone(),
@@ -432,7 +423,7 @@ async fn dex_profile() -> impl Responder {
         cumulativeTVL: u256_to_f64(currentTVL, cec_token_decimal),
         cumulativeTransactions,
         cumulativeTraders,
-        numberOfTraders: cumulativeTraders - yesterday_traders,
+        numberOfTraders: get_user_number(TimeScope::OneDay),
         tradingVolume: u256_to_f64(
             current_trade_volume - yesterday_trader_volume,
             cec_token_decimal,
@@ -606,14 +597,8 @@ async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> imp
     let base_decimal = 18u32;
     let quote_decimal = 15u32;
     let account = info.account.clone().to_lowercase();
-    let trades = list_trades(
-        Some(account.clone()),
-        Some(info.market_id.clone()),
-        Some(TradeStatus::Confirmed),
-        None,
-        None,
-        info.limit,
-    );
+    let trades = list_trades(TradeFilter::Recent(account.clone(),info.market_id.clone(),
+                                                 TradeStatus::Confirmed,info.limit));
     let trades = trades
         .iter()
         .map(|x| {

@@ -26,9 +26,7 @@ use tokio::runtime::Runtime;
 use tokio::time;
 
 use chemix_models::order::{list_orders, OrderFilter};
-use chemix_models::trade::{
-    list_trades, list_trades2, update_trade, update_trade_by_hash, TradeInfo,
-};
+use chemix_models::trade::{list_trades, update_trade, update_trade_by_hash, TradeInfo, TradeFilter};
 use common::utils::algorithm::{sha256, u8_arr_from_str, u8_arr_to_str};
 use common::utils::math::{u256_to_f64, U256_ZERO};
 use common::utils::time::get_current_time;
@@ -226,143 +224,6 @@ fn update_depth(depth_ori: &mut RawDepth, x: &TradeInfo) {
     }
 }
 
-fn gen_depth_from_trades(trades: Vec<TradeInfo>) -> HashMap<String, Depth> {
-    let mut all_market_depth = HashMap::<String, RawDepth>::new();
-    let iters = trades.group_by(|a, b| a.market_id == b.market_id);
-    for iter in iters.into_iter() {
-        //todo:底层封装
-
-        let market_id = iter[0].market_id.clone();
-        let mut market_AddBook2 = RawDepth {
-            asks: HashMap::new(),
-            bids: HashMap::new(),
-        };
-
-        let mut taker_order_ids = HashSet::<String>::new();
-        //maker吃掉的部分都做减法
-        for trade in iter {
-            taker_order_ids.insert(trade.taker_order_id.clone());
-            update_depth(&mut market_AddBook2, trade);
-        }
-
-        //taker剩余的部分为插入
-        for taker_order_id in taker_order_ids {
-            let taker_orders = list_orders(OrderFilter::ById(taker_order_id.clone())).unwrap();
-            let taker_order = taker_orders.first().unwrap();
-            let matched_trades = list_trades2(
-                &taker_order_id,
-                &taker_order.hash_data,
-                TradeStatus::Launched,
-            );
-            info!("[test_big_taker]:0000_matched_trades_{:?}", matched_trades);
-            let mut matched_amount = U256_ZERO;
-            for matched_trade in matched_trades {
-                matched_amount += matched_trade.amount;
-            }
-
-            let confirmed_trades = list_trades2(
-                &taker_order_id,
-                &taker_order.hash_data,
-                TradeStatus::Confirmed,
-            );
-            //todo！判断当前taker_order_id confirm的数量，处理一个taker_order_id多次上链的情况
-            //若大额吃单,会放多个区块打包，第一次的时候将已撮合还没上链的余额更新到taker_side的方向剩余，之后上链的在该vlomue上累减
-            if confirmed_trades.is_empty() {
-                info!(
-                    "[test_big_taker]:0001_taker_order.amount {},matched_amount {}",
-                    taker_order.amount, matched_amount
-                );
-                let remain = taker_order.amount - matched_amount;
-                match taker_order.side {
-                    Side::Buy => {
-                        let stat = market_AddBook2
-                            .bids
-                            .entry(taker_order.price)
-                            .or_insert(I256::from(0i32));
-                        *stat += I256::from_raw(remain);
-                    }
-                    Side::Sell => {
-                        let stat = market_AddBook2
-                            .asks
-                            .entry(taker_order.price)
-                            .or_insert(I256::from(0i32));
-                        *stat += I256::from_raw(remain);
-                    }
-                }
-            } else {
-                info!(
-                    "[test_big_taker]:0002_taker_order.amount {},matched_amount {}",
-                    taker_order.amount, matched_amount
-                );
-                match taker_order.side {
-                    Side::Buy => {
-                        let stat = market_AddBook2
-                            .bids
-                            .entry(taker_order.price)
-                            .or_insert(I256::from(0i32));
-                        *stat -= I256::from_raw(matched_amount);
-                    }
-                    Side::Sell => {
-                        let stat = market_AddBook2
-                            .asks
-                            .entry(taker_order.price)
-                            .or_insert(I256::from(0i32));
-                        *stat -= I256::from_raw(matched_amount);
-                    }
-                }
-            }
-        }
-        all_market_depth.insert(market_id, market_AddBook2);
-    }
-
-    let mut all_market_depth2 = HashMap::<String, Depth>::new();
-    for (market_id, depth_raw) in all_market_depth.iter() {
-        let market_info = get_markets(market_id).unwrap();
-        let base_token_decimal = market_info.base_contract_decimal;
-        let quote_token_decimal = market_info.quote_contract_decimal;
-
-        let asks2 = depth_raw
-            .asks
-            .iter()
-            .map(|(x, y)| {
-                let user_price = u256_to_f64(x.to_owned(), quote_token_decimal);
-                // let user_volume = u256_to_f64(y.to_owned(), BaseTokenDecimal);
-                let user_volume = if y < &I256::from(0u32) {
-                    u256_to_f64(y.abs().into_raw(), base_token_decimal) * -1.0f64
-                } else {
-                    u256_to_f64(y.abs().into_raw(), base_token_decimal)
-                };
-
-                (user_price, user_volume)
-            })
-            .filter(|(p, v)| p != &0.0 && v != &0.0)
-            .collect::<Vec<(f64, f64)>>();
-
-        let bids2 = depth_raw
-            .bids
-            .iter()
-            .map(|(x, y)| {
-                let user_price = u256_to_f64(x.to_owned(), quote_token_decimal);
-                let user_volume = if y < &I256::from(0u32) {
-                    u256_to_f64(y.abs().into_raw(), base_token_decimal) * -1.0f64
-                } else {
-                    u256_to_f64(y.abs().into_raw(), base_token_decimal)
-                };
-                (user_price, user_volume)
-            })
-            .filter(|(p, v)| p != &0.0 && v != &0.0)
-            .collect::<Vec<(f64, f64)>>();
-
-        all_market_depth2.insert(
-            market_id.to_string(),
-            Depth {
-                asks: asks2,
-                bids: bids2,
-            },
-        );
-    }
-    all_market_depth2
-}
 
 async fn deal_launched_trade(
     new_settlements: Vec<String>,
@@ -373,16 +234,7 @@ async fn deal_launched_trade(
     let mut agg_trades = HashMap::<String, Vec<AggTrade>>::new();
     //目前来说一个区块里只有一个清算
     for hash_data in new_settlements {
-        //todo: limit
-        let db_trades = list_trades(
-            None,
-            None,
-            Some(TradeStatus::Launched),
-            Some(hash_data.clone()),
-            Some(block_height),
-            10000,
-        );
-
+        let db_trades = list_trades(TradeFilter::DelayConfirm(hash_data.clone(),block_height));
         for x in db_trades.clone() {
             let market_info = get_markets(x.market_id.as_str()).unwrap();
             let base_token_decimal = market_info.base_contract_decimal;
@@ -707,9 +559,8 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
             rt.block_on(async move {
                 let mut last_height = get_current_block().await - 1;
                 loop {
-                    //market_orders的移除或者减少
-                    //fix: 10000是经验值，放到外部参数注入
-                    let db_trades = list_trades(None, None, Some(TradeStatus::Matched), None, None, 50);
+                    //fix: 50是经验值，放到外部参数注入
+                    let db_trades = list_trades(TradeFilter::Status(TradeStatus::Matched,50));
                     if db_trades.is_empty() {
                         info!("Have no matched trade need launch,and wait 5 seconds for next check");
                         tokio::time::sleep(time::Duration::from_millis(5000)).await;

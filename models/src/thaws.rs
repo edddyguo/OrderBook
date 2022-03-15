@@ -62,37 +62,6 @@ pub struct Thaws {
     pub created_at: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
-pub struct UpdateOrder {
-    pub id: String,
-    pub status: OrderStatus,
-    pub available_amount: U256,
-    pub canceled_amount: U256,
-    pub matched_amount: U256,
-    pub updated_at: String,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct EngineOrder {
-    pub id: String,
-    pub account: String,
-    pub price: U256,
-    pub amount: U256,
-    pub side: OrderSide,
-    pub created_at: String,
-}
-
-#[derive(Clone, Serialize, Debug)]
-pub struct BookOrder {
-    pub id: String,
-    pub account: String,
-    pub index: U256,
-    pub side: OrderSide,
-    pub price: U256,
-    pub amount: U256,
-    pub created_at: u64,
-}
-
 //todo:考虑没有返回hash但是交易成功的情况？
 //todo: 和orders同步的时候做事务的一致性
 impl Thaws {
