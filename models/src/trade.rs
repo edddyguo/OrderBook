@@ -22,6 +22,7 @@ pub enum TradeFilter {
     DelayConfirm(String,u32),
     //status, limit
     Status(TradeStatus,u32),
+    LastPushed
 }
 impl TradeFilter {
     pub fn to_string(&self) -> String {
@@ -41,6 +42,9 @@ impl TradeFilter {
             }
             TradeFilter::DelayConfirm(hash,height) => {
                 format!(" where status='launched' and hash_data='{}' and block_height='{}' ", hash,height)
+            }
+            TradeFilter::LastPushed => {
+                format!("where status='launched' or status='confirmed' order by created_at desc  limit 1")
             }
         };
         filter_str

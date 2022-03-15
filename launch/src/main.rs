@@ -1,5 +1,6 @@
 #![feature(slice_group_by)]
 
+use std::cmp::min;
 use ethers::prelude::*;
 use std::collections::{HashMap, HashSet};
 
@@ -235,6 +236,10 @@ async fn deal_launched_trade(
     //目前来说一个区块里只有一个清算
     for hash_data in new_settlements {
         let db_trades = list_trades(TradeFilter::DelayConfirm(hash_data.clone(),block_height));
+        if db_trades.is_empty() {
+            warn!("This trade hash {} have already dealed,and jump it",hash_data.clone());
+            continue;
+        }
         for x in db_trades.clone() {
             let market_info = get_markets(x.market_id.as_str()).unwrap();
             let base_token_decimal = market_info.base_contract_decimal;
@@ -289,11 +294,14 @@ async fn deal_launched_trade(
     }
 }
 
-async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<Rsmq>>) {
+async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<Rsmq>>,height: u32) {
     for new_thaw_flag in new_thaw_flags {
-        //推解冻信息
-        ////flag足够，该flag在此时全部launched
-        let pending_thaws = list_thaws3(ThawsFilter::ThawsHash(new_thaw_flag.clone()));
+        //如果已经确认的跳过，可能发生在系统重启的时候
+        let pending_thaws = list_thaws3(ThawsFilter::DelayConfirm(new_thaw_flag.clone(),height));
+        if pending_thaws.is_empty() {
+            warn!("This thaw hash {} have already dealed,and jump it",new_thaw_flag.clone());
+            continue
+        }
         let iters = pending_thaws.group_by(|a, b| a.market_id == b.market_id);
 
         for iter in iters.into_iter() {
@@ -360,10 +368,25 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<
     }
 }
 
-async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
-    let _last_height: U64 = U64::from(200u64);
-    let arc_queue = Arc::new(RwLock::new(queue));
+async fn get_last_process_height() -> u32{
+    let last_thaw = list_thaws3(ThawsFilter::LastPushed);
+    let last_trade = list_trades(TradeFilter::LastPushed);
 
+    if last_thaw.len() == 0 && last_trade.len() == 0{
+        get_current_block().await
+    } else if last_thaw.len() == 0 && last_trade.len() == 1 {
+        last_trade[0].block_height as u32
+    }else if last_thaw.len() == 1 && last_trade.len() == 0{
+        last_thaw[0].block_height as u32
+    }else if last_thaw.len() == 1 && last_trade.len() == 1{
+        min(last_trade[0].block_height as u32, last_thaw[0].block_height as u32)
+    }else {
+        unreachable!()
+    }
+}
+
+async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
+    let arc_queue = Arc::new(RwLock::new(queue));
     let pri_key = ENV_CONF.chemix_relayer_prikey.to_owned().unwrap();
     let chemix_vault_client =
         ChemixContractClient::<Vault>::new(pri_key.clone().to_str().unwrap());
@@ -379,14 +402,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
                 //过滤所有的thaws和battle，更新confirm状态或者是未处理状态
-                //fixme： 可以从第一个一个未处理的高度，如果都处理则从最后确认的高度开始，校验的时候判断是否已经是确认状态，防止重复确认
-                let last_order = list_orders(OrderFilter::GetLastOne).unwrap();
-                let mut last_process_height = if last_order.is_empty() {
-                    get_current_block().await
-                } else {
-                    last_order[0].block_height
-                };
-
+                let mut last_process_height = get_last_process_height().await;
                 loop {
                     let current_height = get_current_block().await;
                     assert!(current_height >= last_process_height);
@@ -439,8 +455,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             } else {
                                 //只要拿到事件的hashdata就可以判断这个解冻是ok的，不需要比对其他
                                 //todo： 另外起一个服务，循环判断是否有超8个区块还没确认的处理，有的话将起launch重新设置为pending
-                                deal_launched_thaws(new_thaws, arc_queue.clone()).await;
-                                //update状态为confirm
+                                deal_launched_thaws(new_thaws, arc_queue.clone(),height).await;
                             }
                         }
                     }

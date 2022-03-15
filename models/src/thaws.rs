@@ -24,25 +24,29 @@ pub enum ThawsFilter {
     //market,account
     NotConfirmed(String, String),
     Status(ThawStatus),
-    ThawsHash(String)
+    //hashdata,block_height
+    DelayConfirm(String,u32),
+    LastPushed
 }
 
 impl ThawsFilter {
     pub fn to_string(&self) -> String {
-        match self {
+        let filter_str=    match self {
             ThawsFilter::NotConfirmed(market_id, account) => {
-                let filter_str = format!("where market_id='{}' and account='{}' and (status='pending' or status='launched')  order by created_at ASC",market_id,account);
-                filter_str
+                format!("where market_id='{}' and account='{}' and (status='pending' or status='launched')  order by created_at ASC",market_id,account)
+
             }
             ThawsFilter::Status(status) => {
-                let filter_str = format!("where status='{}' order by created_at ASC",status.as_str());
-                filter_str
+                format!("where status='{}' order by created_at ASC",status.as_str())
             }
-            ThawsFilter::ThawsHash(hash) => {
-                let filter_str = format!("where thaws_hash='{}' order by created_at ASC",hash);
-                filter_str
+            ThawsFilter::DelayConfirm(hash,height) => {
+                format!(" where status='launched' and hash_data='{}' and block_height='{}' ", hash,height)
             }
-        }
+            ThawsFilter::LastPushed => {
+                format!("where status='launched' or status='confirmed' order by created_at DESC limit 1")
+            }
+        };
+        filter_str
     }
 }
 
