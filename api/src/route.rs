@@ -480,11 +480,10 @@ struct ListOrdersRequest {
     limit: u32,
 }
 
-//todo: 所有的数据库都加上numPows字段，在后models里处理
 #[get("/chemix/listOrders")]
 async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Responder {
-    let base_decimal = 18u32;
-    let quote_decimal = 15u32;
+    let market_info = get_markets(info.market_id.as_str()).unwrap();
+    let (base_decimal,quote_decimal) = (market_info.base_contract_decimal,market_info.quote_contract_decimal);
     let account = info.account.clone().to_lowercase();
     let market_id = info.market_id.clone();
     let orders = list_orders2(OrderFilter::UserOrders(
@@ -639,7 +638,7 @@ async fn main() -> std::io::Result<()> {
     let service = format!("0.0.0.0:{}", port);
 
     HttpServer::new(move || {
-        App::new() //.app_data(query_cfg)
+        App::new()
             .wrap(
                 Cors::new()
                     //.allowed_header("*")
@@ -667,7 +666,6 @@ async fn main() -> std::io::Result<()> {
                     .route(web::post().to(add_market)),
             )
             .service(echo)
-        //.service(web::resource("/chemix/depth").route(web::get().to(depth)))
     })
     .bind(service.as_str())?
     .run()
