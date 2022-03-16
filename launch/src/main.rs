@@ -1,6 +1,6 @@
 #![feature(slice_group_by)]
 
-use std::cmp::min;
+use std::cmp::{max, min};
 use ethers::prelude::*;
 use std::collections::{HashMap, HashSet};
 
@@ -379,7 +379,8 @@ async fn get_last_process_height() -> u32{
     }else if last_thaw.len() == 1 && last_trade.len() == 0{
         last_thaw[0].block_height as u32
     }else if last_thaw.len() == 1 && last_trade.len() == 1{
-        min(last_trade[0].block_height as u32, last_thaw[0].block_height as u32)
+        //因为解冻和清算同步扫块，所以这里取大数即可
+        max(last_trade[0].block_height as u32, last_thaw[0].block_height as u32)
     }else {
         unreachable!()
     }

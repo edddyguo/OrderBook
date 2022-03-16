@@ -44,14 +44,6 @@ impl Node<Ws> {
     }
 }
 
-/***
-    let ws_url = ENV_CONF.chain_ws.to_owned().unwrap();
-    let rpc_url = ENV_CONF.chain_rpc.to_owned().unwrap();
-
-    let watcher = ;
-    let provider_http = Node::<Http>::new(rpc_url.to_str().unwrap());
-*/
-
 lazy_static! {
     static ref WATCHER : String = {
             let url = ENV_CONF.chain_ws.to_owned().unwrap();

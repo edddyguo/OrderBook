@@ -59,12 +59,13 @@ pub fn get_order_detail(order: &OrderInfo) -> OrderDetail {
             taker_side: trade.taker_side.clone(),
             updated_at: time2unix(trade.created_at.clone()),
         });
-        info!(
-            "total_volume = {}",
-            (trade.amount * trade.price / teen_power!(base_decimal)).to_string()
-        );
     }
-    let average_price = total_volume / (order.amount / teen_power!(base_decimal));
+    let average_price = if total_volume != U256_ZERO {
+        info!("___total_volume={},order.matched_amount={}",total_volume,order.matched_amount);
+        u256_to_f64(total_volume,quote_decimal) / u256_to_f64(order.matched_amount,base_decimal)
+    }else {
+        0.0
+    };
     OrderDetail {
         id: order.id.clone(),
         market_id: order.market_id.clone(),
@@ -75,7 +76,7 @@ pub fn get_order_detail(order: &OrderInfo) -> OrderDetail {
         canceled_amount: u256_to_f64(order.canceled_amount, base_decimal),
         matched_amount: u256_to_f64(order.matched_amount, base_decimal),
         price: u256_to_f64(order.price, quote_decimal),
-        average_price: u256_to_f64(average_price, quote_decimal),
+        average_price,
         total_volume: u256_to_f64(total_volume, quote_decimal),
         side: order.side.clone(),
         status: order.status.as_str().to_string(),

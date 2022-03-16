@@ -40,7 +40,7 @@ impl ThawsFilter {
                 format!("where status='{}' order by created_at ASC",status.as_str())
             }
             ThawsFilter::DelayConfirm(hash,height) => {
-                format!(" where status='launched' and hash_data='{}' and block_height='{}' ", hash,height)
+                format!(" where status='launched' and thaws_hash='{}' and block_height='{}' ", hash,height)
             }
             ThawsFilter::LastPushed => {
                 format!("where status='launched' or status='confirmed' order by created_at DESC limit 1")
