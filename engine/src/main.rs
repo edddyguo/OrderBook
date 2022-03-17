@@ -27,7 +27,7 @@ use std::ops::Sub;
 
 
 
-use crate::order::{cancel, match_order};
+use crate::order::{legal_cancel_orders_filter, legal_new_orders_filter, match_order};
 use std::sync::Mutex;
 use std::sync::{mpsc, Arc, RwLock};
 use std::time;
@@ -41,7 +41,7 @@ use chemix_models::order::{
 };
 use chemix_models::trade::{insert_trades, TradeInfo};
 
-use chemix_chain::chemix::storage::Storage;
+use chemix_chain::chemix::storage::{CancelOrderState2, Storage};
 use common::utils::math::{u256_to_f64, U256_ZERO};
 use common::utils::time::{get_current_time, get_unix_time};
 
@@ -49,6 +49,7 @@ use common::utils::time::{get_current_time, get_unix_time};
 use chemix_models::market::{get_markets, MarketInfo};
 
 use chemix_models::thaws::{insert_thaws, Thaws};
+use chemix_models::{transactin_begin, transactin_commit};
 use common::queue::*;
 use common::types::depth::{Depth, RawDepth};
 use common::types::order::Status as OrderStatus;
@@ -272,7 +273,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 .hash
                                 .unwrap();
                             info!("deal with block height {}", height);
-                            //取消订单
+                            //区块中的取消订单
                             let new_cancel_orders = chemix_storage_client
                                 .clone()
                                 .write()
@@ -285,48 +286,9 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 .await
                                 .unwrap();
                             info!("new_cancel_orders_event {:?}", new_cancel_orders);
-                            let legal_orders = cancel(new_cancel_orders.clone());
-                            if legal_orders.is_empty() {
-                                info!(
-                                    "Not found legal_cancel orders created at height {}",
-                                    height
-                                );
-                            } else {
-                                let mut pending_thaws = Vec::new();
-                                for cancel_order in legal_orders {
-                                    //todo: 重复list_order了
-                                    let orders = list_orders(OrderFilter::ByIndex(
-                                        cancel_order.order_index.as_u32(),
-                                    ))
-                                    .unwrap();
-                                    let order = orders.first().unwrap();
-                                    let update_info = UpdateOrder {
-                                        id: order.id.clone(),
-                                        status: OrderStatus::Canceled,
-                                        available_amount: U256_ZERO,
-                                        matched_amount: order.matched_amount,
-                                        canceled_amount: order.available_amount,
-                                        updated_at: get_current_time(),
-                                    };
-                                    //todo: 批量更新
-                                    update_order(&update_info);
-                                    pending_thaws.push(Thaws::new(
-                                        order.id.clone(),
-                                        order.account.clone(),
-                                        order.market_id.clone(),
-                                        order.available_amount,
-                                        order.price,
-                                        order.side.clone(),
-                                    ));
-                                }
-                                insert_thaws(pending_thaws.clone());
-                                let raw_depth = gen_depth_from_cancel_orders(pending_thaws);
-                                let depth = gen_depth_from_raw(raw_depth);
-                                send_depth_message(depth, arc_queue_cancel.clone()).await;
-                                //todo: 推送取消的深度
-                            }
+                            let legal_orders = legal_cancel_orders_filter(new_cancel_orders.clone());
 
-                            //过滤新下订单
+                            //区块中新创建的订单
                             let new_orders = chemix_storage_client
                                 .clone()
                                 .write()
@@ -339,42 +301,10 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 .await
                                 .unwrap();
                             info!("new_orders_event {:?} at height {}", new_orders, height);
+                            let mut db_new_orders = legal_new_orders_filter(new_orders,height);
 
-                            if new_orders.is_empty() {
-                                info!("Not found new order created at height {}", height);
-                            } else {
-                                let mut db_new_orders = Vec::new();
-                                for order in new_orders {
-                                    let base_decimal =
-                                        crate::MARKET.base_contract_decimal as u32;
-
-                                    let raw_amount = if base_decimal > order.num_power {
-                                        order.amount
-                                            * teen_power!(base_decimal - order.num_power)
-                                    } else {
-                                        order.amount
-                                            / teen_power!(order.num_power - base_decimal)
-                                    };
-                                    info!("amount_ori {},order.num_power {},amount_cur {}",
-                                        order.amount,order.num_power,raw_amount);
-                                    //todo: 非法数据过滤
-                                    db_new_orders.push(OrderInfo::new(
-                                        order.id,
-                                        order.index,
-                                        order.transaction_hash,
-                                        height,
-                                        order.hash_data,
-                                        crate::MARKET.id.to_string(),
-                                        order.account,
-                                        order.side,
-                                        order.price,
-                                        raw_amount,
-                                    ));
-                                }
-                                event_sender
-                                    .send(db_new_orders)
-                                    .expect("failed to send orders");
-                            }
+                            //将合法的事件信息推送给撮合模块处理
+                            event_sender.send((legal_orders,db_new_orders)).expect("failed to send orders");
                         }
                     }
                     last_process_height = current_height - CONFIRM_HEIGHT;
@@ -388,99 +318,136 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 
         s.spawn(move |_| {
             loop {
-                let mut orders: Vec<OrderInfo> =
+                let (legal_orders,mut orders): (Vec<CancelOrderState2>, Vec<OrderInfo>) =
                     event_receiver.recv().expect("failed to recv book order");
-                println!(
-                    "[listen_blocks: receive] New order Event {:?},base token {:?}",
-                    orders[0].id, orders[0].side
-                );
-                //TODO: matched order
-                //update OrderBook
+
                 let mut add_depth = RawDepth {
                     asks: HashMap::<U256, I256>::new(),
                     bids: HashMap::<U256, I256>::new(),
                 };
 
-                let mut db_trades = Vec::<TradeInfo>::new();
-                //market_orders的移除或者减少
-                let mut db_marker_orders_reduce = HashMap::<String, U256>::new();
-                for (index, db_order) in orders.iter_mut().enumerate() {
-                    let _matched_amount = match_order(
-                        db_order,
-                        &mut db_trades,
-                        &mut add_depth,
-                        &mut db_marker_orders_reduce,
-                    );
+                transactin_begin();
+                //处理取消的订单
+                if legal_orders.is_empty() {
+                    info!("Not found legal_cancel orders");
+                } else {
+                    let mut pending_thaws = Vec::new();
+                    for cancel_order in legal_orders {
+                        //todo: 重复list_order了
+                        let orders = list_orders(OrderFilter::ByIndex(
+                            cancel_order.order_index.as_u32(),
+                        )).unwrap();
+                        let order = orders.first().unwrap();
+                        let update_info = UpdateOrder {
+                            id: order.id.clone(),
+                            status: OrderStatus::Canceled,
+                            available_amount: U256_ZERO,
+                            matched_amount: order.matched_amount,
+                            canceled_amount: order.available_amount,
+                            updated_at: get_current_time(),
+                        };
+                        //todo: 批量更新
+                        update_order(&update_info);
+                        pending_thaws.push(Thaws::new(
+                            order.id.clone(),
+                            order.account.clone(),
+                            order.market_id.clone(),
+                            order.available_amount,
+                            order.price,
+                            order.side.clone(),
+                        ));
+                    }
+                    insert_thaws(pending_thaws.clone());
+                    add_depth = gen_depth_from_cancel_orders(pending_thaws);
+                }
 
+
+
+                //处理新来的订单
+                let mut db_trades = Vec::<TradeInfo>::new();
+                if orders.is_empty() {
+                    info!("Not found legal created orders");
+                }else {
                     info!(
-                        "index {},taker amount {},matched-amount {}",
-                        index, db_order.amount, _matched_amount
-                    );
-                    db_order.status = if db_order.available_amount == U256_ZERO {
-                        OrderStatus::FullFilled
-                    } else if db_order.available_amount != U256_ZERO
-                        && db_order.available_amount < db_order.amount
-                    {
-                        OrderStatus::PartialFilled
-                    } else if db_order.available_amount == db_order.amount {
-                        OrderStatus::Pending
-                    } else {
-                        unreachable!()
-                    };
-                    //tmp code: 校验数据准确性用，后边移除
-                    assert_eq!(_matched_amount, db_order.amount - db_order.available_amount);
-                    db_order.matched_amount = db_order.amount - db_order.available_amount;
-                    info!(
+                    "[listen_blocks: receive] New order Event {:?},base token {:?}",
+                    orders[0].id, orders[0].side
+                );
+                    //market_orders的移除或者减少
+                    let mut db_marker_orders_reduce = HashMap::<String, U256>::new();
+                    for (index, db_order) in orders.iter_mut().enumerate() {
+                        match_order(
+                            db_order,
+                            &mut db_trades,
+                            &mut add_depth,
+                            &mut db_marker_orders_reduce,
+                        );
+
+                        info!("index {},taker amount {}",index, db_order.amount);
+                        db_order.status = if db_order.available_amount == U256_ZERO {
+                            OrderStatus::FullFilled
+                        } else if db_order.available_amount != U256_ZERO
+                            && db_order.available_amount < db_order.amount
+                        {
+                            OrderStatus::PartialFilled
+                        } else if db_order.available_amount == db_order.amount {
+                            OrderStatus::Pending
+                        } else {
+                            unreachable!()
+                        };
+                        db_order.matched_amount = db_order.amount - db_order.available_amount;
+                        info!(
                         "finished match_order index {},and status {:?},status_str={},",
                         index,
                         db_order.status,
                         db_order.status.as_str()
                     );
-                }
-                error!("db_trades = {:?}", db_trades);
+                    }
+                    error!("db_trades = {:?}", db_trades);
 
-                //todo: 和下边的db操作的事务一致性处理
-                if !db_trades.is_empty() {
-                    insert_trades(&mut db_trades);
-                }
-                insert_order(orders.clone());
-                //update marker orders
-                info!("db_marker_orders_reduce {:?}", db_marker_orders_reduce);
-                for orders in db_marker_orders_reduce {
-                    let market_orders =
-                        list_orders(OrderFilter::ById(orders.0.clone())).unwrap();
-                    let marker_order_ori = market_orders.first().unwrap();
-                    let new_matched_amount = marker_order_ori.matched_amount + orders.1;
-                    info!(
+                    insert_order(orders.clone());
+                    if !db_trades.is_empty() {
+                        insert_trades(&mut db_trades);
+                    }
+                    //update marker orders
+                    info!("db_marker_orders_reduce {:?}", db_marker_orders_reduce);
+                    for orders in db_marker_orders_reduce {
+                        let market_orders =
+                            list_orders(OrderFilter::ById(orders.0.clone())).unwrap();
+                        let marker_order_ori = market_orders.first().unwrap();
+                        let new_matched_amount = marker_order_ori.matched_amount + orders.1;
+                        info!(
                         "marker_order_ori {};available_amount={},reduce_amount={}",
                         marker_order_ori.id, marker_order_ori.available_amount, orders.1
                     );
-                    let new_available_amount = marker_order_ori.available_amount - orders.1;
+                        let new_available_amount = marker_order_ori.available_amount - orders.1;
 
-                    let new_status = if new_available_amount == U256_ZERO {
-                        OrderStatus::FullFilled
-                    } else {
-                        OrderStatus::PartialFilled
-                    };
+                        let new_status = if new_available_amount == U256_ZERO {
+                            OrderStatus::FullFilled
+                        } else {
+                            OrderStatus::PartialFilled
+                        };
 
-                    let update_info = UpdateOrder {
-                        id: orders.0,
-                        status: new_status,
-                        available_amount: new_available_amount,
-                        canceled_amount: marker_order_ori.canceled_amount,
-                        matched_amount: new_matched_amount,
-                        updated_at: get_current_time(),
-                    };
-                    //todo: 批量更新
-                    update_order(&update_info);
+                        let update_info = UpdateOrder {
+                            id: orders.0,
+                            status: new_status,
+                            available_amount: new_available_amount,
+                            canceled_amount: marker_order_ori.canceled_amount,
+                            matched_amount: new_matched_amount,
+                            updated_at: get_current_time(),
+                        };
+                        //todo: 批量更新
+                        update_order(&update_info);
+                    }
                 }
 
-                //撮合信息推到ws模块
-                let depth = gen_depth_from_raw(add_depth);
+                transactin_commit();
                 let rt = Runtime::new().unwrap();
                 let arc_queue = arc_queue.clone();
                 rt.block_on(async move {
-                    send_depth_message(depth, arc_queue.clone()).await;
+                    let depth = gen_depth_from_raw(add_depth);
+                    if depth != Default::default() {
+                        send_depth_message(depth, arc_queue.clone()).await;
+                    }
                     let trades = gen_agg_trade_from_raw(db_trades);
                     if !trades.is_empty() {
                         info!("agg_trade {:?}", trades);

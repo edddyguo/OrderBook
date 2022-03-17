@@ -10,7 +10,7 @@ pub mod trade;
 extern crate jsonrpc_client_core;
 extern crate jsonrpc_client_http;
 
-use postgres::{Client, NoTls, Row};
+use postgres::{Client, NoTls, Row, Transaction};
 use std::any::Any;
 use std::env;
 
@@ -98,6 +98,14 @@ fn connetDB() -> Option<postgres::Client> {
             None
         }
     }
+}
+
+pub fn transactin_begin(){
+    crate::CLIENTDB.lock().unwrap().simple_query("BEGIN");
+}
+
+pub fn transactin_commit(){
+    crate::CLIENTDB.lock().unwrap().simple_query("commit").unwrap();
 }
 
 pub fn query(raw_sql: &str) -> anyhow::Result<Vec<Row>> {

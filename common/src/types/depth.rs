@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 //#[derive(Serialize)]
 
-#[derive(Clone, Serialize,Deserialize)]
+#[derive(Clone, Serialize,Deserialize,Default,PartialEq)]
 pub struct Depth {
     pub asks: Vec<(f64, f64)>,
     pub bids: Vec<(f64, f64)>,

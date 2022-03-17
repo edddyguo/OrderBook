@@ -7,7 +7,7 @@ use serde::Serialize;
 use crate::{ BookValue, BuyPriority};
 //use ethers::{prelude::*,types::{U256}};
 
-use chemix_chain::chemix::storage::CancelOrderState2;
+use chemix_chain::chemix::storage::{CancelOrderState2, ChainNewOrder};
 
 use chemix_models::order::{list_orders, OrderFilter, OrderInfo};
 use chemix_models::trade::TradeInfo;
@@ -32,7 +32,7 @@ pub fn match_order(
     trades: &mut Vec<TradeInfo>,
     raw_depth: &mut RawDepth,
     marker_reduced_orders: &mut HashMap<String, U256>,
-) -> U256 {
+) {
     let book = &mut crate::BOOK.lock().unwrap();
     let mut total_matched_amount = U256_ZERO;
     'marker_orders: loop {
@@ -184,12 +184,9 @@ pub fn match_order(
             }
         }
     }
-
-    info!("current book = {:?}", book);
-    total_matched_amount
 }
 
-pub fn cancel(new_cancel_orders: Vec<CancelOrderState2>) -> Vec<CancelOrderState2> {
+pub fn legal_cancel_orders_filter(new_cancel_orders: Vec<CancelOrderState2>) -> Vec<CancelOrderState2> {
     let mut legal_orders = Vec::<CancelOrderState2>::new();
     for new_cancel_order in new_cancel_orders {
         let orders =
@@ -241,6 +238,41 @@ pub fn cancel(new_cancel_orders: Vec<CancelOrderState2>) -> Vec<CancelOrderState
         }
     }
     legal_orders
+}
+
+
+pub fn legal_new_orders_filter(raw_orders: Vec<ChainNewOrder>,height: u32) -> Vec<OrderInfo>{
+    let mut db_new_orders = Vec::new();
+    for order in raw_orders {
+        let base_decimal =
+            crate::MARKET.base_contract_decimal as u32;
+
+        let raw_amount = if base_decimal > order.num_power {
+            order.amount
+                * teen_power!(base_decimal - order.num_power)
+        } else {
+            order.amount
+                / teen_power!(order.num_power - base_decimal)
+        };
+        info!("amount_ori {},order.num_power {},amount_cur {}",
+                                    order.amount,order.num_power,raw_amount);
+        //如果num_power过大，则raw_amount为零无效
+        if raw_amount != U256_ZERO  {
+            db_new_orders.push(OrderInfo::new(
+                order.id,
+                order.index,
+                order.transaction_hash,
+                height,
+                order.hash_data,
+                crate::MARKET.id.to_string(),
+                order.account,
+                order.side,
+                order.price,
+                raw_amount,
+            ));
+        }
+    }
+    db_new_orders
 }
 
 //根据未成交的订单生成深度数据
