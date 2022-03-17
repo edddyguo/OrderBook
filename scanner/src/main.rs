@@ -2,7 +2,7 @@ use std::time;
 
 use ethers_core::types::U256;
 
-use chemix_models::market::{get_markets2, list_markets};
+use chemix_models::market::{get_markets, list_markets};
 use chemix_models::order::{get_order_num, get_order_volume, get_user_number};
 use chemix_models::trade::{get_current_price2, get_trade_volume};
 use common::utils::time::get_unix_time;
@@ -35,7 +35,7 @@ fn get_token_price(quote_symbol: &str) -> Option<U256> {
     let market_id = format!("{}-USDT", quote_symbol);
 
     let cec_dicimal = teen_power!(get_token("CEC").unwrap().base_contract_decimal);
-    match get_markets2(&market_id) {
+    match get_markets(&market_id) {
         None => {
             //必须usdt和cec有一个交易对
             let token2cec_market_id = format!("{}-CEC", quote_symbol);

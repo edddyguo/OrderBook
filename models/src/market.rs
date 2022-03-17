@@ -66,29 +66,3 @@ pub fn get_markets(id: &str) -> Option<MarketInfo> {
         quote_front_decimal: rows[0].get::<usize, i32>(8) as u32,
     })
 }
-
-pub fn get_markets2(id: &str) -> Option<MarketInfo> {
-    let sql = format!(
-        "select id,base_token_address,base_token_symbol,base_contract_decimal,\
-    base_front_decimal,quote_token_address,quote_token_symbol,quote_contract_decimal,\
-    quote_front_decimal from chemix_markets where online=true and id=\'{}\'",
-        id
-    );
-    let execute_res = crate::query(sql.as_str()).unwrap();
-    if execute_res.is_empty() {
-        return None;
-    }
-    info!("get_markets: raw sql {}", sql);
-    //id只有一个
-    Some(MarketInfo {
-        id: execute_res[0].get(0),
-        base_token_address: execute_res[0].get(1),
-        base_token_symbol: execute_res[0].get(2),
-        base_contract_decimal: execute_res[0].get::<usize, i32>(3) as u32,
-        base_front_decimal: execute_res[0].get::<usize, i32>(4) as u32,
-        quote_token_address: execute_res[0].get(5),
-        quote_token_symbol: execute_res[0].get(6),
-        quote_contract_decimal: execute_res[0].get::<usize, i32>(7) as u32,
-        quote_front_decimal: execute_res[0].get::<usize, i32>(8) as u32,
-    })
-}

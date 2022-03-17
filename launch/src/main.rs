@@ -601,10 +601,11 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             info!("current {},wait for next block",last_height);
                             tokio::time::sleep(time::Duration::from_millis(500)).await;
                         }
-
+                        //XXX: 先更新db，在进行广播，如果失败，在监控确认逻辑中，该结算会一直处于launched状态（实际没发出去），在8个区块的检查时效后，
+                        // 状态重置为matched，重新进行清算，如果先广播再清算的话，如果广播后宕机，还没来得及更新db，就会造成重复清算
                         let mut receipt = Default::default();
                         loop {
-                            //                            match chemix_main_client2.read().unwrap().settlement_trades(MARKET.base_token_address.as_str(),MARKET.quote_token_address.as_str(),settle_trades.clone()).await {
+                            //match chemix_main_client2.read().unwrap().settlement_trades(MARKET.base_token_address.as_str(),MARKET.quote_token_address.as_str(),settle_trades.clone()).await {
                             info!("settlement_trades____ trade={:?}_index={},hash={:?}",settle_trades,last_order.index,hash_data);
                             match vault_settel_client.clone().read().unwrap().settlement_trades2(last_order.index, hash_data, settle_trades.clone()).await {
                                 Ok(data) => {
