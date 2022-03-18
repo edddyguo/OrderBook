@@ -42,6 +42,8 @@ use crate::snapshot::Snapshot;
 use serde::Deserialize;
 use serde::Serialize;
 
+static TRY_TIMES : u8 = 5;
+
 #[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
 pub enum TimeScope {
     NoLimit,
@@ -109,7 +111,7 @@ pub fn transactin_commit(){
 }
 
 pub fn query(raw_sql: &str) -> anyhow::Result<Vec<Row>> {
-    let mut try_times = 5;
+    let mut try_times = TRY_TIMES;
     loop {
         match crate::CLIENTDB.lock().unwrap().query(raw_sql, &[]) {
             Ok(data) => {
@@ -131,7 +133,7 @@ pub fn query(raw_sql: &str) -> anyhow::Result<Vec<Row>> {
 }
 
 pub fn execute(raw_sql: &str) -> anyhow::Result<u64> {
-    let mut try_times = 5;
+    let mut try_times = TRY_TIMES;
     loop {
         match crate::CLIENTDB.lock().unwrap().execute(raw_sql, &[]) {
             Ok(data) => {
@@ -226,16 +228,6 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
         None => (),
     };
 
-    /***
-        pub traders: i32,
-    pub transactions: i32,
-    pub order_volume: U256,
-    pub withdraw: i32,
-    pub trade_volume: U256,
-    pub trading_pairs: i32,
-    pub cec_price: U256,
-    pub snapshot_time: i64
-    */
     match value.downcast_ref::<Snapshot>() {
         Some(dash) => {
             values.push(dash.traders.to_string().string4sql());

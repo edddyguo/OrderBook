@@ -11,7 +11,7 @@ use log::info;
 use std::env;
 
 use chemix_models::market::{get_markets, list_markets as list_markets2};
-use chemix_models::order::{get_order_volume, list_orders as list_orders2, EngineOrderTmp2, OrderFilter, get_user_number};
+use chemix_models::order::{get_order_volume, list_orders as list_orders2, OpenOrder, OrderFilter, get_user_number};
 use chemix_models::snapshot::get_snapshot;
 use chemix_models::trade::{list_trades, TradeFilter};
 use chemix_models::TimeScope;
@@ -128,7 +128,7 @@ async fn dex_info(web::Path(()): web::Path<()>) -> impl Responder {
  * */
 
 #[derive(Serialize, Debug, Default)]
-pub struct MarketInfoTmp1 {
+pub struct MarketInfoVO {
     pub id: String,
     pub base_token_address: String,
     base_token_symbol: String,
@@ -147,14 +147,14 @@ pub struct MarketInfoTmp1 {
 
 #[get("/chemix/listMarkets")]
 async fn list_markets(web::Path(()): web::Path<()>) -> impl Responder {
-    let mut markets = Vec::<MarketInfoTmp1>::new();
+    let mut markets = Vec::<MarketInfoVO>::new();
     let db_markets = list_markets2();
     let now = get_current_time();
     for db_market in db_markets {
         let seven_day_volume = get_order_volume(TimeScope::SevenDay, &db_market.id);
         let twenty_four_hour_volume = get_order_volume(TimeScope::OneDay, &db_market.id);
         let token = get_token(db_market.base_token_symbol.as_str()).unwrap();
-        let data = MarketInfoTmp1 {
+        let data = MarketInfoVO {
             id: db_market.id,
             base_token_address: db_market.base_token_address,
             base_token_symbol: db_market.base_token_symbol,
@@ -497,7 +497,7 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
 
     let mut orders = orders
         .iter()
-        .map(|x| EngineOrderTmp2 {
+        .map(|x| OpenOrder {
             id: info.market_id.clone(),
             transaction_hash: x.transaction_hash.clone(),
             thaws_hash: "".to_string(),
@@ -510,14 +510,14 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
             status: x.status.as_str().to_string(),
             created_at: time2unix(x.created_at.clone()),
         })
-        .collect::<Vec<EngineOrderTmp2>>();
+        .collect::<Vec<OpenOrder>>();
     let thaws = list_thaws3(ThawsFilter::NotConfirmed(market_id.clone(),account.clone()));
     //todo：优化
     let mut mock_order = thaws.iter().map(|x| {
         //todo: thaws 的数据结构
         let account = format!("{:?}", x.account);
         let origin_order = list_orders2(OrderFilter::ById(x.order_id.clone())).unwrap();
-        EngineOrderTmp2 {
+        OpenOrder {
             id: x.market_id.clone(),
             transaction_hash: origin_order[0].transaction_hash.clone(),
             thaws_hash: x.thaws_hash.clone(),
@@ -525,12 +525,12 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
             account,
             price: u256_to_f64(x.price, quote_decimal),
             amount: u256_to_f64(x.amount, base_decimal),
-            matched_amount: u256_to_f64(x.amount, base_decimal),//tmpcode
+            matched_amount: u256_to_f64(x.amount, base_decimal),//tmp code
             side: x.side.clone(),
             status: "thawing".to_string(), //tmp code
             created_at: time2unix(origin_order[0].created_at.clone()),
         }
-    }).collect::<Vec<EngineOrderTmp2>>();
+    }).collect::<Vec<OpenOrder>>();
     orders.append(&mut mock_order);
     orders.sort_by(|a,b| {
         b.created_at.partial_cmp(&a.created_at).unwrap()

@@ -29,7 +29,7 @@ pub struct UpdateOrder {
 }
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
-pub struct EngineOrderTmp2 {
+pub struct OpenOrder {
     pub id: String,
     pub transaction_hash: String,
     pub thaws_hash: String,

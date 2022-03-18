@@ -245,8 +245,6 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
         s.spawn(move |_| {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
-                //let watcher = gen_watcher().await;
-                //let mut stream = watcher.provide.watch_blocks().await.unwrap();
                 let last_order = list_orders(OrderFilter::GetLastOne).unwrap();
                 let mut last_process_height = if last_order.is_empty() {
                     get_current_block().await
@@ -261,7 +259,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         info!("current chain height {},wait for new block", current_height);
                         tokio::time::sleep(time::Duration::from_millis(1000)).await;
                     } else {
-                        info!("current_book {:#?}", crate::BOOK.lock().unwrap());
+                        debug!("current_book {:#?}", crate::BOOK.lock().unwrap());
                         //规避RPC阻塞等网络问题导致的没有及时获取到最新块高，以及系统重启时期对离线期间区块的处理
                         //绝大多数情况last_process_height + 1 等于current_height - CONFIRM_HEIGHT
                         for height in last_process_height + 1..=current_height - CONFIRM_HEIGHT
@@ -333,7 +331,6 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 } else {
                     let mut pending_thaws = Vec::new();
                     for cancel_order in legal_orders {
-                        //todo: 重复list_order了
                         let orders = list_orders(OrderFilter::ByIndex(
                             cancel_order.order_index.as_u32(),
                         )).unwrap();
@@ -402,7 +399,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         db_order.status.as_str()
                     );
                     }
-                    error!("db_trades = {:?}", db_trades);
+                    info!("Generate trades {:?},and flush those to db", db_trades);
 
                     insert_order(orders.clone());
                     if !db_trades.is_empty() {
@@ -450,7 +447,6 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     }
                     let trades = gen_agg_trade_from_raw(db_trades);
                     if !trades.is_empty() {
-                        info!("agg_trade {:?}", trades);
                         send_agg_trade_message(trades, arc_queue.clone()).await;
                     }
                 });
