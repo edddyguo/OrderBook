@@ -441,8 +441,8 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 let rt = Runtime::new().unwrap();
                 let arc_queue = arc_queue.clone();
                 rt.block_on(async move {
-                    let depth = gen_depth_from_raw(add_depth);
-                    if depth != Default::default() {
+                    if add_depth != Default::default() {
+                        let depth = gen_depth_from_raw(add_depth);
                         send_depth_message(depth, arc_queue.clone()).await;
                     }
                     let trades = gen_agg_trade_from_raw(db_trades);

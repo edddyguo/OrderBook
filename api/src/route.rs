@@ -402,10 +402,10 @@ async fn klines(web::Query(info): web::Query<KlinesRequest>) -> impl Responder {
 #[get("/dashBoard/profile")]
 async fn dex_profile() -> impl Responder {
     let cec_token_decimal = 15u32;
-    //todo: 还未生成快照的时间点
     //current_and_yesterday_sanpshot
     let cays = get_snapshot().unwrap();
     let price = cays.0.cec_price;
+    //如果有清库的行为则会造成溢出
     let currentTVL = cays.0.order_volume - cays.0.withdraw;
     let cumulativeTransactions = cays.0.transactions as u32;
     let cumulativeTraders = cays.0.traders as u32;
@@ -414,7 +414,6 @@ async fn dex_profile() -> impl Responder {
     let snapshot_time = cays.0.snapshot_time as u64;
     let current_trade_volume = cays.0.trade_volume;
 
-    let yesterday_traders = cays.1.traders as u32;
     let yesterday_trader_volume = cays.1.trade_volume;
     let yesterday_transcations = cays.1.transactions as u32;
     let yesterdayTVL = cays.1.order_volume - cays.1.withdraw;
