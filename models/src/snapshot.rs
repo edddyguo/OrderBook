@@ -44,7 +44,6 @@ pub fn get_snapshot() -> Option<(Snapshot, Snapshot)> {
 }
 
 pub fn insert_snapshot(data: Snapshot) {
-    //todo: 批量插入
     let data_arr = struct2array(&data);
     let mut sql = format!("insert into chemix_snapshot values(");
     for i in 0..data_arr.len() {

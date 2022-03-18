@@ -6,7 +6,7 @@ use std::str::FromStr;
 use serde::Deserialize;
 
 //#[derive(Serialize)]
-use crate::struct2array;
+use crate::{assembly_insert_values, struct2array};
 use serde::Serialize;
 
 use common::utils::time::get_current_time;
@@ -117,22 +117,19 @@ pub fn update_thaws1(
     info!("success update order {} rows", execute_res);
 }
 
-pub fn insert_thaws(thaw_info: Vec<Thaws>) {
-    //todo: 批量插入
-    for order in thaw_info.into_iter() {
-        let order_info = struct2array(&order);
-        let mut sql = format!("insert into chemix_thaws values(");
-        for i in 0..order_info.len() {
-            if i < order_info.len() - 1 {
-                sql = format!("{}{},", sql, order_info[i]);
-            } else {
-                sql = format!("{}{})", sql, order_info[i]);
-            }
-        }
-        info!("insert order successful insert,sql={}", sql);
-        let execute_res = crate::execute(sql.as_str()).unwrap();
-        info!("success insert {} rows", execute_res);
-    }
+pub fn insert_thaws(thaw_info: &Vec<Thaws>) {
+    
+    let mut sql = format!("insert into chemix_thaws values(");
+    let thawsArr: Vec<Vec<String>> = thaw_info
+        .into_iter()
+        .map(|x| struct2array(x))
+        .collect::<Vec<Vec<String>>>();
+
+    let values = assembly_insert_values(thawsArr);
+    sql += &values;
+
+    let execute_res = crate::execute(sql.as_str()).unwrap();
+    info!("success insert {} rows", execute_res);
 }
 
 pub fn list_thaws3(filter: ThawsFilter) -> Vec<Thaws> {

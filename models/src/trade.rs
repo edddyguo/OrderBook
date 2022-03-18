@@ -1,4 +1,4 @@
-use crate::{struct2array, TimeScope};
+use crate::{assembly_insert_values, struct2array, TimeScope};
 use common::types::*;
 use common::utils::algorithm::sha256;
 use common::utils::time::get_current_time;
@@ -114,33 +114,9 @@ pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
         .into_iter()
         .map(|x| struct2array(x))
         .collect::<Vec<Vec<String>>>();
-    let mut index = 0;
-    let trades_len = tradesArr.len();
 
-    //not used
-    let mut tradesArr2: Vec<String> = Default::default();
-    // fixme:注入的写法暂时有问题，先直接拼接
-    for trade in tradesArr {
-        let mut temp_value = "".to_string();
-        for i in 0..trade.len() {
-            if i < trade.len() - 1 {
-                temp_value = format!("{}{},", temp_value, trade[i]);
-            } else {
-                temp_value = format!("{}{}", temp_value, trade[i]);
-            }
-        }
-        if index < trades_len - 1 {
-            sql = format!("{}{}),(", sql, temp_value);
-        } else {
-            sql = format!("{}{})", sql, temp_value);
-        }
-        let mut str_trade: Vec<String> = Default::default();
-        for item in trade {
-            str_trade.push(item);
-        }
-        tradesArr2.append(&mut str_trade);
-        index += 1;
-    }
+    let values = assembly_insert_values(tradesArr);
+    sql += &values;
 
     let execute_res = crate::execute(sql.as_str()).unwrap();
     info!("success insert traders {} rows", execute_res);

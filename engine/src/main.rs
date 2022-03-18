@@ -36,9 +36,7 @@ use tokio::runtime::Runtime;
 
 use clap::{App, Arg};
 
-use chemix_models::order::{
-    insert_order, list_orders, update_order, OrderFilter, OrderInfo, UpdateOrder,
-};
+use chemix_models::order::{insert_orders, list_orders, OrderFilter, OrderInfo, UpdateOrder, update_orders};
 use chemix_models::trade::{insert_trades, TradeInfo};
 
 use chemix_chain::chemix::storage::{CancelOrderState2, Storage};
@@ -330,6 +328,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     info!("Not found legal_cancel orders");
                 } else {
                     let mut pending_thaws = Vec::new();
+                    let mut pre_cancle_orders = Vec::new();
                     for cancel_order in legal_orders {
                         let orders = list_orders(OrderFilter::ByIndex(
                             cancel_order.order_index.as_u32(),
@@ -344,7 +343,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             updated_at: get_current_time(),
                         };
                         //todo: 批量更新
-                        update_order(&update_info);
+                        pre_cancle_orders.push(update_info);
                         pending_thaws.push(Thaws::new(
                             order.id.clone(),
                             order.account.clone(),
@@ -354,7 +353,8 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             order.side.clone(),
                         ));
                     }
-                    insert_thaws(pending_thaws.clone());
+                    update_orders(&pre_cancle_orders);
+                    insert_thaws(&pending_thaws);
                     add_depth = gen_depth_from_cancel_orders(pending_thaws);
                 }
 
@@ -368,7 +368,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     info!(
                     "[listen_blocks: receive] New order Event {:?},base token {:?}",
                     orders[0].id, orders[0].side
-                );
+                     );
                     //market_orders的移除或者减少
                     let mut db_marker_orders_reduce = HashMap::<String, U256>::new();
                     for (index, db_order) in orders.iter_mut().enumerate() {
@@ -401,12 +401,13 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     }
                     info!("Generate trades {:?},and flush those to db", db_trades);
 
-                    insert_order(orders.clone());
+                    insert_orders(&orders);
                     if !db_trades.is_empty() {
                         insert_trades(&mut db_trades);
                     }
                     //update marker orders
                     info!("db_marker_orders_reduce {:?}", db_marker_orders_reduce);
+                    let mut pre_update_orders = Vec::new();
                     for orders in db_marker_orders_reduce {
                         let market_orders =
                             list_orders(OrderFilter::ById(orders.0.clone())).unwrap();
@@ -415,7 +416,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         info!(
                         "marker_order_ori {};available_amount={},reduce_amount={}",
                         marker_order_ori.id, marker_order_ori.available_amount, orders.1
-                    );
+                        );
                         let new_available_amount = marker_order_ori.available_amount - orders.1;
 
                         let new_status = if new_available_amount == U256_ZERO {
@@ -433,8 +434,9 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             updated_at: get_current_time(),
                         };
                         //todo: 批量更新
-                        update_order(&update_info);
+                        pre_update_orders.push(update_info);
                     }
+                    update_orders(&pre_update_orders);
                 }
 
                 transactin_commit();

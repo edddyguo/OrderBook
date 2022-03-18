@@ -5,7 +5,7 @@ use ethers_core::types::U256;
 use serde::Deserialize;
 
 //#[derive(Serialize)]
-use crate::{struct2array, TimeScope};
+use crate::{assembly_insert_values, struct2array, TimeScope};
 use serde::Serialize;
 
 use common::utils::time::get_current_time;
@@ -18,7 +18,7 @@ use anyhow::Result;
 use common::types::order::Side as OrderSide;
 use common::utils::math::U256_ZERO;
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone,PartialEq)]
 pub struct UpdateOrder {
     pub id: String,
     pub status: OrderStatus,
@@ -138,23 +138,19 @@ impl OrderInfo {
     }
 }
 
-pub fn insert_order(orders: Vec<OrderInfo>) {
-    //fixme: 想办法批量插入
-    for order in orders.into_iter() {
-        let order_info = struct2array(&order);
+pub fn insert_orders(orders: &Vec<OrderInfo>) {
+    //todo 这个后边的括号可以挪走
+    let mut sql = format!("insert into chemix_orders values(");
+    let ordersArr: Vec<Vec<String>> = orders
+        .into_iter()
+        .map(|x| struct2array(x))
+        .collect::<Vec<Vec<String>>>();
 
-        let mut sql = format!("insert into chemix_orders values(");
-        for i in 0..order_info.len() {
-            if i < order_info.len() - 1 {
-                sql = format!("{}{},", sql, order_info[i]);
-            } else {
-                sql = format!("{}{})", sql, order_info[i]);
-            }
-        }
-        info!("insert order successful insert,sql={}", sql);
-        let execute_res = crate::execute(sql.as_str()).unwrap();
-        info!("success insert {} rows", execute_res);
-    }
+    let values = assembly_insert_values(ordersArr);
+    sql += &values;
+
+    let execute_res = crate::execute(sql.as_str()).unwrap();
+    info!("success insert orders {} rows", execute_res);
 }
 
 pub fn update_order(order: &UpdateOrder) {
@@ -175,25 +171,27 @@ pub fn update_order(order: &UpdateOrder) {
     info!("success update order {} rows", execute_res);
 }
 
-pub fn update_order_status(
-    status: OrderStatus,
-    available_amount: U256,
-    canceled_amount: U256,
-    order_id: &str,
-) {
-    // todo:考虑数据后期增加的问题，做每日的临时表
-    let sql = format!(
-        "UPDATE chemix_orders SET (available_amount,canceled_amount,status,updated_at)=\
-         ({},{},'{}','{}') WHERE id='{}'",
-        available_amount,
-        canceled_amount,
-        status.as_str(),
-        get_current_time(),
-        order_id
-    );
-    info!("start update order {} ", sql);
+pub fn update_orders(orders: &Vec<UpdateOrder>) {
+    let mut lines_str = "".to_string();
+    for order in orders {
+        let mut line_str = format!("({},{},{},'{}',cast('{}' as timestamp),'{}')",
+                               order.available_amount,order.canceled_amount,
+                               order.matched_amount,order.status.as_str(),
+                               order.updated_at,order.id);
+        if *order != *orders.last().unwrap() {
+            line_str += ",";
+        }
+        lines_str += &line_str;
+    }
+
+    let mut sql = format!(
+        "UPDATE chemix_orders SET (available_amount,canceled_amount,matched_amount,status,updated_at)\
+        =(tmp.available_amount,tmp.canceled_amount,tmp.matched_amount,tmp.status,tmp.updated_at) from \
+        (values {} ) as tmp (available_amount,canceled_amount,matched_amount,status,updated_at,id) where chemix_orders.id=tmp.id",lines_str);
+
+    info!("start update orders {} ", sql);
     let execute_res = crate::execute(sql.as_str()).unwrap();
-    info!("success update order {} rows", execute_res);
+    info!("success update orders {} rows", execute_res);
 }
 
 pub fn list_orders(filter: OrderFilter) -> Result<Vec<OrderInfo>> {

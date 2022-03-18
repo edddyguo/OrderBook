@@ -245,6 +245,29 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
     values
 }
 
+fn assembly_insert_values(lines: Vec<Vec<String>>) -> String{
+    let mut lines_str = format!("");
+    let mut index = 0;
+    let len = lines.len();
+    for line in lines {
+        let mut line_str = "".to_string();
+        for i in 0..line.len() {
+            if i < line.len() - 1 {
+                line_str = format!("{}{},", line_str, line[i]);
+            } else {
+                line_str = format!("{}{}", line_str, line[i]);
+            }
+        }
+        if index < len - 1 {
+            lines_str = format!("{}{}),(", lines_str, line_str);
+        } else {
+            lines_str = format!("{}{})", lines_str, line_str);
+        }
+        index += 1;
+    }
+    lines_str
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
