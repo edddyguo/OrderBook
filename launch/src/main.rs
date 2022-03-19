@@ -27,7 +27,7 @@ use tokio::runtime::Runtime;
 use tokio::time;
 
 use chemix_models::order::{list_orders, OrderFilter};
-use chemix_models::trade::{list_trades, update_trade, update_trade_by_hash, TradeInfo, TradeFilter};
+use chemix_models::trade::{list_trades, update_trade_by_hash, TradeInfo, TradeFilter, UpdateTrade, update_trades};
 use common::utils::algorithm::{sha256, u8_arr_from_str, u8_arr_to_str};
 use common::utils::math::{u256_to_f64, U256_ZERO};
 use common::utils::time::{get_current_time, get_unix_time};
@@ -39,7 +39,7 @@ use chemix_models::market::get_markets;
 use log::info;
 
 //use common::env::CONF as ENV_CONF;
-use chemix_models::thaws::{list_thaws3, Thaws, ThawsFilter};
+use chemix_models::thaws::{list_thaws, Thaws, ThawsFilter};
 use common::env::CONF as ENV_CONF;
 
 use common::types::order::{Side as OrderSide, Side};
@@ -57,7 +57,7 @@ extern crate common;
 
 const CONFIRM_HEIGHT: u32 = 2;
 
-use chemix_models::thaws::{update_thaws1};
+use chemix_models::thaws::{update_thaws};
 use common::types::depth::{Depth, RawDepth};
 
 #[derive(Clone, Serialize, Debug)]
@@ -297,7 +297,7 @@ async fn deal_launched_trade(
 async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<Rsmq>>,height: u32) {
     for new_thaw_flag in new_thaw_flags {
         //如果已经确认的跳过，可能发生在系统重启的时候
-        let pending_thaws = list_thaws3(ThawsFilter::DelayConfirm(new_thaw_flag.clone(),height));
+        let pending_thaws = list_thaws(ThawsFilter::DelayConfirm(new_thaw_flag.clone(), height));
         if pending_thaws.is_empty() {
             warn!("This thaw hash {} have already dealed,and jump it",new_thaw_flag.clone());
             continue
@@ -307,7 +307,7 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<
         for iter in iters.into_iter() {
             let mut thaw_infos = Vec::new();
             for pending_thaw in iter.clone() {
-                update_thaws1(
+                update_thaws(
                     pending_thaw.order_id.as_str(),
                     pending_thaw.thaws_hash.as_str(),
                     pending_thaw.transaction_hash.as_str(),
@@ -369,7 +369,7 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<
 }
 
 async fn get_last_process_height() -> u32{
-    let last_thaw = list_thaws3(ThawsFilter::LastPushed);
+    let last_thaw = list_thaws(ThawsFilter::LastPushed);
     let last_trade = list_trades(TradeFilter::LastPushed);
 
     if last_thaw.len() == 0 && last_trade.len() == 0{
@@ -472,7 +472,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
                 loop {
-                    let pending_thaws = list_thaws3(ThawsFilter::Status(ThawStatus::Pending));
+                    let pending_thaws = list_thaws(ThawsFilter::Status(ThawStatus::Pending));
                     if pending_thaws.is_empty() {
                         info!("Have no thaws need deal,and wait 5 seconds for next check");
                         tokio::time::sleep(time::Duration::from_millis(5000)).await;
@@ -562,7 +562,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     //todo: 批处理
                     //pub fn update_thaws1(order_id:&str,cancel_id: &str,tx_id: &str,block_height:i32,status: ThawStatus) {
                     for pending_thaw in pending_thaws.clone() {
-                        update_thaws1(
+                        update_thaws(
                             pending_thaw.order_id.as_str(),
                             cancel_id_str.as_str(),
                             transaction_hash.as_str(),
@@ -601,7 +601,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             info!("current {},wait for next block",last_height);
                             tokio::time::sleep(time::Duration::from_millis(500)).await;
                         }
-                        //XXX: 先更新db，在进行广播，如果失败，在监控确认逻辑中，该结算会一直处于launched状态（实际没发出去），在8个区块的检查时效后，
+                        //todo: 先更新db，在进行广播，如果失败，在监控确认逻辑中，该结算会一直处于launched状态（实际没发出去），在8个区块的检查时效后，
                         // 状态重置为matched，重新进行清算，如果先广播再清算的话，如果广播后宕机，还没来得及更新db，就会造成重复清算
                         let mut receipt = Default::default();
                         loop {
@@ -628,9 +628,19 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 
                         let height = receipt.block_number.unwrap().to_string().parse::<u32>().unwrap();
                         let transaction_hash = format!("{:?}", receipt.transaction_hash);
-                        for db_trade in db_trades.clone() {
-                            update_trade(db_trade.id.as_str(), TradeStatus::Launched, height, transaction_hash.as_str(), &last_order.hash_data);
-                        }
+                        //todo： 批量处理
+                        let now = get_current_time();
+                        let trades = db_trades.iter().map(|x| {
+                            UpdateTrade{
+                                id: x.id.clone(),
+                                status: TradeStatus::Launched,
+                                block_height: height,
+                                transaction_hash:transaction_hash.clone(),
+                                hash_data: last_order.hash_data.clone(),
+                                updated_at: now.clone()
+                            }
+                        }).collect::<Vec<UpdateTrade>>();
+                        update_trades(&trades);
                     }
                 }
             });

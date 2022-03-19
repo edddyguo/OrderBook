@@ -60,7 +60,6 @@ lazy_static! {
             chain_id.into_string().unwrap().parse::<u64>().unwrap()
     };
 
-    //fixme: 放到上层注入
     static ref CONTRACT_CLIENT: ContractClient = {
         let chain_id = ENV_CONF.chain_id.to_owned().unwrap();
         let chain_id = chain_id.into_string().unwrap().parse::<u64>().unwrap();

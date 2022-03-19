@@ -153,24 +153,6 @@ pub fn insert_orders(orders: &Vec<OrderInfo>) {
     info!("success insert orders {} rows", execute_res);
 }
 
-pub fn update_order(order: &UpdateOrder) {
-    // todo:考虑数据后期增加的问题，做每日的临时表
-    let sql = format!(
-        "UPDATE chemix_orders SET (available_amount,\
-         canceled_amount,matched_amount,status,updated_at)=\
-         ({},{},{},'{}','{}') WHERE id='{}'",
-        order.available_amount,
-        order.canceled_amount,
-        order.matched_amount,
-        order.status.as_str(),
-        order.updated_at,
-        order.id
-    );
-    info!("start update order {} ", sql);
-    let execute_res = crate::execute(sql.as_str()).unwrap();
-    info!("success update order {} rows", execute_res);
-}
-
 pub fn update_orders(orders: &Vec<UpdateOrder>) {
     let mut lines_str = "".to_string();
     for order in orders {

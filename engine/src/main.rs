@@ -322,6 +322,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     bids: HashMap::<U256, I256>::new(),
                 };
 
+                //单区块内的所有落表，作为一个事务处理
                 transactin_begin();
                 //处理取消的订单
                 if legal_orders.is_empty() {
@@ -342,7 +343,6 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             canceled_amount: order.available_amount,
                             updated_at: get_current_time(),
                         };
-                        //todo: 批量更新
                         pre_cancle_orders.push(update_info);
                         pending_thaws.push(Thaws::new(
                             order.id.clone(),
@@ -433,7 +433,6 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             matched_amount: new_matched_amount,
                             updated_at: get_current_time(),
                         };
-                        //todo: 批量更新
                         pre_update_orders.push(update_info);
                     }
                     update_orders(&pre_update_orders);

@@ -70,6 +70,16 @@ pub struct TradeInfo {
     pub created_at: String,
 }
 
+#[derive(Deserialize, Debug, Clone,PartialEq)]
+pub struct UpdateTrade {
+    pub id: String,
+    pub status: TradeStatus,
+    pub block_height: u32,
+    pub transaction_hash: String,
+    pub hash_data: String,
+    pub updated_at: String,
+}
+
 impl TradeInfo {
     pub fn new(
         market_id: String,
@@ -172,7 +182,7 @@ pub fn list_trades(filter: TradeFilter) -> Vec<TradeInfo> {
     trades
 }
 
-
+/***
 pub fn update_trade(
     id: &str,
     status: TradeStatus,
@@ -193,6 +203,30 @@ pub fn update_trade(
     info!("start update trade {} ", sql);
     let execute_res = crate::execute(sql.as_str()).unwrap();
     info!("success update trade {} rows", execute_res);
+}
+ */
+
+pub fn update_trades(trades: &Vec<UpdateTrade>) {
+    let mut lines_str = "".to_string();
+    for trade in trades {
+        let mut line_str = format!("({},{},{},'{}',cast('{}' as timestamp),'{}')",
+                                   trade.status.as_str(),trade.block_height,
+                                   trade.transaction_hash,trade.hash_data,
+                                   trade.updated_at,trade.id);
+        if *trade != *trades.last().unwrap() {
+            line_str += ",";
+        }
+        lines_str += &line_str;
+    }
+
+    let mut sql = format!(
+        "UPDATE chemix_trades SET (status,block_height,transaction_hash,hash_data,updated_at)\
+        =(tmp.status,tmp.block_height,tmp.transaction_hash,tmp.hash_data,tmp.updated_at) from \
+        (values {} ) as tmp (status,block_height,transaction_hash,hash_data,updated_at,id) where chemix_trades.id=tmp.id",lines_str);
+
+    info!("start update trades {} ", sql);
+    let execute_res = crate::execute(sql.as_str()).unwrap();
+    info!("success update trades {} rows", execute_res);
 }
 
 pub fn update_trade_by_hash(status: TradeStatus, hash_data: &str, block_height: u32) {

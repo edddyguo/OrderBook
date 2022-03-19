@@ -94,7 +94,7 @@ impl Thaws {
     }
 }
 
-pub fn update_thaws1(
+pub fn update_thaws(
     order_id: &str,
     cancel_id: &str,
     transaction_hash: &str,
@@ -132,7 +132,7 @@ pub fn insert_thaws(thaw_info: &Vec<Thaws>) {
     info!("success insert {} rows", execute_res);
 }
 
-pub fn list_thaws3(filter: ThawsFilter) -> Vec<Thaws> {
+pub fn list_thaws(filter: ThawsFilter) -> Vec<Thaws> {
     let sql = format!(
         "select order_id,\
     account,\

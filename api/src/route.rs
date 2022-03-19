@@ -17,7 +17,7 @@ use chemix_models::trade::{list_trades, TradeFilter};
 use chemix_models::TimeScope;
 use common::utils::time::{get_current_time, get_unix_time, time2unix};
 use serde::{Deserialize, Serialize};
-use chemix_models::thaws::{list_thaws3, ThawsFilter};
+use chemix_models::thaws::{list_thaws, ThawsFilter};
 
 use chemix_models::tokens::get_token;
 
@@ -214,7 +214,6 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     let market_info = get_markets(info.market_id.as_str()).unwrap();
     let base_decimal = market_info.base_contract_decimal;
     let quote_decimal = market_info.quote_contract_decimal;
-    //todo:BtreeMap
     let mut available_buy_orders = list_orders2(OrderFilter::AvailableOrders(
         info.market_id.clone(),
         OrderSide::Buy,
@@ -510,10 +509,9 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
             created_at: time2unix(x.created_at.clone()),
         })
         .collect::<Vec<OpenOrder>>();
-    let thaws = list_thaws3(ThawsFilter::NotConfirmed(market_id.clone(),account.clone()));
-    //todo：优化
+    let thaws = list_thaws(ThawsFilter::NotConfirmed(market_id.clone(), account.clone()));
+    //XXX: 当前为了适配前端本地缓存的
     let mut mock_order = thaws.iter().map(|x| {
-        //todo: thaws 的数据结构
         let account = format!("{:?}", x.account);
         let origin_order = list_orders2(OrderFilter::ById(x.order_id.clone())).unwrap();
         OpenOrder {
@@ -590,6 +588,7 @@ struct RecentTradesRequest {
     limit: u32,
 }
 
+//已废弃
 #[get("/chemix/recentTrades")]
 async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> impl Responder {
     let market_info = get_markets(info.market_id.as_str()).unwrap();
@@ -612,7 +611,6 @@ async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> imp
                 price: u256_to_f64(x.price, quote_decimal),
                 amount: u256_to_f64(x.amount, base_decimal),
                 height: 12345i32,
-                // fixme: maybe side?
                 taker_side: side,
                 updated_at: time2unix(x.created_at.clone()),
             }
