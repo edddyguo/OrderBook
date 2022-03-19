@@ -209,7 +209,7 @@ pub fn update_trade(
 pub fn update_trades(trades: &Vec<UpdateTrade>) {
     let mut lines_str = "".to_string();
     for trade in trades {
-        let mut line_str = format!("({},{},{},'{}',cast('{}' as timestamp),'{}')",
+        let mut line_str = format!("('{}',{},'{}','{}',cast('{}' as timestamp),'{}')",
                                    trade.status.as_str(),trade.block_height,
                                    trade.transaction_hash,trade.hash_data,
                                    trade.updated_at,trade.id);
