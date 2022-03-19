@@ -34,7 +34,7 @@ async function main() {
     let chemix_signer = signer[0];
 
     const issueAmountDefault = BigInt(100_000_000_000_000_000_000_000_000_000) //100_000_000_000
-    var options = {gasPrice: 2000000000, gasLimit: 2950000, value: 0};
+    var options = {gasPrice: 100000000000, gasLimit: 2950000, value: 0};
 
     /***
      * 21:47
@@ -75,20 +75,36 @@ async function main() {
      * deployVault:   0x5984F8E1dEDadB954ca69d9EBDF9d9a24368539a
      * deployChemiMain:   0xD8CBcc11eDaaAB8b93DEe65bdaD14983cA197B42
      * storageAccessRes:   {
+     *
+     * tbsc
+     * deployTokenCEC:   0xf86a0a65435Ab39B355b8FA3651346Dbe8EEe14B
+     * deployTokenUSDT:   0xb3f1410AA0f358771417a53519B634a50Ee3AB1b
+     * deployTokenWBTC:   0xFe61B257B40D189A311Ef9c1F61BcE78df8F5c18
+     * deployTokenWETH:   0x65479F56d9c60d11e12441A136eeCE11c4d8f4D6
+     * deployStorage:   0xB2624daC7374cc5E94fbb720ab0e6cdb01c38EDe
+     * deployTokenProxy:   0x979CF4FEDE5f08EAFe8c10791636F777644ae2a3
+     * deployVault:   0x55fD8f77F38A710846Cc38324b35ED18c8d04E2d
+     * ^@deployChemiMain:   0xCF5B03092560eeDDE8eFadAaD63eB19298eBf9F9
      * **/
 
 
-    const contractTokenCEC = await ethers.getContractAt("ChemixPlatform", '0x7CDD8A127660BA96217CE200be0bfEACf13254dA', chemix_signer)
-    const contractTokenUSDT = await ethers.getContractAt("TetherToken", '0x88497793A8fA0d1418087282d491872363E56Ac8', chemix_signer)
-    const contractTokenWBTC = await ethers.getContractAt("WrapedBitcoin", '0xD5A0e5F666336732D3dad0552e2E6ae23D937913', chemix_signer)
-    const contractTokenWETH = await ethers.getContractAt("WrapedEtherum", '0xF3a293B1b4DAeb1c599A9Ac50A29c97E4C44d43B', chemix_signer)
+    const contractTokenCEC = await ethers.getContractAt("ChemixPlatform", '0xf86a0a65435Ab39B355b8FA3651346Dbe8EEe14B', chemix_signer)
+    const contractTokenUSDT = await ethers.getContractAt("TetherToken", '0xb3f1410AA0f358771417a53519B634a50Ee3AB1b', chemix_signer)
+    const contractTokenWBTC = await ethers.getContractAt("WrapedBitcoin", '0xFe61B257B40D189A311Ef9c1F61BcE78df8F5c18', chemix_signer)
+    const contractTokenWETH = await ethers.getContractAt("WrapedEtherum", '0x65479F56d9c60d11e12441A136eeCE11c4d8f4D6', chemix_signer)
 
-    const contractChemixStorage = await ethers.getContractAt("ChemixStorage", '0x87852231D018212905a15CDE4155666143C079f7', chemix_signer)
-    const contractTokenProxy = await ethers.getContractAt("TokenProxy", '0x0459768c278ecf3b47114dE7dFcA70497397dAdd', chemix_signer)
-    const contractVault = await ethers.getContractAt("Vault", '0x5984F8E1dEDadB954ca69d9EBDF9d9a24368539a', chemix_signer)
-    const contractChemixMain = await ethers.getContractAt("ChemixMain", '0xD8CBcc11eDaaAB8b93DEe65bdaD14983cA197B42', chemix_signer)
+    const contractChemixStorage = await ethers.getContractAt("ChemixStorage", '0xB2624daC7374cc5E94fbb720ab0e6cdb01c38EDe', chemix_signer)
+    const contractTokenProxy = await ethers.getContractAt("TokenProxy", '0x979CF4FEDE5f08EAFe8c10791636F777644ae2a3', chemix_signer)
+    const contractVault = await ethers.getContractAt("Vault", '0x55fD8f77F38A710846Cc38324b35ED18c8d04E2d', chemix_signer)
+    const contractChemixMain = await ethers.getContractAt("ChemixMain", '0xCF5B03092560eeDDE8eFadAaD63eB19298eBf9F9', chemix_signer)
 
-
+    console.log('check_pair_wbtc_usdt result ', await contractChemixStorage.checkPairExist(contractTokenWBTC.address, contractTokenUSDT.address, options));
+    console.log('check_pair_weth_usdt result ', await contractChemixStorage.checkPairExist(contractTokenWETH.address, contractTokenUSDT.address, options));
+    console.log('check_pair_cec_usdt result ', await contractChemixStorage.checkPairExist(contractTokenCEC.address, contractTokenUSDT.address, options));
+    console.log('check_pair_wbtc_cec result ', await contractChemixStorage.checkPairExist(contractTokenWBTC.address, contractTokenCEC.address, options));
+    console.log('check_pair_weth_cec result ', await contractChemixStorage.checkPairExist(contractTokenWETH.address, contractTokenCEC.address, options));
+    return;
+    /***
     let authorizeSettle_res = await contractVault.authorizeSettle(account1, options);
     console.log('authorizeSettle_res result ', authorizeSettle_res);
 
@@ -121,35 +137,7 @@ async function main() {
     let balanceAcc_erc20_B = await contractTokenUSDT.balanceOf(account1, options);
     console.log('balanceB ', balanceAcc_erc20_B);
 
-    //grantCreatePairAddr
-    /***
-     let grantCreatePairAddr_result = await contractChemixMain.grantCreatePairAddr(account1,options);
-     console.log('grantCreatePairAddr result ',grantCreatePairAddr_result);
 
-     //grantSettleAddr
-     let grantSettleAddr_result = await contractVault.grantSettleAddr(account2,options);
-     console.log('grantSettleAddr_result result ',grantSettleAddr_result);
-     ***/
-
-    /***
-     let authorizeSettle_res = await contractVault.authorizeSettle(account2,options);
-     console.log('authorizeSettle_res result ',authorizeSettle_res);
-
-
-
-
-
-     //approve
-     let acc1ApproveTokenARes2 = await contractTokenWBTC.approve(contractTokenProxy.address,balanceAcc_erc20_A,options);
-     //console.log('acc1ApproveTokenARes ',acc1ApproveTokenARes2);
-     let acc1ApproveTokenBRes2 = await contractTokenUSDT.approve(contractTokenProxy.address,balanceAcc_erc20_B,options);
-     // console.log('acc1ApproveTokenBRes ',acc1ApproveTokenBRes2);
-
-     let allowanceA2 = await contractTokenWBTC.allowance(account_tj,contractTokenProxy.address,options);
-     console.log('allowanceA ',allowanceA2);
-     let allowanceB2 = await contractTokenUSDT.allowance(account_tj,contractTokenProxy.address,options);
-     console.log('allowanceB ',allowanceB2);
-     ***/
     let grantCreatePairAddr_result = await contractChemixMain.grantCreatePairAddr(account1, options);
     console.log('grantCreatePairAddr result ', grantCreatePairAddr_result);
 
@@ -172,40 +160,42 @@ async function main() {
     await contractChemixMain.createPair(contractTokenWBTC.address, contractTokenCEC.address, options);
     await contractChemixMain.createPair(contractTokenWETH.address, contractTokenCEC.address, options);
 
-
+    **/
     //issue tokenA to account1
     //issue tokenB to account1
     let tokenAIssueAcc1Res = await contractTokenWBTC.issue(issueAmountDefault, options);
     console.log('tokenAIssueAcc1Res ', tokenAIssueAcc1Res);
-    await contractTokenWBTC.transfer(account4, issueAmountDefault);
+    await contractTokenWBTC.transfer(account2, issueAmountDefault);
 
     let tokenBIssueAcc1Res = await contractTokenUSDT.issue(issueAmountDefault, options);
     console.log('tokenAIssueAcc2Res ', tokenBIssueAcc1Res);
-    await contractTokenUSDT.transfer(account4, issueAmountDefault);
+    await contractTokenUSDT.transfer(account2, issueAmountDefault);
+
 
     console.log("deployTokenC:  ", contractTokenWETH.address);
     let tokenCIssueAcc1Res = await contractTokenWETH.issue(issueAmountDefault, options);
     console.log('tokenCIssueAcc1Res ', tokenCIssueAcc1Res);
-    await contractTokenWETH.transfer(account4, issueAmountDefault);
+    await contractTokenWETH.transfer(account2, issueAmountDefault);
 
 
     console.log("deployTokenCHE:  ", contractTokenCEC.address);
     let tokenCHEIssueAcc1Res = await contractTokenCEC.issue(issueAmountDefault, options);
     console.log('tokenCHEIssueAcc1Res ', tokenCHEIssueAcc1Res);
-    await contractTokenCEC.transfer(account4, issueAmountDefault);
+    await contractTokenCEC.transfer(account2, issueAmountDefault);
 
 
-    let balanceAcc1 = await contractTokenWBTC.balanceOf(account1, options);
+    let balanceAcc1 = await contractTokenWBTC.balanceOf(account2, options);
     console.log('balanceA ', balanceAcc1);
-    let balanceBcc1 = await contractTokenUSDT.balanceOf(account1, options);
+    let balanceBcc1 = await contractTokenUSDT.balanceOf(account2, options);
     console.log('balanceB ', balanceBcc1);
 
-
+    return;
+    /***
     try {
         await contractTokenCEC.approve(contractTokenProxy.address, balanceBcc1+100, options)
     } catch (e) {
         console.log("", e)
-    }
+    }*/
 
     //approve
     let acc1ApproveTokenARes = await contractTokenWBTC.approve(contractTokenProxy.address, balanceAcc1, options);
