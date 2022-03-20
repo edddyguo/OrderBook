@@ -401,9 +401,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     info!("Generate trades {:?},and flush those to db", db_trades);
 
                     insert_orders(&orders);
-                    if !db_trades.is_empty() {
-                        insert_trades(&mut db_trades);
-                    }
+
                     //update marker orders
                     info!("db_marker_orders_reduce {:?}", db_marker_orders_reduce);
                     let mut pre_update_orders = Vec::new();
@@ -434,7 +432,10 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         };
                         pre_update_orders.push(update_info);
                     }
-                    update_orders(&pre_update_orders);
+                    if !db_trades.is_empty() {
+                        insert_trades(&mut db_trades);
+                        update_orders(&pre_update_orders);
+                    }
                 }
 
                 transactin_commit();
