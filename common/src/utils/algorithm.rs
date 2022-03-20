@@ -1,14 +1,4 @@
-use std::str::FromStr;
-use ethers_core::types::Signature;
-use log::info;
 use ring::digest;
-use ring::{
-    rand,
-    signature::{self, KeyPair},
-    test, test_file,
-};
-use ring::agreement::UnparsedPublicKey;
-use ring::signature::EcdsaKeyPair;
 
 pub fn sha256(data: String) -> String {
     let mut buf = Vec::new();
@@ -46,7 +36,7 @@ pub fn u8_arr_from_str(data_str: String) -> [u8; 32] {
     data
 }
 
-pub fn test_singer(){
+pub fn test_singer() {
     /***
     let rng = rand::SystemRandom::new();
     let pkcs8_bytes =
@@ -70,16 +60,16 @@ pub fn test_singer(){
      */
 }
 
-
 #[cfg(test)]
 mod tests {
-    use ring::{rand, signature};
-    use ring::signature::{EcdsaKeyPair, KeyPair, Signature, UnparsedPublicKey};
+
     use crate::utils::algorithm::{u8_arr_from_str, u8_arr_to_str};
+    /***
     use p256::{
         ecdsa::{SigningKey, Signature, signature::Signer},
     };
-    use rand_core::OsRng; // requires 'getrandom' feature
+
+     */
 
     #[test]
     fn test_u8_arr_from_str() {
@@ -94,7 +84,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sign(){
+    fn test_sign() {
         //0x81f987ecec5ebce6ba1d3af4c6bef71203e242fd74656e3a1efd8fe3e1d351344acf48a8040a8bdafdd792e4c71186a990d703dfc97c02f56f65960a9c66c8cd1c
         //Example `personal_sign` message
         //0x3bb395b668ff9cb84e55aadfc8e646dd9184da9d
@@ -125,7 +115,5 @@ mod tests {
     }
 
     #[test]
-    fn test_ecdsa(){
-
-    }
+    fn test_ecdsa() {}
 }

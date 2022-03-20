@@ -45,21 +45,18 @@ impl Node<Ws> {
 }
 
 lazy_static! {
-    static ref WATCHER : String = {
-            let url = ENV_CONF.chain_ws.to_owned().unwrap();
-            url.to_str().unwrap().to_owned()
+    static ref WATCHER: String = {
+        let url = ENV_CONF.chain_ws.to_owned().unwrap();
+        url.to_str().unwrap().to_owned()
     };
-
-    static ref PROVIDER : Node<Http> =  {
-            let url = ENV_CONF.chain_rpc.to_owned().unwrap();
-            Node::<Http>::new(url.to_str().unwrap())
+    static ref PROVIDER: Node<Http> = {
+        let url = ENV_CONF.chain_rpc.to_owned().unwrap();
+        Node::<Http>::new(url.to_str().unwrap())
     };
-
-    static ref CHAIN_ID : u64 = {
-            let chain_id = ENV_CONF.chain_id.to_owned().unwrap();
-            chain_id.into_string().unwrap().parse::<u64>().unwrap()
+    static ref CHAIN_ID: u64 = {
+        let chain_id = ENV_CONF.chain_id.to_owned().unwrap();
+        chain_id.into_string().unwrap().parse::<u64>().unwrap()
     };
-
     static ref CONTRACT_CLIENT: ContractClient = {
         let chain_id = ENV_CONF.chain_id.to_owned().unwrap();
         let chain_id = chain_id.into_string().unwrap().parse::<u64>().unwrap();

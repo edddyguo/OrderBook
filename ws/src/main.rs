@@ -16,14 +16,14 @@ use std::sync::Arc;
 
 use chemix_chain::chemix::ThawBalances2;
 use common::queue::*;
-use serde::{Deserialize, Serialize};
+
 //use serde_json::Value::String;
+use common::types::depth::Depth;
+use common::types::trade::AggTrade;
 use tokio::sync::{mpsc, RwLock};
 use tokio::time;
 use warp::http::Method;
 use warp::{ws::Message, Filter, Rejection};
-use common::types::depth::Depth;
-use common::types::trade::AggTrade;
 
 mod handler;
 mod ws;

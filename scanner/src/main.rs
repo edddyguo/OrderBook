@@ -14,7 +14,6 @@ use chemix_models::TimeScope;
 
 use chemix_models::tokens::{get_token, list_tokens};
 
-use common::env::CONF as ENV_CONF;
 use common::utils::math::U256_ZERO;
 
 #[macro_use]

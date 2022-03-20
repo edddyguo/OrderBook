@@ -3,7 +3,6 @@ extern crate rustc_serialize;
 use crate::types::order;
 use serde::{Deserialize, Serialize};
 
-
 #[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
 pub enum Status {
     #[serde(rename = "matched")]
@@ -39,7 +38,7 @@ impl From<&str> for Status {
     }
 }
 
-#[derive(Clone, Serialize, Debug,Deserialize)]
+#[derive(Clone, Serialize, Debug, Deserialize)]
 pub struct AggTrade {
     pub id: String,
     pub taker: String,

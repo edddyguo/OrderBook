@@ -1,8 +1,8 @@
 #![feature(slice_group_by)]
 
-use std::cmp::{max, min};
 use ethers::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::cmp::max;
+use std::collections::HashMap;
 
 //use ethers::providers::Ws;
 
@@ -27,19 +27,19 @@ use tokio::runtime::Runtime;
 use tokio::time;
 
 use chemix_models::order::{list_orders, OrderFilter};
-use chemix_models::trade::{list_trades, update_trade_by_hash, TradeInfo, TradeFilter, UpdateTrade, update_trades};
+use chemix_models::trade::{
+    list_trades, update_trade_by_hash, update_trades, TradeFilter, TradeInfo, UpdateTrade,
+};
 use common::utils::algorithm::{sha256, u8_arr_from_str, u8_arr_to_str};
-use common::utils::math::{u256_to_f64, U256_ZERO};
+use common::utils::math::u256_to_f64;
 use common::utils::time::{get_current_time, get_unix_time};
-
-use ethers_core::abi::ethereum_types::U64;
 
 use chemix_chain::chemix::vault::{SettleValues3, ThawBalances, Vault};
 use chemix_models::market::get_markets;
 use log::info;
 
 //use common::env::CONF as ENV_CONF;
-use chemix_models::thaws::{list_thaws, Thaws, ThawsFilter};
+use chemix_models::thaws::{list_thaws, ThawsFilter};
 use common::env::CONF as ENV_CONF;
 
 use common::types::order::{Side as OrderSide, Side};
@@ -57,15 +57,14 @@ extern crate common;
 
 const CONFIRM_HEIGHT: u32 = 2;
 
-use chemix_models::thaws::{update_thaws};
-use common::types::depth::{Depth, RawDepth};
+use chemix_models::thaws::update_thaws;
+use common::types::depth::RawDepth;
 
 #[derive(Clone, Serialize, Debug)]
 pub struct EnigneSettleValues {
     pub incomeQuoteToken: I256,
     pub incomeBaseToken: I256,
 }
-
 
 #[derive(RustcEncodable, Clone, Serialize)]
 pub struct LastTrade {
@@ -225,7 +224,6 @@ fn update_depth(depth_ori: &mut RawDepth, x: &TradeInfo) {
     }
 }
 
-
 async fn deal_launched_trade(
     new_settlements: Vec<String>,
     arc_queue: Arc<RwLock<Rsmq>>,
@@ -235,9 +233,12 @@ async fn deal_launched_trade(
     let mut agg_trades = HashMap::<String, Vec<AggTrade>>::new();
     //目前来说一个区块里只有一个清算
     for hash_data in new_settlements {
-        let db_trades = list_trades(TradeFilter::DelayConfirm(hash_data.clone(),block_height));
+        let db_trades = list_trades(TradeFilter::DelayConfirm(hash_data.clone(), block_height));
         if db_trades.is_empty() {
-            warn!("This trade hash {} have already dealed,and jump it",hash_data.clone());
+            warn!(
+                "This trade hash {} have already dealed,and jump it",
+                hash_data.clone()
+            );
             continue;
         }
         for x in db_trades.clone() {
@@ -294,13 +295,21 @@ async fn deal_launched_trade(
     }
 }
 
-async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<Rsmq>>,height: u32) {
+async fn deal_launched_thaws(
+    new_thaw_flags: Vec<String>,
+    arc_queue: Arc<RwLock<Rsmq>>,
+    height: u32,
+) {
     for new_thaw_flag in new_thaw_flags {
         //如果已经确认的跳过，可能发生在系统重启的时候
-        let pending_thaws = list_thaws(ThawsFilter::DelayConfirm(new_thaw_flag.clone(), height));
+        let pending_thaws =
+            list_thaws(ThawsFilter::DelayConfirm(new_thaw_flag.clone(), height));
         if pending_thaws.is_empty() {
-            warn!("This thaw hash {} have already dealed,and jump it",new_thaw_flag.clone());
-            continue
+            warn!(
+                "This thaw hash {} have already dealed,and jump it",
+                new_thaw_flag.clone()
+            );
+            continue;
         }
         let iters = pending_thaws.group_by(|a, b| a.market_id == b.market_id);
 
@@ -368,20 +377,23 @@ async fn deal_launched_thaws(new_thaw_flags: Vec<String>, arc_queue: Arc<RwLock<
     }
 }
 
-async fn get_last_process_height() -> u32{
+async fn get_last_process_height() -> u32 {
     let last_thaw = list_thaws(ThawsFilter::LastPushed);
     let last_trade = list_trades(TradeFilter::LastPushed);
 
-    if last_thaw.len() == 0 && last_trade.len() == 0{
+    if last_thaw.len() == 0 && last_trade.len() == 0 {
         get_current_block().await
     } else if last_thaw.len() == 0 && last_trade.len() == 1 {
         last_trade[0].block_height as u32
-    }else if last_thaw.len() == 1 && last_trade.len() == 0{
+    } else if last_thaw.len() == 1 && last_trade.len() == 0 {
         last_thaw[0].block_height as u32
-    }else if last_thaw.len() == 1 && last_trade.len() == 1{
+    } else if last_thaw.len() == 1 && last_trade.len() == 1 {
         //因为解冻和清算同步扫块，所以这里取大数即可
-        max(last_trade[0].block_height as u32, last_thaw[0].block_height as u32)
-    }else {
+        max(
+            last_trade[0].block_height as u32,
+            last_thaw[0].block_height as u32,
+        )
+    } else {
         unreachable!()
     }
 }
@@ -404,7 +416,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
             rt.block_on(async move {
                 //过滤所有的thaws和battle，更新confirm状态或者是未处理状态
                 let mut last_process_height = get_last_process_height().await;
-                info!("Start check history block from  {}",last_process_height);
+                info!("Start check history block from  {}", last_process_height);
                 loop {
                     let current_height = get_current_block().await;
                     assert!(current_height >= last_process_height);
@@ -417,7 +429,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         //绝大多数情况last_process_height + 1 等于current_height - CONFIRM_HEIGHT
                         for height in last_process_height + 1..=current_height - CONFIRM_HEIGHT
                         {
-                            info!("check height {}",height);
+                            info!("check height {}", height);
                             let block_hash = get_block(BlockId::from(height as u64))
                                 .await
                                 .unwrap()
@@ -458,7 +470,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             } else {
                                 //只要拿到事件的hashdata就可以判断这个解冻是ok的，不需要比对其他
                                 //todo： 另外起一个服务，循环判断是否有超8个区块还没确认的处理，有的话将起launch重新设置为pending
-                                deal_launched_thaws(new_thaws, arc_queue.clone(),height).await;
+                                deal_launched_thaws(new_thaws, arc_queue.clone(), height).await;
                             }
                         }
                     }

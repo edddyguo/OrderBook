@@ -18,7 +18,7 @@ use anyhow::Result;
 use common::types::order::Side as OrderSide;
 use common::utils::math::U256_ZERO;
 
-#[derive(Deserialize, Debug, Clone,PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 pub struct UpdateOrder {
     pub id: String,
     pub status: OrderStatus,
@@ -156,17 +156,22 @@ pub fn insert_orders(orders: &Vec<OrderInfo>) {
 pub fn update_orders(orders: &Vec<UpdateOrder>) {
     let mut lines_str = "".to_string();
     for order in orders {
-        let mut line_str = format!("({},{},{},'{}',cast('{}' as timestamp),'{}')",
-                               order.available_amount,order.canceled_amount,
-                               order.matched_amount,order.status.as_str(),
-                               order.updated_at,order.id);
+        let mut line_str = format!(
+            "({},{},{},'{}',cast('{}' as timestamp),'{}')",
+            order.available_amount,
+            order.canceled_amount,
+            order.matched_amount,
+            order.status.as_str(),
+            order.updated_at,
+            order.id
+        );
         if *order != *orders.last().unwrap() {
             line_str += ",";
         }
         lines_str += &line_str;
     }
 
-    let mut sql = format!(
+    let sql = format!(
         "UPDATE chemix_orders SET (available_amount,canceled_amount,matched_amount,status,updated_at)\
         =(tmp.available_amount,tmp.canceled_amount,tmp.matched_amount,tmp.status,tmp.updated_at) from \
         (values {} ) as tmp (available_amount,canceled_amount,matched_amount,status,updated_at,id) where chemix_orders.id=tmp.id",lines_str);

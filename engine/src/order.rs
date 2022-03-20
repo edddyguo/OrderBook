@@ -4,7 +4,7 @@ use std::ops::{Add, Sub};
 
 use serde::Serialize;
 
-use crate::{ BookValue, BuyPriority};
+use crate::{BookValue, BuyPriority};
 //use ethers::{prelude::*,types::{U256}};
 
 use chemix_chain::chemix::storage::{CancelOrderState2, ChainNewOrder};
@@ -40,19 +40,23 @@ pub fn match_order(
         match &taker_order.side {
             OrderSide::Buy => {
                 //不能吃单的直接挂单
-                if book.sell.is_empty() || taker_order.price < book.sell.first_key_value().unwrap().0.price
+                if book.sell.is_empty()
+                    || taker_order.price < book.sell.first_key_value().unwrap().0.price
                 {
                     info!("test_002");
                     //insert this order by compare price and created_at
-                    book.buy.insert(BuyPriority{
-                        price: taker_order.price,
-                        order_index: taker_order.index
-                    }, BookValue{
-                        id: taker_order.id.clone(),
-                        account: taker_order.account.clone(),
-                        side: taker_order.side.clone(),
-                        amount: taker_order.available_amount
-                    });
+                    book.buy.insert(
+                        BuyPriority {
+                            price: taker_order.price,
+                            order_index: taker_order.index,
+                        },
+                        BookValue {
+                            id: taker_order.id.clone(),
+                            account: taker_order.account.clone(),
+                            side: taker_order.side.clone(),
+                            amount: taker_order.available_amount,
+                        },
+                    );
 
                     //剩余的订单使深度增加
                     let stat = raw_depth
@@ -101,7 +105,7 @@ pub fn match_order(
                         && taker_order.available_amount == U256_ZERO
                     {
                         //book.sell[0] = marker_order;
-                        book.sell.insert(marker_order.0,marker_order.1);
+                        book.sell.insert(marker_order.0, marker_order.1);
                         break 'marker_orders;
                     } else if marker_order.1.amount == U256_ZERO
                         && taker_order.available_amount != U256_ZERO
@@ -117,17 +121,22 @@ pub fn match_order(
                 }
             }
             OrderSide::Sell => {
-                if book.buy.is_empty() || taker_order.price > book.buy.first_key_value().unwrap().0.price{
+                if book.buy.is_empty()
+                    || taker_order.price > book.buy.first_key_value().unwrap().0.price
+                {
                     //insert this order by compare price and created_at
-                    book.sell.insert(SellPriority{
-                        price: taker_order.price,
-                        order_index: taker_order.index
-                    }, BookValue{
-                        id: taker_order.id.clone(),
-                        account: taker_order.account.clone(),
-                        side: taker_order.side.clone(),
-                        amount: taker_order.available_amount
-                    });
+                    book.sell.insert(
+                        SellPriority {
+                            price: taker_order.price,
+                            order_index: taker_order.index,
+                        },
+                        BookValue {
+                            id: taker_order.id.clone(),
+                            account: taker_order.account.clone(),
+                            side: taker_order.side.clone(),
+                            amount: taker_order.available_amount,
+                        },
+                    );
 
                     let stat = raw_depth
                         .asks
@@ -167,7 +176,7 @@ pub fn match_order(
                     if marker_order.1.amount != U256_ZERO
                         && taker_order.available_amount == U256_ZERO
                     {
-                        book.buy.insert(marker_order.0,marker_order.1);
+                        book.buy.insert(marker_order.0, marker_order.1);
                         break 'marker_orders;
                     } else if marker_order.1.amount == U256_ZERO
                         && taker_order.available_amount != U256_ZERO
@@ -186,7 +195,9 @@ pub fn match_order(
     }
 }
 
-pub fn legal_cancel_orders_filter(new_cancel_orders: Vec<CancelOrderState2>) -> Vec<CancelOrderState2> {
+pub fn legal_cancel_orders_filter(
+    new_cancel_orders: Vec<CancelOrderState2>,
+) -> Vec<CancelOrderState2> {
     let mut legal_orders = Vec::<CancelOrderState2>::new();
     for new_cancel_order in new_cancel_orders {
         let orders =
@@ -197,30 +208,18 @@ pub fn legal_cancel_orders_filter(new_cancel_orders: Vec<CancelOrderState2>) -> 
         }
         let order = orders[0].clone();
         //防止一个区块内的多次取消的情况，多次取消以最后一次为有效
-        legal_orders.retain(|x| {x.order_index.as_u32() != order.index});
+        legal_orders.retain(|x| x.order_index.as_u32() != order.index);
         match order.status {
             OrderStatus::FullFilled => {
                 warn!("Have already matched");
             }
-            OrderStatus::PartialFilled => {
-                match order.side {
-                    OrderSide::Buy => {
-                        crate::BOOK.lock().unwrap().buy.retain(|_,v| v.id != order.id);
-                        legal_orders.push(new_cancel_order);
-                    }
-                    OrderSide::Sell => {
-                        crate::BOOK
-                            .lock()
-                            .unwrap()
-                            .sell
-                            .retain(|_,v| v.id != order.id);
-                        legal_orders.push(new_cancel_order);
-                    }
-                }
-            }
-            OrderStatus::Pending => match order.side {
+            OrderStatus::PartialFilled => match order.side {
                 OrderSide::Buy => {
-                    crate::BOOK.lock().unwrap().buy.retain(|_,v| v.id != order.id);
+                    crate::BOOK
+                        .lock()
+                        .unwrap()
+                        .buy
+                        .retain(|_, v| v.id != order.id);
                     legal_orders.push(new_cancel_order);
                 }
                 OrderSide::Sell => {
@@ -228,7 +227,25 @@ pub fn legal_cancel_orders_filter(new_cancel_orders: Vec<CancelOrderState2>) -> 
                         .lock()
                         .unwrap()
                         .sell
-                        .retain(|_,v| v.id != order.id);
+                        .retain(|_, v| v.id != order.id);
+                    legal_orders.push(new_cancel_order);
+                }
+            },
+            OrderStatus::Pending => match order.side {
+                OrderSide::Buy => {
+                    crate::BOOK
+                        .lock()
+                        .unwrap()
+                        .buy
+                        .retain(|_, v| v.id != order.id);
+                    legal_orders.push(new_cancel_order);
+                }
+                OrderSide::Sell => {
+                    crate::BOOK
+                        .lock()
+                        .unwrap()
+                        .sell
+                        .retain(|_, v| v.id != order.id);
                     legal_orders.push(new_cancel_order);
                 }
             },
@@ -240,24 +257,22 @@ pub fn legal_cancel_orders_filter(new_cancel_orders: Vec<CancelOrderState2>) -> 
     legal_orders
 }
 
-
-pub fn legal_new_orders_filter(raw_orders: Vec<ChainNewOrder>,height: u32) -> Vec<OrderInfo>{
+pub fn legal_new_orders_filter(raw_orders: Vec<ChainNewOrder>, height: u32) -> Vec<OrderInfo> {
     let mut db_new_orders = Vec::new();
     for order in raw_orders {
-        let base_decimal =
-            crate::MARKET.base_contract_decimal as u32;
+        let base_decimal = crate::MARKET.base_contract_decimal as u32;
 
         let raw_amount = if base_decimal > order.num_power {
-            order.amount
-                * teen_power!(base_decimal - order.num_power)
+            order.amount * teen_power!(base_decimal - order.num_power)
         } else {
-            order.amount
-                / teen_power!(order.num_power - base_decimal)
+            order.amount / teen_power!(order.num_power - base_decimal)
         };
-        info!("amount_ori {},order.num_power {},amount_cur {}",
-                                    order.amount,order.num_power,raw_amount);
+        info!(
+            "amount_ori {},order.num_power {},amount_cur {}",
+            order.amount, order.num_power, raw_amount
+        );
         //如果num_power过大，则raw_amount为零无效
-        if raw_amount != U256_ZERO  {
+        if raw_amount != U256_ZERO {
             db_new_orders.push(OrderInfo::new(
                 order.id,
                 order.index,

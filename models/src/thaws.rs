@@ -1,23 +1,16 @@
 extern crate rustc_serialize;
 
 use ethers_core::types::U256;
-use std::str::FromStr;
 
 use serde::Deserialize;
 
 //#[derive(Serialize)]
 use crate::{assembly_insert_values, struct2array};
-use serde::Serialize;
 
 use common::utils::time::get_current_time;
 
-use ethers_core::abi::Address;
-
-use common::types::order::Status as OrderStatus;
-
 use common::types::order::Side as OrderSide;
 use common::types::thaw::Status as ThawStatus;
-
 
 #[derive(Clone, Debug)]
 pub enum ThawsFilter {
@@ -25,22 +18,24 @@ pub enum ThawsFilter {
     NotConfirmed(String, String),
     Status(ThawStatus),
     //hashdata,block_height
-    DelayConfirm(String,u32),
-    LastPushed
+    DelayConfirm(String, u32),
+    LastPushed,
 }
 
 impl ThawsFilter {
     pub fn to_string(&self) -> String {
-        let filter_str=    match self {
+        let filter_str = match self {
             ThawsFilter::NotConfirmed(market_id, account) => {
                 format!("where market_id='{}' and account='{}' and (status='pending' or status='launched')  order by created_at ASC",market_id,account)
-
             }
             ThawsFilter::Status(status) => {
-                format!("where status='{}' order by created_at ASC",status.as_str())
+                format!("where status='{}' order by created_at ASC", status.as_str())
             }
-            ThawsFilter::DelayConfirm(hash,height) => {
-                format!(" where status='launched' and thaws_hash='{}' and block_height='{}' ", hash,height)
+            ThawsFilter::DelayConfirm(hash, height) => {
+                format!(
+                    " where status='launched' and thaws_hash='{}' and block_height='{}' ",
+                    hash, height
+                )
             }
             ThawsFilter::LastPushed => {
                 format!("where status='launched' or status='confirmed' order by created_at DESC limit 1")
@@ -118,7 +113,6 @@ pub fn update_thaws(
 }
 
 pub fn insert_thaws(thaw_info: &Vec<Thaws>) {
-    
     let mut sql = format!("insert into chemix_thaws values(");
     let thawsArr: Vec<Vec<String>> = thaw_info
         .into_iter()

@@ -11,13 +11,15 @@ use log::info;
 use std::env;
 
 use chemix_models::market::{get_markets, list_markets as list_markets2};
-use chemix_models::order::{get_order_volume, list_orders as list_orders2, OpenOrder, OrderFilter, get_user_number};
+use chemix_models::order::{
+    get_order_volume, get_user_number, list_orders as list_orders2, OpenOrder, OrderFilter,
+};
 use chemix_models::snapshot::get_snapshot;
+use chemix_models::thaws::{list_thaws, ThawsFilter};
 use chemix_models::trade::{list_trades, TradeFilter};
 use chemix_models::TimeScope;
-use common::utils::time::{get_current_time, get_unix_time, time2unix};
+use common::utils::time::{get_current_time, time2unix};
 use serde::{Deserialize, Serialize};
-use chemix_models::thaws::{list_thaws, ThawsFilter};
 
 use chemix_models::tokens::get_token;
 
@@ -303,19 +305,19 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
     let market = get_markets(&info.market_id).unwrap();
     let (base_decimal, quote_decimal) =
         (market.base_contract_decimal, market.quote_contract_decimal);
-    let trades = list_trades(TradeFilter::MarketId(info.market_id.clone(),info.limit))
-    .iter()
-    .map(|x| trade::Trade {
-        id: x.id.clone(),
-        transaction_hash: x.transaction_hash.clone(),
-        market_id: info.market_id.clone(),
-        price: u256_to_f64(x.price, quote_decimal),
-        amount: u256_to_f64(x.amount, base_decimal),
-        height: x.block_height,
-        taker_side: x.taker_side.clone(),
-        updated_at: time2unix(x.created_at.clone()),
-    })
-    .collect::<Vec<trade::Trade>>();
+    let trades = list_trades(TradeFilter::MarketId(info.market_id.clone(), info.limit))
+        .iter()
+        .map(|x| trade::Trade {
+            id: x.id.clone(),
+            transaction_hash: x.transaction_hash.clone(),
+            market_id: info.market_id.clone(),
+            price: u256_to_f64(x.price, quote_decimal),
+            amount: u256_to_f64(x.amount, base_decimal),
+            height: x.block_height,
+            taker_side: x.taker_side.clone(),
+            updated_at: time2unix(x.created_at.clone()),
+        })
+        .collect::<Vec<trade::Trade>>();
 
     respond_json(200, "".to_string(), serde_json::to_string(&trades).unwrap())
 }
@@ -481,7 +483,10 @@ struct ListOrdersRequest {
 #[get("/chemix/listOrders")]
 async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Responder {
     let market_info = get_markets(info.market_id.as_str()).unwrap();
-    let (base_decimal,quote_decimal) = (market_info.base_contract_decimal,market_info.quote_contract_decimal);
+    let (base_decimal, quote_decimal) = (
+        market_info.base_contract_decimal,
+        market_info.quote_contract_decimal,
+    );
     let account = info.account.clone().to_lowercase();
     let market_id = info.market_id.clone();
     let orders = list_orders2(OrderFilter::UserOrders(
@@ -509,29 +514,33 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
             created_at: time2unix(x.created_at.clone()),
         })
         .collect::<Vec<OpenOrder>>();
-    let thaws = list_thaws(ThawsFilter::NotConfirmed(market_id.clone(), account.clone()));
+    let thaws = list_thaws(ThawsFilter::NotConfirmed(
+        market_id.clone(),
+        account.clone(),
+    ));
     //XXX: 当前为了适配前端本地缓存的
-    let mut mock_order = thaws.iter().map(|x| {
-        let account = format!("{:?}", x.account);
-        let origin_order = list_orders2(OrderFilter::ById(x.order_id.clone())).unwrap();
-        OpenOrder {
-            id: x.market_id.clone(),
-            transaction_hash: origin_order[0].transaction_hash.clone(),
-            thaws_hash: x.thaws_hash.clone(),
-            index: origin_order[0].index.to_string(),
-            account,
-            price: u256_to_f64(x.price, quote_decimal),
-            amount: u256_to_f64(x.amount, base_decimal),
-            matched_amount: u256_to_f64(x.amount, base_decimal),//tmp code
-            side: x.side.clone(),
-            status: "thawing".to_string(), //tmp code
-            created_at: time2unix(origin_order[0].created_at.clone()),
-        }
-    }).collect::<Vec<OpenOrder>>();
+    let mut mock_order = thaws
+        .iter()
+        .map(|x| {
+            let account = format!("{:?}", x.account);
+            let origin_order = list_orders2(OrderFilter::ById(x.order_id.clone())).unwrap();
+            OpenOrder {
+                id: x.market_id.clone(),
+                transaction_hash: origin_order[0].transaction_hash.clone(),
+                thaws_hash: x.thaws_hash.clone(),
+                index: origin_order[0].index.to_string(),
+                account,
+                price: u256_to_f64(x.price, quote_decimal),
+                amount: u256_to_f64(x.amount, base_decimal),
+                matched_amount: u256_to_f64(x.amount, base_decimal), //tmp code
+                side: x.side.clone(),
+                status: "thawing".to_string(), //tmp code
+                created_at: time2unix(origin_order[0].created_at.clone()),
+            }
+        })
+        .collect::<Vec<OpenOrder>>();
     orders.append(&mut mock_order);
-    orders.sort_by(|a,b| {
-        b.created_at.partial_cmp(&a.created_at).unwrap()
-    });
+    orders.sort_by(|a, b| b.created_at.partial_cmp(&a.created_at).unwrap());
 
     respond_json(200, "".to_string(), serde_json::to_string(&orders).unwrap())
 }
@@ -592,10 +601,17 @@ struct RecentTradesRequest {
 #[get("/chemix/recentTrades")]
 async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> impl Responder {
     let market_info = get_markets(info.market_id.as_str()).unwrap();
-    let (base_decimal,quote_decimal) = (market_info.base_contract_decimal,market_info.quote_contract_decimal);
+    let (base_decimal, quote_decimal) = (
+        market_info.base_contract_decimal,
+        market_info.quote_contract_decimal,
+    );
     let account = info.account.clone().to_lowercase();
-    let trades = list_trades(TradeFilter::Recent(account.clone(),info.market_id.clone(),
-                                                 TradeStatus::Confirmed,info.limit));
+    let trades = list_trades(TradeFilter::Recent(
+        account.clone(),
+        info.market_id.clone(),
+        TradeStatus::Confirmed,
+        info.limit,
+    ));
     let trades = trades
         .iter()
         .map(|x| {

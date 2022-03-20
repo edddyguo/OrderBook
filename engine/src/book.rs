@@ -1,13 +1,10 @@
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
-
+use chemix_models::order::OrderInfo;
+use common::types::order::Side as OrderSide;
 use ethers_core::types::U256;
-use common::types::order::{Side as OrderSide};
-use serde::{Serialize};
-use chemix_models::order::{OrderInfo};
-
-
+use serde::Serialize;
 
 //buy 倒叙
 #[derive(Clone, Serialize, Debug, Eq)]
@@ -34,14 +31,15 @@ impl Ord for BuyPriority {
         let created_cmp_res = self.order_index.partial_cmp(&other.order_index);
         if price_cmp_res == Some(Ordering::Greater) {
             Ordering::Less
-        } else if price_cmp_res == Some(Ordering::Equal) && created_cmp_res == Some(Ordering::Less) {
+        } else if price_cmp_res == Some(Ordering::Equal)
+            && created_cmp_res == Some(Ordering::Less)
+        {
             Ordering::Greater
         } else {
             Ordering::Greater
         }
     }
 }
-
 
 //sell正序
 #[derive(Clone, Serialize, Debug, Eq)]
@@ -69,7 +67,9 @@ impl Ord for SellPriority {
         if price_cmp_res == Some(Ordering::Greater) {
             Ordering::Greater
             //todo: 测试结果导向，但是逻辑没理解
-        } else if price_cmp_res == Some(Ordering::Equal) && created_cmp_res == Some(Ordering::Greater) {
+        } else if price_cmp_res == Some(Ordering::Equal)
+            && created_cmp_res == Some(Ordering::Greater)
+        {
             Ordering::Greater
         } else {
             Ordering::Less
@@ -94,28 +94,32 @@ pub struct Book {
 type EngineBuyOrder = (BuyPriority, BookValue);
 type EngineSellOrder = (SellPriority, BookValue);
 
-
 pub fn gen_engine_buy_order(order: &OrderInfo) -> EngineBuyOrder {
-    (BuyPriority {
-        price: order.price,
-        order_index: order.index,
-    }, BookValue {
-        id: order.id.clone(),
-        account: order.account.clone(),
-        side: order.side.clone(),
-        amount: order.available_amount,
-    })
+    (
+        BuyPriority {
+            price: order.price,
+            order_index: order.index,
+        },
+        BookValue {
+            id: order.id.clone(),
+            account: order.account.clone(),
+            side: order.side.clone(),
+            amount: order.available_amount,
+        },
+    )
 }
 
 pub fn gen_engine_sell_order(order: &OrderInfo) -> EngineSellOrder {
-    (SellPriority {
-        price: order.price,
-        order_index: order.index,
-    }, BookValue {
-        id: order.id.clone(),
-        account: order.account.clone(),
-        side: order.side.clone(),
-        amount: order.available_amount,
-    })
+    (
+        SellPriority {
+            price: order.price,
+            order_index: order.index,
+        },
+        BookValue {
+            id: order.id.clone(),
+            account: order.account.clone(),
+            side: order.side.clone(),
+            amount: order.available_amount,
+        },
+    )
 }
-

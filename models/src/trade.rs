@@ -15,33 +15,46 @@ pub enum TradeFilter {
     //id
     OrderId(String),
     //market,limit
-    MarketId(String,u32),
+    MarketId(String, u32),
     //account,market,status,limit
-    Recent(String,String,TradeStatus,u32),
+    Recent(String, String, TradeStatus, u32),
     //hashdata,block_height
-    DelayConfirm(String,u32),
+    DelayConfirm(String, u32),
     //status, limit
-    Status(TradeStatus,u32),
-    LastPushed
+    Status(TradeStatus, u32),
+    LastPushed,
 }
 impl TradeFilter {
     pub fn to_string(&self) -> String {
         let filter_str = match self {
             TradeFilter::OrderId(id) => {
-                format!("where taker_order_id='{}' or maker_order_id='{}'",id,id)
+                format!("where taker_order_id='{}' or maker_order_id='{}'", id, id)
             }
-            TradeFilter::Status(status,limit) => {
-                format!("where status='{}' limit {}",status.as_str(),limit)
+            TradeFilter::Status(status, limit) => {
+                format!("where status='{}' limit {}", status.as_str(), limit)
             }
-            TradeFilter::MarketId(market_id,limit) => {
-                format!("where market_id='{}' order by created_at desc  limit {}",market_id,limit)
+            TradeFilter::MarketId(market_id, limit) => {
+                format!(
+                    "where market_id='{}' order by created_at desc  limit {}",
+                    market_id, limit
+                )
             }
-            TradeFilter::Recent(account,market_id,status,limit) => {
-                format!(" where (taker='{}' or maker='{}') and market_id='{}' \
-                and status='{}' limit {}", account,account,market_id,status.as_str(),limit)
+            TradeFilter::Recent(account, market_id, status, limit) => {
+                format!(
+                    " where (taker='{}' or maker='{}') and market_id='{}' \
+                and status='{}' limit {}",
+                    account,
+                    account,
+                    market_id,
+                    status.as_str(),
+                    limit
+                )
             }
-            TradeFilter::DelayConfirm(hash,height) => {
-                format!(" where status='launched' and hash_data='{}' and block_height='{}' ", hash,height)
+            TradeFilter::DelayConfirm(hash, height) => {
+                format!(
+                    " where status='launched' and hash_data='{}' and block_height='{}' ",
+                    hash, height
+                )
             }
             TradeFilter::LastPushed => {
                 format!("where status='launched' or status='confirmed' order by created_at desc  limit 1")
@@ -70,7 +83,7 @@ pub struct TradeInfo {
     pub created_at: String,
 }
 
-#[derive(Deserialize, Debug, Clone,PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 pub struct UpdateTrade {
     pub id: String,
     pub status: TradeStatus,
@@ -209,17 +222,22 @@ pub fn update_trade(
 pub fn update_trades(trades: &Vec<UpdateTrade>) {
     let mut lines_str = "".to_string();
     for trade in trades {
-        let mut line_str = format!("('{}',{},'{}','{}',cast('{}' as timestamp),'{}')",
-                                   trade.status.as_str(),trade.block_height,
-                                   trade.transaction_hash,trade.hash_data,
-                                   trade.updated_at,trade.id);
+        let mut line_str = format!(
+            "('{}',{},'{}','{}',cast('{}' as timestamp),'{}')",
+            trade.status.as_str(),
+            trade.block_height,
+            trade.transaction_hash,
+            trade.hash_data,
+            trade.updated_at,
+            trade.id
+        );
         if *trade != *trades.last().unwrap() {
             line_str += ",";
         }
         lines_str += &line_str;
     }
 
-    let mut sql = format!(
+    let sql = format!(
         "UPDATE chemix_trades SET (status,block_height,transaction_hash,hash_data,updated_at)\
         =(tmp.status,tmp.block_height,tmp.transaction_hash,tmp.hash_data,tmp.updated_at) from \
         (values {} ) as tmp (status,block_height,transaction_hash,hash_data,updated_at,id) where chemix_trades.id=tmp.id",lines_str);

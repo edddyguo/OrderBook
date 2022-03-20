@@ -10,7 +10,7 @@ pub mod trade;
 extern crate jsonrpc_client_core;
 extern crate jsonrpc_client_http;
 
-use postgres::{Client, NoTls, Row, Transaction};
+use postgres::{Client, NoTls, Row};
 use std::any::Any;
 use std::env;
 
@@ -42,7 +42,7 @@ use crate::snapshot::Snapshot;
 use serde::Deserialize;
 use serde::Serialize;
 
-static TRY_TIMES : u8 = 5;
+static TRY_TIMES: u8 = 5;
 
 #[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
 pub enum TimeScope {
@@ -102,12 +102,16 @@ fn connetDB() -> Option<postgres::Client> {
     }
 }
 
-pub fn transactin_begin(){
+pub fn transactin_begin() {
     crate::CLIENTDB.lock().unwrap().simple_query("BEGIN");
 }
 
-pub fn transactin_commit(){
-    crate::CLIENTDB.lock().unwrap().simple_query("commit").unwrap();
+pub fn transactin_commit() {
+    crate::CLIENTDB
+        .lock()
+        .unwrap()
+        .simple_query("commit")
+        .unwrap();
 }
 
 pub fn query(raw_sql: &str) -> anyhow::Result<Vec<Row>> {
@@ -245,7 +249,7 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
     values
 }
 
-fn assembly_insert_values(lines: Vec<Vec<String>>) -> String{
+fn assembly_insert_values(lines: Vec<Vec<String>>) -> String {
     let mut lines_str = format!("");
     let mut index = 0;
     let len = lines.len();

@@ -1,9 +1,9 @@
 use crate::trade::Trade2;
 use crate::OrderSide;
-use chemix_models::market::{get_markets};
+use chemix_models::market::get_markets;
 use chemix_models::order::OrderInfo;
 use chemix_models::trade::{list_trades, TradeFilter};
-use common::types::order::Side;
+
 use common::utils::math::{u256_to_f64, U256_ZERO};
 use common::utils::time::time2unix;
 use ethers_core::types::U256;
@@ -61,9 +61,13 @@ pub fn get_order_detail(order: &OrderInfo) -> OrderDetail {
         });
     }
     let average_price = if total_volume != U256_ZERO {
-        info!("___total_volume={},order.matched_amount={}",total_volume,order.matched_amount);
-        u256_to_f64(total_volume,quote_decimal) / u256_to_f64(order.matched_amount,base_decimal)
-    }else {
+        info!(
+            "___total_volume={},order.matched_amount={}",
+            total_volume, order.matched_amount
+        );
+        u256_to_f64(total_volume, quote_decimal)
+            / u256_to_f64(order.matched_amount, base_decimal)
+    } else {
         0.0
     };
     OrderDetail {
