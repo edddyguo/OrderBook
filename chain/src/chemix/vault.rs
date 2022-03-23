@@ -15,7 +15,7 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 
 use crate::chemix::ChemixContractClient;
-use crate::gen_contract_client;
+use crate::{contract_call_send, gen_contract_client};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ThawBalances {
@@ -62,11 +62,10 @@ impl ChemixContractClient<Vault> {
         &self,
         users: Vec<ThawBalances>,
         cancel_id: [u8; 32],
-    ) -> Result<Option<TransactionReceipt>> {
+    ) -> std::result::Result<TransactionReceipt, ProviderError> {
         let contract = ChemixVault::new(self.contract_addr, self.client.clone());
-        let _now = Local::now().timestamp_millis() as u64;
 
-        let users2 = users
+        let users = users
             .iter()
             .map(|x| ThawInfos {
                 token: x.token,
@@ -75,14 +74,10 @@ impl ChemixContractClient<Vault> {
             })
             .collect::<Vec<ThawInfos>>();
 
-        let result: Option<TransactionReceipt> = contract
-            .thaw_balance(cancel_id, users2)
-            .legacy()
-            .send()
-            .await?
-            .await?;
-        info!("thaw_balance res = {:?}", result);
-        Ok(result)
+        let call = contract
+            .thaw_balance(cancel_id, users)
+            .legacy();
+        contract_call_send(call).await
     }
 
     pub async fn settlement_trades2(
@@ -90,7 +85,7 @@ impl ChemixContractClient<Vault> {
         last_index: u32,
         last_hash: [u8; 32],
         trades: Vec<SettleValues3>,
-    ) -> Result<Option<TransactionReceipt>> {
+    ) -> std::result::Result<TransactionReceipt, ProviderError> {
         let contract = ChemixVault::new(self.contract_addr, self.client.clone());
         let trades2 = trades
             .iter()
@@ -101,15 +96,11 @@ impl ChemixContractClient<Vault> {
                 income_token_amount: x.incomeTokenAmount,
             })
             .collect::<Vec<SettleValues>>();
-        //todo:只await一次
-        let result: Option<TransactionReceipt> = contract
+
+        let call = contract
             .settlement(U256::from(last_index), last_hash, trades2)
-            .legacy()
-            .send()
-            .await?
-            .await?;
-        info!("settlement_trades res = {:?}", result);
-        Ok(result)
+            .legacy();
+        contract_call_send(call).await
     }
 
     pub async fn filter_settlement_event(&mut self, block_hash: H256) -> Result<Vec<String>> {

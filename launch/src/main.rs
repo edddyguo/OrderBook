@@ -533,46 +533,25 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     info!("all thaw info {:?}", thaw_infos);
                     info!("start thaw balance");
 
-                    //let thaw_res = chemix_main_client2.read().unwrap().thaw_balances(thaw_infos).await.unwrap().unwrap();
-                    let mut receipt = Default::default();
-
                     let order_json = format!(
                         "{}{}",
                         serde_json::to_string(&thaw_infos).unwrap(),
                         get_current_time()
                     );
                     let cancel_id = u8_arr_from_str(sha256(order_json));
-                    loop {
-                        match vault_thaws_client
+
+                    let receipt =  vault_thaws_client
                             .clone()
                             .read()
                             .unwrap()
                             .thaw_balances(thaw_infos.clone(), cancel_id)
                             .await
-                        {
-                            Ok(data) => {
-                                receipt = data.unwrap();
-                                break;
-                            }
-                            Err(error) => {
-                                if error.to_string().contains("underpriced") {
-                                    warn!("gas too low and try again");
-                                    tokio::time::sleep(time::Duration::from_millis(5000)).await;
-                                } else {
-                                    //tmp code
-                                    error!("{}", error);
-                                    unreachable!()
-                                }
-                            }
-                        }
-                    }
-                    // info!("finish thaw balance res:{:?}",thaw_res);
+                            .unwrap(); //todo: 此时节点问题或者分叉
+
                     info!("finish thaw balance res:{:?}", receipt);
                     let transaction_hash = format!("{:?}", receipt.transaction_hash);
                     let height = receipt.block_number.unwrap().as_u32() as i32;
                     let cancel_id_str = u8_arr_to_str(cancel_id);
-                    //todo: 批处理
-                    //pub fn update_thaws1(order_id:&str,cancel_id: &str,tx_id: &str,block_height:i32,status: ThawStatus) {
                     for pending_thaw in pending_thaws.clone() {
                         update_thaws(
                             pending_thaw.order_id.as_str(),
@@ -615,44 +594,38 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         }
                         //todo: 先更新db，在进行广播，如果失败，在监控确认逻辑中，该结算会一直处于launched状态（实际没发出去），在8个区块的检查时效后，
                         // 状态重置为matched，重新进行清算，如果先广播再清算的话，如果广播后宕机，还没来得及更新db，就会造成重复清算
-                        let mut receipt = Default::default();
-                        loop {
-                            //match chemix_main_client2.read().unwrap().settlement_trades(MARKET.base_token_address.as_str(),MARKET.quote_token_address.as_str(),settle_trades.clone()).await {
-                            info!("settlement_trades____ trade={:?}_index={},hash={:?}",settle_trades,last_order.index,hash_data);
-                            match vault_settel_client.clone().read().unwrap().settlement_trades2(last_order.index, hash_data, settle_trades.clone()).await {
-                                Ok(data) => {
-                                    receipt = data.unwrap();
-                                    last_height = receipt.block_number.unwrap().as_u32();
-                                    break;
-                                }
-                                Err(error) => {
-                                    if error.to_string().contains("underpriced") {
-                                        warn!("gas too low and try again");
-                                        tokio::time::sleep(time::Duration::from_millis(5000)).await;
-                                    } else {
-                                        //tmp code
-                                        error!("{}",error);
-                                        unreachable!()
-                                    }
-                                }
-                            }
-                        }
-
-                        let height = receipt.block_number.unwrap().to_string().parse::<u32>().unwrap();
-                        let transaction_hash = format!("{:?}", receipt.transaction_hash);
-                        //todo： 批量处理
+                        //todo: block_height为0的这部分交易放在新线程去处理
                         let now = get_current_time();
-                        let trades = db_trades.iter().map(|x| {
+                        let mut trades = db_trades.iter().map(|x| {
                             UpdateTrade{
                                 id: x.id.clone(),
                                 status: TradeStatus::Launched,
-                                block_height: height,
-                                transaction_hash:transaction_hash.clone(),
+                                block_height: 0,
+                                transaction_hash:"".to_string(),
                                 hash_data: last_order.hash_data.clone(),
                                 updated_at: now.clone()
                             }
                         }).collect::<Vec<UpdateTrade>>();
                         update_trades(&trades);
+
+                        info!("settlement_trades trade={:?}_index={},hash={:?}",settle_trades,last_order.index,hash_data);
+                        let mut receipt =  vault_settel_client
+                            .clone()
+                            .read()
+                            .unwrap()
+                            .settlement_trades2(last_order.index, hash_data, settle_trades.clone())
+                            .await
+                            .unwrap()  //todo: 此时节点问题或者分叉,待处理
+                            ;
+
+                        let height = receipt.block_number.unwrap().to_string().parse::<u32>().unwrap();
+                        let transaction_hash = format!("{:?}", receipt.transaction_hash);
+                        for trade in trades.iter_mut() {
+                            trade.block_height = height;
+                            trade.transaction_hash = transaction_hash.clone();
+                        }
+                        update_trades(&trades);
+                        last_height = height;
                     }
                 }
             });

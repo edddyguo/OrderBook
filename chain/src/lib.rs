@@ -19,6 +19,9 @@ extern crate log;
 extern crate lazy_static;
 use ethers::core::k256::ecdsa::SigningKey;
 use std::sync::Arc;
+use std::time;
+use ethers::abi::Detokenize;
+use ethers::contract::builders::ContractCall;
 
 #[derive(Clone, Debug)]
 pub struct Node<P> {
@@ -93,6 +96,24 @@ fn gen_contract_client(prikey_str: &str) -> ContractClient {
     Arc::new(SignerMiddleware::new(PROVIDER.provide.clone(), wallet))
 }
 
+async fn contract_call_send<D: Detokenize,M: Middleware>(call: ContractCall<M, D>) -> Result<TransactionReceipt,ProviderError>{
+    loop {
+        match call.send().await.unwrap().await {
+            Ok(data) => {
+                return Ok(data.unwrap());
+            }
+            Err(error) => {
+                if error.to_string().contains("underpriced") {
+                    warn!("gas too low and try again");
+                    tokio::time::sleep(time::Duration::from_millis(1000)).await;
+                } else {
+                    error!("{}",error.to_string());
+                    return Err(error);
+                }
+            }
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     #[test]

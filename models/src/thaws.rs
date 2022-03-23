@@ -89,6 +89,7 @@ impl Thaws {
     }
 }
 
+//也批量
 pub fn update_thaws(
     order_id: &str,
     cancel_id: &str,

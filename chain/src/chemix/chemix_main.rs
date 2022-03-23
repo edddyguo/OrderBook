@@ -13,7 +13,7 @@ use std::ops::Mul;
 use std::str::FromStr;
 
 use crate::chemix::ChemixContractClient;
-use crate::gen_contract_client;
+use crate::{contract_call_send, gen_contract_client};
 
 #[derive(Clone)]
 pub struct Main {}
@@ -113,7 +113,7 @@ impl ChemixContractClient<Main> {
         baseToken: &str,
         quoteToken: &str,
         order_index: u32,
-    ) -> Result<()> {
+    ) -> std::result::Result<TransactionReceipt, ProviderError> {
         let contract = ChemixMain::new(self.contract_addr, self.client.clone());
         let quoteToken = Address::from_str(quoteToken).unwrap();
         let baseToken = Address::from_str(baseToken).unwrap();
@@ -122,13 +122,9 @@ impl ChemixContractClient<Main> {
             "cancel_order market: {}-{} order_index: {}",
             baseToken, quoteToken, order_index
         );
-        let result = contract
+        let call = contract
             .new_cancel_order(baseToken, quoteToken, U256::from(order_index))
-            .legacy()
-            .send()
-            .await?
-            .await?;
-        info!("new sell order result  {:?}", result);
-        Ok(())
+            .legacy();
+        contract_call_send(call).await
     }
 }

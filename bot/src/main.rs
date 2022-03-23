@@ -76,14 +76,9 @@ async fn cancel_order(
                 break;
             }
             Err(error) => {
-                if error.to_string().contains("underpriced") {
-                    warn!("gas too low and try again");
-                    tokio::time::sleep(time::Duration::from_millis(5000)).await;
-                } else {
                     //tmp code
-                    error!("{}", error);
-                    unreachable!()
-                }
+                    error!("{}", error.to_string());
+                    panic!("cancel failed");
             }
         }
     }
