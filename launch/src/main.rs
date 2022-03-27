@@ -446,7 +446,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             if new_settlements.is_empty() {
                                 info!(
                                     "Not found settlement orders created at height {}",
-                                    current_height
+                                    height
                                 );
                             } else {
                                 deal_launched_trade(new_settlements, arc_queue.clone(), height)
@@ -465,7 +465,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             if new_thaws.is_empty() {
                                 info!(
                                     "Not found new thaws created at height {}",
-                                    current_height
+                                    height
                                 );
                             } else {
                                 //只要拿到事件的hashdata就可以判断这个解冻是ok的，不需要比对其他
@@ -473,9 +473,9 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 deal_launched_thaws(new_thaws, arc_queue.clone(), height).await;
                             }
                         }
+                        last_process_height = current_height - CONFIRM_HEIGHT;
                     }
 
-                    last_process_height = current_height - CONFIRM_HEIGHT;
                 }
             });
         });
