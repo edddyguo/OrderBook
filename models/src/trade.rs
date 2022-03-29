@@ -51,8 +51,9 @@ impl TradeFilter {
                 )
             }
             TradeFilter::DelayConfirm(hash, height) => {
+                //考虑到http失败但实际上链的情况，在这里将block_height为零的也确认
                 format!(
-                    " where status='launched' and hash_data='{}' and block_height='{}' ",
+                    " where status='launched' and hash_data='{}' and (block_height='{}' or  block_height=0)",
                     hash, height
                 )
             }

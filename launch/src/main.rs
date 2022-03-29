@@ -232,6 +232,8 @@ async fn deal_launched_trade(
 ) {
     info!("Get settlement event {:?}", new_settlements);
     let mut agg_trades = HashMap::<String, Vec<AggTrade>>::new();
+    let mut launched_trdade = Vec::new();
+    let now = get_current_time();
     //目前来说一个区块里只有一个清算
     for hash_data in new_settlements {
         let db_trades = list_trades(TradeFilter::DelayConfirm(hash_data.clone(), block_height));
@@ -243,45 +245,46 @@ async fn deal_launched_trade(
             continue;
         }
         for x in db_trades.clone() {
+            launched_trdade.push(UpdateTrade{
+                id: x.id.clone(),
+                status: TradeStatus::Confirmed,
+                block_height,
+                transaction_hash: x.transaction_hash.clone(),
+                hash_data: x.hash_data.clone(),
+                updated_at: now.clone()
+            });
             let market_info = get_markets(x.market_id.as_str()).unwrap();
             let base_token_decimal = market_info.base_contract_decimal;
             let quote_token_decimal = market_info.quote_contract_decimal;
             let user_price = u256_to_f64(x.price, quote_token_decimal);
             let user_amount = u256_to_f64(x.amount, base_token_decimal);
             if user_price != 0.0 && user_amount != 0.0 {
+                let agg_trade = AggTrade {
+                    id: x.id,
+                    taker: x.taker.clone(),
+                    maker: x.maker.clone(),
+                    price: user_price,
+                    amount: user_amount,
+                    height: x.block_height,
+                    taker_side: x.taker_side.clone(),
+                    updated_at: get_unix_time(),
+                };
                 match agg_trades.get_mut(x.market_id.as_str()) {
                     None => {
                         agg_trades.insert(
                             x.market_id.clone(),
-                            vec![AggTrade {
-                                id: x.id,
-                                taker: x.taker.clone(),
-                                maker: x.maker.clone(),
-                                price: user_price,
-                                amount: user_amount,
-                                height: x.block_height,
-                                taker_side: x.taker_side.clone(),
-                                updated_at: get_unix_time(),
-                            }],
+                            vec![agg_trade],
                         );
                     }
                     Some(trades) => {
-                        trades.push(AggTrade {
-                            id: x.id,
-                            taker: x.taker.clone(),
-                            maker: x.maker.clone(),
-                            price: user_price,
-                            amount: user_amount,
-                            height: x.block_height,
-                            taker_side: x.taker_side.clone(),
-                            updated_at: get_unix_time(),
-                        });
+                        trades.push(agg_trade);
                     }
                 }
             }
         }
 
-        update_trade_by_hash(TradeStatus::Confirmed, &hash_data, block_height);
+        //update_trade_by_hash(TradeStatus::Confirmed, &hash_data, block_height);
+        update_trades(&launched_trdade);
 
         //push agg trade
         if !agg_trades.is_empty() {
