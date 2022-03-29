@@ -37,9 +37,10 @@ use common::utils::time::{get_current_time, get_unix_time};
 use chemix_chain::chemix::vault::{SettleValues3, ThawBalances, Vault};
 use chemix_models::market::get_markets;
 use log::info;
+use chemix_chain::{gen_txid, send_raw_transaction};
 
 //use common::env::CONF as ENV_CONF;
-use chemix_models::thaws::{list_thaws, ThawsFilter};
+use chemix_models::thaws::{list_thaws, ThawsFilter, UpdateThaw};
 use common::env::CONF as ENV_CONF;
 
 use common::types::order::{Side as OrderSide, Side};
@@ -313,16 +314,19 @@ async fn deal_launched_thaws(
         }
         let iters = pending_thaws.group_by(|a, b| a.market_id == b.market_id);
 
+        //所有交易对的解冻一起更新
+        let mut update_thaws_arr = Vec::new();
         for iter in iters.into_iter() {
             let mut thaw_infos = Vec::new();
             for pending_thaw in iter.clone() {
-                update_thaws(
-                    pending_thaw.order_id.as_str(),
-                    pending_thaw.thaws_hash.as_str(),
-                    pending_thaw.transaction_hash.as_str(),
-                    pending_thaw.block_height,
-                    ThawStatus::Confirmed,
-                );
+                update_thaws_arr.push(UpdateThaw{
+                    order_id: pending_thaw.order_id.clone(),
+                    cancel_id: pending_thaw.thaws_hash.clone(),
+                    block_height: height,
+                    transaction_hash: pending_thaw.transaction_hash.clone(),
+                    status: ThawStatus::Confirmed,
+                    updated_at: "".to_string()
+                });
 
                 let market = get_markets(pending_thaw.market_id.as_str()).unwrap();
                 let token_base_decimal = teen_power!(market.base_contract_decimal);
@@ -374,6 +378,7 @@ async fn deal_launched_thaws(
                 .await
                 .expect("failed to send message");
         }
+        update_thaws(&update_thaws_arr);
     }
 }
 
@@ -470,6 +475,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             } else {
                                 //只要拿到事件的hashdata就可以判断这个解冻是ok的，不需要比对其他
                                 //todo： 另外起一个服务，循环判断是否有超8个区块还没确认的处理，有的话将起launch重新设置为pending
+                                //但是什么场景下会出现没有被确认的情况？
                                 deal_launched_thaws(new_thaws, arc_queue.clone(), height).await;
                             }
                         }
@@ -492,7 +498,6 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     } else {
                         info!("{:#?}", pending_thaws);
                     }
-                    //todo: num_pow
                     //todo: 可以汇总
                     let mut thaw_infos = Vec::new();
                     for pending_thaw in pending_thaws.clone() {
@@ -530,8 +535,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             amount,
                         });
                     }
-                    info!("all thaw info {:?}", thaw_infos);
-                    info!("start thaw balance");
+                    info!("start thaw balance,all thaw info {:?}", thaw_infos);
 
                     let order_json = format!(
                         "{}{}",
@@ -540,27 +544,38 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     );
                     let cancel_id = u8_arr_from_str(sha256(order_json));
 
-                    let receipt =  vault_thaws_client
+                    let raw_data =  vault_thaws_client
                             .clone()
                             .read()
                             .unwrap()
                             .thaw_balances(thaw_infos.clone(), cancel_id)
-                            .await
-                            .unwrap(); //todo: 此时节点问题或者分叉
+                            .await;
+                    let txid = gen_txid(&raw_data);
 
+                    let cancel_id_str = u8_arr_to_str(cancel_id);
+                    let now = get_current_time();
+                    let mut pending_thaws2 = pending_thaws.iter().map(|x| {
+                        UpdateThaw {
+                            order_id: x.order_id.clone(),
+                            cancel_id: cancel_id_str.to_string(),
+                            block_height: 0,
+                            transaction_hash: txid.clone(),
+                            status: ThawStatus::Launched,
+                            updated_at: now.clone()
+                        }
+                    }).collect::<Vec<UpdateThaw>>();
+                    update_thaws(&pending_thaws2);
+                    //todo: 此时节点问题或者分叉,或者gas不足
+                    let receipt = send_raw_transaction(raw_data).await;
                     info!("finish thaw balance res:{:?}", receipt);
                     let transaction_hash = format!("{:?}", receipt.transaction_hash);
-                    let height = receipt.block_number.unwrap().as_u32() as i32;
-                    let cancel_id_str = u8_arr_to_str(cancel_id);
-                    for pending_thaw in pending_thaws.clone() {
-                        update_thaws(
-                            pending_thaw.order_id.as_str(),
-                            cancel_id_str.as_str(),
-                            transaction_hash.as_str(),
-                            height,
-                            ThawStatus::Launched,
-                        );
+                    assert_eq!(txid,transaction_hash);
+                    let height = receipt.block_number.unwrap().as_u32();
+                    for pending_thaw in pending_thaws2.iter_mut() {
+                        pending_thaw.block_height = height;
                     }
+                    update_thaws(&pending_thaws2);
+                    //todo: 取消的订单也超过100这种
                 }
             });
         });
@@ -579,14 +594,12 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     }
                     let last_orders = list_orders(OrderFilter::GetLastOne).unwrap();
                     let last_order = last_orders.first().unwrap();
-                    error!("db_trades = {:?}",db_trades);
+                    info!("db_trades = {:?}",db_trades);
 
                     let settle_trades = gen_settle_trades(db_trades.clone());
                     info!("settle_trades {:?} ",settle_trades);
 
                     let hash_data = u8_arr_from_str(last_order.hash_data.clone());
-
-                    //let mut agg_trades = Vec::new();
                     if !settle_trades.is_empty() {
                         while get_current_block().await - last_height == 0u32 {
                             info!("current {},wait for next block",last_height);
@@ -596,33 +609,35 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         // 状态重置为matched，重新进行清算，如果先广播再清算的话，如果广播后宕机，还没来得及更新db，就会造成重复清算
                         //todo: block_height为0的这部分交易放在新线程去处理
                         let now = get_current_time();
-                        let mut trades = db_trades.iter().map(|x| {
-                            UpdateTrade{
-                                id: x.id.clone(),
-                                status: TradeStatus::Launched,
-                                block_height: 0,
-                                transaction_hash:"".to_string(),
-                                hash_data: last_order.hash_data.clone(),
-                                updated_at: now.clone()
-                            }
-                        }).collect::<Vec<UpdateTrade>>();
-                        update_trades(&trades);
-
                         info!("settlement_trades trade={:?}_index={},hash={:?}",settle_trades,last_order.index,hash_data);
                         let mut receipt =  vault_settel_client
                             .clone()
                             .read()
                             .unwrap()
                             .settlement_trades2(last_order.index, hash_data, settle_trades.clone())
-                            .await
-                            .unwrap()  //todo: 此时节点问题或者分叉,待处理
-                            ;
+                            .await;
+                        let txid = gen_txid(&receipt);
+                        info!("[test_txid]::local {}",txid);
+                        let mut trades = db_trades.iter().map(|x| {
+                            UpdateTrade{
+                                id: x.id.clone(),
+                                status: TradeStatus::Launched,
+                                block_height: 0,
+                                transaction_hash: txid.clone(),
+                                hash_data: last_order.hash_data.clone(),
+                                updated_at: now.clone()
+                            }
+                        }).collect::<Vec<UpdateTrade>>();
+                        update_trades(&trades);
 
-                        let height = receipt.block_number.unwrap().to_string().parse::<u32>().unwrap();
+                        //todo: 此时节点问题或者分叉,待处理
+                        let receipt = send_raw_transaction(receipt).await;
                         let transaction_hash = format!("{:?}", receipt.transaction_hash);
+                        info!("[test_txid]::remote {}",transaction_hash);
+                        assert_eq!(txid,transaction_hash);
+                        let height = receipt.block_number.unwrap().to_string().parse::<u32>().unwrap();
                         for trade in trades.iter_mut() {
                             trade.block_height = height;
-                            trade.transaction_hash = transaction_hash.clone();
                         }
                         update_trades(&trades);
                         last_height = height;

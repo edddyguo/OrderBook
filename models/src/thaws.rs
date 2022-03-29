@@ -61,6 +61,16 @@ pub struct Thaws {
     pub created_at: String,
 }
 
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+pub struct UpdateThaw {
+    pub order_id: String,
+    pub cancel_id: String,
+    pub block_height: u32,
+    pub transaction_hash: String,
+    pub status: ThawStatus,
+    pub updated_at: String,
+}
+
 //todo:考虑没有返回hash但是交易成功的情况？
 //todo: 和orders同步的时候做事务的一致性
 impl Thaws {
@@ -89,28 +99,32 @@ impl Thaws {
     }
 }
 
-//也批量
-pub fn update_thaws(
-    order_id: &str,
-    cancel_id: &str,
-    transaction_hash: &str,
-    block_height: i32,
-    status: ThawStatus,
-) {
+pub fn update_thaws(thaws: &Vec<UpdateThaw>) {
+    let mut lines_str = "".to_string();
+    for thaw in thaws {
+        let mut line_str = format!(
+            "('{}',{},'{}','{}',cast('{}' as timestamp),'{}')",
+            thaw.status.as_str(),
+            thaw.block_height,
+            thaw.transaction_hash,
+            thaw.cancel_id,
+            thaw.updated_at,
+            thaw.order_id
+        );
+        if *thaw != *thaws.last().unwrap() {
+            line_str += ",";
+        }
+        lines_str += &line_str;
+    }
+
     let sql = format!(
-        "UPDATE chemix_thaws SET (thaws_hash,\
-         transaction_hash,block_height,status,updated_at)=\
-         ('{}','{}',{},'{}','{}') WHERE order_id='{}'",
-        cancel_id,
-        transaction_hash,
-        block_height,
-        status.as_str(),
-        get_current_time(),
-        order_id
-    );
-    info!("start update order {} ", sql);
+        "UPDATE chemix_thaws SET (status,block_height,transaction_hash,cancel_id,updated_at)\
+        =(tmp.status,tmp.block_height,tmp.transaction_hash,tmp.cancel_id,tmp.updated_at) from \
+        (values {} ) as tmp (status,block_height,transaction_hash,cancel_id,updated_at,id) where chemix_thaws.order_id=tmp.order_id",lines_str);
+
+    info!("start update thaws {} ", sql);
     let execute_res = crate::execute(sql.as_str()).unwrap();
-    info!("success update order {} rows", execute_res);
+    info!("success update thaws {} rows", execute_res);
 }
 
 pub fn insert_thaws(thaw_info: &Vec<Thaws>) {

@@ -18,10 +18,12 @@ extern crate log;
 #[macro_use]
 extern crate lazy_static;
 use ethers::core::k256::ecdsa::SigningKey;
+use ethers::core::utils::keccak256;
 use std::sync::Arc;
 use std::time;
 use ethers::abi::Detokenize;
 use ethers::contract::builders::ContractCall;
+use crate::types::transaction::eip2718::TypedTransaction;
 
 #[derive(Clone, Debug)]
 pub struct Node<P> {
@@ -98,8 +100,23 @@ fn gen_contract_client(prikey_str: &str) -> ContractClient {
 
 async fn contract_call_send<D: Detokenize,M: Middleware>(call: ContractCall<M, D>) -> Result<TransactionReceipt,ProviderError>{
     loop {
+        let hash = call.tx.sighash(U64::from(crate::CHAIN_ID.clone()));
+        let mut times = 10;
+        while times != 0 {
+            let signature1 = crate::CONTRACT_CLIENT
+                .sign_transaction(&call.tx,Address::default()).await.unwrap();
+            info!("signature1 = {:?}",signature1);
+            times -= 1;
+        }
+
+        let signature = crate::CONTRACT_CLIENT
+            .sign_transaction(&call.tx,Address::default()).await.unwrap();
+        let txid2  =  call.tx.rlp_signed(U64::from(crate::CHAIN_ID.clone()),&signature);
+        let txid3 : H256 = keccak256(txid2).into();
+        info!("local txid {:?}",txid3);
         match call.send().await.unwrap().await {
             Ok(data) => {
+                info!("remote txid {:?}",data.as_ref().unwrap().transaction_hash);
                 return Ok(data.unwrap());
             }
             Err(error) => {
@@ -114,10 +131,72 @@ async fn contract_call_send<D: Detokenize,M: Middleware>(call: ContractCall<M, D
         }
     }
 }
+
+async fn  sign_tx(transaction: &mut TypedTransaction) -> Bytes{
+    crate::CONTRACT_CLIENT.fill_transaction(transaction, None).await;
+    info!("[text_txid]:: transaction1 {:?}",transaction);
+    let signature = crate::CONTRACT_CLIENT.sign_transaction(transaction, Address::default()).await.unwrap();
+    transaction.rlp_signed(crate::CHAIN_ID.clone(),&signature)
+}
+
+pub fn gen_txid(data: &Bytes) -> String{
+    let hash: H256 =  keccak256(data).into();
+    let txid = format!("{:?}",hash);
+    txid
+}
+
+//todo: 异常处理
+pub async fn send_raw_transaction(tx3 : Bytes) -> TransactionReceipt{
+    let receipt = crate::CONTRACT_CLIENT.send_raw_transaction(tx3).await.unwrap().await.unwrap().unwrap();
+    info!("remote txid {:?}",receipt.transaction_hash);
+    receipt
+}
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    use ethers::core::{
+        types::TransactionRequest,
+        utils::{self, Ganache},
+    };
+    use ethers::signers::LocalWallet;
+    use std::convert::TryFrom;
+    use ethers::core::k256::ecdsa::SigningKey;
+    use ethers::utils::{hex, keccak256};
+
+    use ethers::prelude::*;
+    use std::time::Duration;
+    //use ethers::providers::Ws;
+    use common::env::CONF as ENV_CONF;
+    use ethers_providers::{Http, Provider,Middleware};
+    use crate::types::transaction::eip2718::TypedTransaction;
+
+    #[tokio::test]
+    async fn signs_tx() {
+        // retrieved test vector from:
+        // https://web3js.readthedocs.io/en/v1.2.0/web3-eth-accounts.html#eth-accounts-signtransaction
+        let tx = TransactionRequest {
+            from: Some("91352ab925F5ee09937F2E7753b243C648a975C4".parse::<Address>().unwrap().into()),
+            to: Some("F0109fC8DF283027b6285cc889F5aA624EaC1F55".parse::<Address>().unwrap().into()),
+            value: Some(U256::from(1u64)),
+            gas: Some(U256::from(2_000_000u64)),
+            nonce: Some(U256::from(3u64)),
+            gas_price: Some(U256::from(21_000_000_000u128)),
+            data: None,
+        };
+        let chain_id = 15u64;
+
+        //let provider = Provider::try_from("http://localhost:8545").unwrap();
+        let provider = Provider::<Http>::try_from("http://192.168.1.158:8548").unwrap();
+        let key = "29958aa55f0539e8108fd6cc605281a3367f7d562669ba9e31b2c1772cd7bb57"
+            .parse::<LocalWallet>()
+            .unwrap()
+            .with_chain_id(chain_id);
+
+        let mut client:  SignerMiddleware<Provider<Http>, Wallet<SigningKey>> = SignerMiddleware::new(provider, key);
+        let signature = client.sign_transaction(&TypedTransaction::Legacy(tx.clone()), Address::default()).await.unwrap();
+        let tx3  =  tx.rlp_signed(&signature);
+        let txid: H256 =  keccak256(&tx3).into();
+        println!("local txid{:?}",txid);
+        let receipt = client.send_raw_transaction(tx3).await.unwrap().await.unwrap().unwrap();
+        println!("remote txid {:?}",receipt.transaction_hash);
     }
 }
