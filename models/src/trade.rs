@@ -58,7 +58,7 @@ impl TradeFilter {
                 )
             }
             TradeFilter::LastPushed => {
-                format!("where status='launched' or status='confirmed' order by created_at desc  limit 1")
+                format!("where status='confirmed' order by created_at desc  limit 1")
             }
         };
         filter_str

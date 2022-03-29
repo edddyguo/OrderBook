@@ -304,6 +304,7 @@ async fn deal_launched_thaws(
     arc_queue: Arc<RwLock<Rsmq>>,
     height: u32,
 ) {
+    let now = get_current_time();
     for new_thaw_flag in new_thaw_flags {
         //如果已经确认的跳过，可能发生在系统重启的时候
         let pending_thaws =
@@ -328,7 +329,7 @@ async fn deal_launched_thaws(
                     block_height: height,
                     transaction_hash: pending_thaw.transaction_hash.clone(),
                     status: ThawStatus::Confirmed,
-                    updated_at: "".to_string()
+                    updated_at: now.clone()
                 });
 
                 let market = get_markets(pending_thaw.market_id.as_str()).unwrap();

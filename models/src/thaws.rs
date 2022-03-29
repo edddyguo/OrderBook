@@ -38,7 +38,7 @@ impl ThawsFilter {
                 )
             }
             ThawsFilter::LastPushed => {
-                format!("where status='launched' or status='confirmed' order by created_at DESC limit 1")
+                format!("where status='confirmed' order by created_at DESC limit 1")
             }
         };
         filter_str
@@ -118,9 +118,9 @@ pub fn update_thaws(thaws: &Vec<UpdateThaw>) {
     }
 
     let sql = format!(
-        "UPDATE chemix_thaws SET (status,block_height,transaction_hash,cancel_id,updated_at)\
-        =(tmp.status,tmp.block_height,tmp.transaction_hash,tmp.cancel_id,tmp.updated_at) from \
-        (values {} ) as tmp (status,block_height,transaction_hash,cancel_id,updated_at,id) where chemix_thaws.order_id=tmp.order_id",lines_str);
+        "UPDATE chemix_thaws SET (status,block_height,transaction_hash,thaws_hash,updated_at)\
+        =(tmp.status,tmp.block_height,tmp.transaction_hash,tmp.thaws_hash,tmp.updated_at) from \
+        (values {} ) as tmp (status,block_height,transaction_hash,thaws_hash,updated_at,order_id) where chemix_thaws.order_id=tmp.order_id",lines_str);
 
     info!("start update thaws {} ", sql);
     let execute_res = crate::execute(sql.as_str()).unwrap();
