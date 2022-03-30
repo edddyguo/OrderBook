@@ -46,7 +46,7 @@ impl ThawsFilter {
 }
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct Thaws {
+pub struct ThawsPO {
     pub order_id: String,
     pub account: String,
     pub market_id: String,
@@ -73,7 +73,7 @@ pub struct UpdateThaw {
 
 //todo:考虑没有返回hash但是交易成功的情况？
 //todo: 和orders同步的时候做事务的一致性
-impl Thaws {
+impl ThawsPO {
     pub fn new(
         order_id: String,
         account: String,
@@ -81,8 +81,8 @@ impl Thaws {
         amount: U256,
         price: U256,
         side: OrderSide,
-    ) -> Thaws {
-        Thaws {
+    ) -> ThawsPO {
+        ThawsPO {
             order_id,
             account,
             market_id,
@@ -127,7 +127,7 @@ pub fn update_thaws(thaws: &Vec<UpdateThaw>) {
     info!("success update thaws {} rows", execute_res);
 }
 
-pub fn insert_thaws(thaw_info: &Vec<Thaws>) {
+pub fn insert_thaws(thaw_info: &Vec<ThawsPO>) {
     let mut sql = format!("insert into chemix_thaws values(");
     let thawsArr: Vec<Vec<String>> = thaw_info
         .into_iter()
@@ -141,7 +141,7 @@ pub fn insert_thaws(thaw_info: &Vec<Thaws>) {
     info!("success insert {} rows", execute_res);
 }
 
-pub fn list_thaws(filter: ThawsFilter) -> Vec<Thaws> {
+pub fn list_thaws(filter: ThawsFilter) -> Vec<ThawsPO> {
     let sql = format!(
         "select order_id,\
     account,\
@@ -157,25 +157,19 @@ pub fn list_thaws(filter: ThawsFilter) -> Vec<Thaws> {
     cast(created_at as text) from chemix_thaws {}",
         filter.to_string()
     );
-    let mut thaws = Vec::<Thaws>::new();
+    let mut thaws = Vec::<ThawsPO>::new();
     info!("list_thaws sql {}", sql);
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
-        let side_str: String = row.get(6);
-        let side = OrderSide::from(side_str.as_str());
-
-        let status_str: String = row.get(7);
-        let status = ThawStatus::from(status_str.as_str());
-
-        let info = Thaws {
+        let info = ThawsPO {
             order_id: row.get::<usize, &str>(0).to_string(),
             account: row.get::<usize, &str>(1).to_string(),
             market_id: row.get::<usize, &str>(2).to_string(),
             transaction_hash: row.get::<usize, &str>(3).to_string(),
             block_height: row.get::<usize, i32>(4),
             thaws_hash: row.get::<usize, &str>(5).to_string(),
-            side,
-            status,
+            side: row.get::<usize, &str>(6).into(),
+            status: row.get::<usize, &str>(7).into(),
             amount: U256::from_str_radix(row.get::<usize, &str>(8), 10).unwrap(),
             price: U256::from_str_radix(row.get::<usize, &str>(9), 10).unwrap(),
             updated_at: row.get::<usize, &str>(10).to_string(),

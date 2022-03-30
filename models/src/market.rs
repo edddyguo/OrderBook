@@ -4,7 +4,7 @@ extern crate rustc_serialize;
 use serde::Serialize;
 
 #[derive(Serialize, Debug, Default, Clone)]
-pub struct MarketInfo {
+pub struct MarketInfoPO {
     pub id: String,
     pub base_token_address: String,
     pub base_token_symbol: String,
@@ -16,15 +16,15 @@ pub struct MarketInfo {
     pub quote_front_decimal: u32,
 }
 
-pub fn list_markets() -> Vec<MarketInfo> {
+pub fn list_markets() -> Vec<MarketInfoPO> {
     let sql = "select id,base_token_address,base_token_symbol,base_contract_decimal,\
     base_front_decimal,quote_token_address,quote_token_symbol,quote_contract_decimal,\
     quote_front_decimal from chemix_markets where online=true";
 
-    let mut markets: Vec<MarketInfo> = Vec::new();
+    let mut markets: Vec<MarketInfoPO> = Vec::new();
     let rows = crate::query(sql).unwrap();
     for row in rows {
-        let info = MarketInfo {
+        let info = MarketInfoPO {
             id: row.get(0),
             base_token_address: row.get(1),
             base_token_symbol: row.get(2),
@@ -40,7 +40,7 @@ pub fn list_markets() -> Vec<MarketInfo> {
     markets
 }
 
-pub fn get_markets(id: &str) -> Option<MarketInfo> {
+pub fn get_markets(id: &str) -> Option<MarketInfoPO> {
     let sql = format!(
         "select id,base_token_address,base_token_symbol,base_contract_decimal,\
     base_front_decimal,quote_token_address,quote_token_symbol,quote_contract_decimal,\
@@ -54,7 +54,7 @@ pub fn get_markets(id: &str) -> Option<MarketInfo> {
     info!("get_markets: raw sql {}", sql);
     //id只有一个
     //rows[0].get::<usize, i32>(2) as u32
-    Some(MarketInfo {
+    Some(MarketInfoPO {
         id: rows[0].get(0),
         base_token_address: rows[0].get(1),
         base_token_symbol: rows[0].get(2),

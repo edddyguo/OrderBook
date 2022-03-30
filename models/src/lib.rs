@@ -33,12 +33,12 @@ extern crate common;
 
 use chrono::Local;
 
-use crate::trade::TradeInfo;
+use crate::trade::TradeInfoPO;
 
-use crate::thaws::Thaws;
+use crate::thaws::ThawsPO;
 
 extern crate rustc_serialize;
-use crate::snapshot::Snapshot;
+use crate::snapshot::SnapshotPO;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -172,7 +172,7 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
     let mut values: Vec<String> = vec![];
     let value = value as &dyn Any;
 
-    match value.downcast_ref::<TradeInfo>() {
+    match value.downcast_ref::<TradeInfoPO>() {
         Some(trade) => {
             values.push(trade.id.string4sql());
             values.push(trade.block_height.to_string());
@@ -192,7 +192,7 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
         }
         None => (),
     };
-    match value.downcast_ref::<order::OrderInfo>() {
+    match value.downcast_ref::<order::OrderInfoPO>() {
         Some(trade) => {
             values.push(trade.id.string4sql());
             values.push(trade.index.to_string());
@@ -214,7 +214,7 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
         None => (),
     };
 
-    match value.downcast_ref::<Thaws>() {
+    match value.downcast_ref::<ThawsPO>() {
         Some(thaw) => {
             values.push(thaw.order_id.string4sql());
             values.push(thaw.account.string4sql());
@@ -232,7 +232,7 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
         None => (),
     };
 
-    match value.downcast_ref::<Snapshot>() {
+    match value.downcast_ref::<SnapshotPO>() {
         Some(dash) => {
             values.push(dash.traders.to_string().string4sql());
             values.push(dash.transactions.to_string().string4sql());

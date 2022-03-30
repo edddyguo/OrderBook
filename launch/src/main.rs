@@ -28,7 +28,7 @@ use tokio::time;
 
 use chemix_models::order::{list_orders, OrderFilter};
 use chemix_models::trade::{
-    list_trades, update_trade_by_hash, update_trades, TradeFilter, TradeInfo, UpdateTrade,
+    list_trades, update_trade_by_hash, update_trades, TradeFilter, TradeInfoPO, UpdateTrade,
 };
 use common::utils::algorithm::{sha256, u8_arr_from_str, u8_arr_to_str};
 use common::utils::math::u256_to_f64;
@@ -85,7 +85,7 @@ pub struct LastTrade2 {
     taker_side: OrderSide,
 }
 
-fn gen_settle_trades(db_trades: Vec<TradeInfo>) -> Vec<SettleValues3> {
+fn gen_settle_trades(db_trades: Vec<TradeInfoPO>) -> Vec<SettleValues3> {
     //key: account,token_address,is_positive
     let mut base_settle_values: HashMap<(String, String, bool), U256> = HashMap::new();
     let mut quote_settle_values: HashMap<(String, String, bool), U256> = HashMap::new();
@@ -198,7 +198,7 @@ fn gen_settle_trades(db_trades: Vec<TradeInfo>) -> Vec<SettleValues3> {
     settle_trades
 }
 
-fn update_depth(depth_ori: &mut RawDepth, x: &TradeInfo) {
+fn update_depth(depth_ori: &mut RawDepth, x: &TradeInfoPO) {
     let amount = I256::try_from(x.amount).unwrap();
     //maker吃掉的部分都做减法
     match x.taker_side {

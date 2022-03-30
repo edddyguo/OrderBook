@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
-use chemix_models::order::OrderInfo;
+use chemix_models::order::OrderInfoPO;
 use common::types::order::Side as OrderSide;
 use ethers_core::types::U256;
 use serde::Serialize;
@@ -94,7 +94,7 @@ pub struct Book {
 type EngineBuyOrder = (BuyPriority, BookValue);
 type EngineSellOrder = (SellPriority, BookValue);
 
-pub fn gen_engine_buy_order(order: &OrderInfo) -> EngineBuyOrder {
+pub fn gen_engine_buy_order(order: &OrderInfoPO) -> EngineBuyOrder {
     (
         BuyPriority {
             price: order.price,
@@ -109,7 +109,7 @@ pub fn gen_engine_buy_order(order: &OrderInfo) -> EngineBuyOrder {
     )
 }
 
-pub fn gen_engine_sell_order(order: &OrderInfo) -> EngineSellOrder {
+pub fn gen_engine_sell_order(order: &OrderInfoPO) -> EngineSellOrder {
     (
         SellPriority {
             price: order.price,

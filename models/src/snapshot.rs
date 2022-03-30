@@ -7,7 +7,7 @@ use crate::struct2array;
 use serde::Serialize;
 
 #[derive(Serialize, Debug, Default)]
-pub struct Snapshot {
+pub struct SnapshotPO {
     pub traders: i32,
     pub transactions: i32,
     pub order_volume: U256,
@@ -19,7 +19,7 @@ pub struct Snapshot {
 }
 
 //取当前和一天之前的快照
-pub fn get_snapshot() -> Option<(Snapshot, Snapshot)> {
+pub fn get_snapshot() -> Option<(SnapshotPO, SnapshotPO)> {
     let sql = format!("select traders,transactions,order_volume,withdraw,\
     trade_volume,trading_pairs,cec_price,snapshot_time from chemix_snapshot order by created_at desc limit 24");
     let execute_res = crate::query(sql.as_str()).unwrap();
@@ -27,7 +27,7 @@ pub fn get_snapshot() -> Option<(Snapshot, Snapshot)> {
     if execute_res.is_empty() {
         return None;
     }
-    let gen_snapshot = |row: &Row| Snapshot {
+    let gen_snapshot = |row: &Row| SnapshotPO {
         traders: row.get(0),
         transactions: row.get(1),
         order_volume: U256::from_str_radix(row.get::<usize, &str>(2), 10).unwrap(),
@@ -43,7 +43,7 @@ pub fn get_snapshot() -> Option<(Snapshot, Snapshot)> {
     ))
 }
 
-pub fn insert_snapshot(data: Snapshot) {
+pub fn insert_snapshot(data: SnapshotPO) {
     let data_arr = struct2array(&data);
     let mut sql = format!("insert into chemix_snapshot values(");
     for i in 0..data_arr.len() {

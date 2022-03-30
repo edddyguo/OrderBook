@@ -1,7 +1,7 @@
 use crate::trade::Trade2;
 use crate::OrderSide;
 use chemix_models::market::get_markets;
-use chemix_models::order::OrderInfo;
+use chemix_models::order::OrderInfoPO;
 use chemix_models::trade::{list_trades, TradeFilter};
 
 use common::utils::math::{u256_to_f64, U256_ZERO};
@@ -37,7 +37,7 @@ pub struct OrderDetail {
     pub created_at: u64,
 }
 
-pub fn get_order_detail(order: &OrderInfo) -> OrderDetail {
+pub fn get_order_detail(order: &OrderInfoPO) -> OrderDetail {
     let market_info = get_markets(order.market_id.as_str()).unwrap();
     let (base_decimal, quote_decimal) = (
         market_info.base_contract_decimal as u32,

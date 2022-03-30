@@ -9,8 +9,8 @@ use crate::{BookValue, BuyPriority};
 
 use chemix_chain::chemix::storage::{CancelOrderState2, ChainNewOrder};
 
-use chemix_models::order::{list_orders, OrderFilter, OrderInfo};
-use chemix_models::trade::TradeInfo;
+use chemix_models::order::{list_orders, OrderFilter, OrderInfoPO};
+use chemix_models::trade::TradeInfoPO;
 use common::types::depth::{Depth, RawDepth};
 use common::types::order::{Side, Status as OrderStatus};
 
@@ -28,8 +28,8 @@ pub struct EventOrder {
 }
 
 pub fn match_order(
-    mut taker_order: &mut OrderInfo,
-    trades: &mut Vec<TradeInfo>,
+    mut taker_order: &mut OrderInfoPO,
+    trades: &mut Vec<TradeInfoPO>,
     raw_depth: &mut RawDepth,
     marker_reduced_orders: &mut HashMap<String, U256>,
 ) {
@@ -76,7 +76,7 @@ pub fn match_order(
                     let matched_amount =
                         std::cmp::min(taker_order.available_amount, marker_order.1.amount);
 
-                    trades.push(TradeInfo::new(
+                    trades.push(TradeInfoPO::new(
                         crate::MARKET.id.clone(),
                         taker_order.account.clone(),
                         marker_order.1.account.clone(),
@@ -149,7 +149,7 @@ pub fn match_order(
                     let matched_amount =
                         std::cmp::min(taker_order.available_amount, marker_order.1.amount);
 
-                    trades.push(TradeInfo::new(
+                    trades.push(TradeInfoPO::new(
                         crate::MARKET.id.clone(),
                         taker_order.account.clone(),
                         marker_order.1.account.clone(),
@@ -257,7 +257,7 @@ pub fn legal_cancel_orders_filter(
     legal_orders
 }
 
-pub fn legal_new_orders_filter(raw_orders: Vec<ChainNewOrder>, height: u32) -> Vec<OrderInfo> {
+pub fn legal_new_orders_filter(raw_orders: Vec<ChainNewOrder>, height: u32) -> Vec<OrderInfoPO> {
     let mut db_new_orders = Vec::new();
     for order in raw_orders {
         let base_decimal = crate::MARKET.base_contract_decimal as u32;
@@ -273,7 +273,7 @@ pub fn legal_new_orders_filter(raw_orders: Vec<ChainNewOrder>, height: u32) -> V
         );
         //如果num_power过大，则raw_amount为零无效
         if raw_amount != U256_ZERO {
-            db_new_orders.push(OrderInfo::new(
+            db_new_orders.push(OrderInfoPO::new(
                 order.id,
                 order.index,
                 order.transaction_hash,
@@ -291,7 +291,7 @@ pub fn legal_new_orders_filter(raw_orders: Vec<ChainNewOrder>, height: u32) -> V
 }
 
 //根据未成交的订单生成深度数据
-pub fn gen_depth_from_order(orders: Vec<OrderInfo>) -> HashMap<String, Depth> {
+pub fn gen_depth_from_order(orders: Vec<OrderInfoPO>) -> HashMap<String, Depth> {
     let mut raw_depth = RawDepth {
         asks: HashMap::new(),
         bids: HashMap::new(),

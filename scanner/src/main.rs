@@ -9,7 +9,7 @@ use common::utils::time::get_unix_time;
 
 use chemix_chain::chemix::vault::Vault;
 use chemix_chain::chemix::ChemixContractClient;
-use chemix_models::snapshot::{insert_snapshot, Snapshot};
+use chemix_models::snapshot::{insert_snapshot, SnapshotPO};
 use chemix_models::TimeScope;
 
 use chemix_models::tokens::{get_token, list_tokens};
@@ -85,7 +85,7 @@ async fn gen_chemix_profile(vault_client: &ChemixContractClient<Vault>) {
     let trading_pairs = total_markets.len() as i32;
     let cec_price = get_token_price("CEC").unwrap();
 
-    let current_dash = Snapshot {
+    let current_dash = SnapshotPO {
         traders: cumulative_traders,
         transactions: cumulative_transactions,
         order_volume: total_order_value,

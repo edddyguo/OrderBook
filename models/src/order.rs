@@ -44,7 +44,7 @@ pub struct OpenOrder {
 }
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
-pub struct OrderInfo {
+pub struct OrderInfoPO {
     pub id: String,
     pub index: u32,
     pub transaction_hash: String,
@@ -104,7 +104,7 @@ impl OrderFilter {
     }
 }
 
-impl OrderInfo {
+impl OrderInfoPO {
     pub fn new(
         id: String,
         index: u32,
@@ -116,8 +116,8 @@ impl OrderInfo {
         side: OrderSide,
         price: U256,
         amount: U256,
-    ) -> OrderInfo {
-        OrderInfo {
+    ) -> OrderInfoPO {
+        OrderInfoPO {
             id,
             index,
             transaction_hash,
@@ -138,7 +138,7 @@ impl OrderInfo {
     }
 }
 
-pub fn insert_orders(orders: &Vec<OrderInfo>) {
+pub fn insert_orders(orders: &Vec<OrderInfoPO>) {
     //todo 这个后边的括号可以挪走
     let mut sql = format!("insert into chemix_orders values(");
     let ordersArr: Vec<Vec<String>> = orders
@@ -181,7 +181,7 @@ pub fn update_orders(orders: &Vec<UpdateOrder>) {
     info!("success update orders {} rows", execute_res);
 }
 
-pub fn list_orders(filter: OrderFilter) -> Result<Vec<OrderInfo>> {
+pub fn list_orders(filter: OrderFilter) -> Result<Vec<OrderInfoPO>> {
     let sql = format!(
         "select id,index,transaction_hash,block_height,hash_data,market_id,account,side,
          price,\
@@ -195,10 +195,10 @@ pub fn list_orders(filter: OrderFilter) -> Result<Vec<OrderInfo>> {
         filter.to_string()
     );
     info!("list_users_orders2 raw sql {}", sql);
-    let mut orders = Vec::<OrderInfo>::new();
+    let mut orders = Vec::<OrderInfoPO>::new();
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
-        let info = OrderInfo {
+        let info = OrderInfoPO {
             id: row.get(0),
             index: row.get::<usize, i32>(1) as u32,
             transaction_hash: row.get(2),
@@ -206,10 +206,10 @@ pub fn list_orders(filter: OrderFilter) -> Result<Vec<OrderInfo>> {
             hash_data: row.get(4),
             market_id: row.get(5),
             account: row.get(6),
-            side: OrderSide::from(row.get::<usize, &str>(7usize)), //row.get(4),
+            side: row.get::<usize, &str>(7usize).into(),
             price: U256::from_str_radix(row.get::<usize, &str>(8usize), 10).unwrap(),
             amount: U256::from_str_radix(row.get::<usize, &str>(9usize), 10).unwrap(),
-            status: order::Status::from(row.get::<usize, &str>(10usize)),
+            status: row.get::<usize, &str>(10usize).into(),
             available_amount: U256::from_str_radix(row.get::<usize, &str>(11usize), 10)
                 .unwrap(),
             matched_amount: U256::from_str_radix(row.get::<usize, &str>(12usize), 10).unwrap(),

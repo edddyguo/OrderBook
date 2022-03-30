@@ -66,7 +66,7 @@ impl TradeFilter {
 }
 
 #[derive(Serialize, Debug, Clone, Deserialize)]
-pub struct TradeInfo {
+pub struct TradeInfoPO {
     pub id: String,
     pub block_height: i32,
     pub transaction_hash: String,
@@ -94,7 +94,7 @@ pub struct UpdateTrade {
     pub updated_at: String,
 }
 
-impl TradeInfo {
+impl TradeInfoPO {
     pub fn new(
         market_id: String,
         taker: String,
@@ -104,9 +104,9 @@ impl TradeInfo {
         taker_side: OrderSide,
         maker_order_id: String,
         taker_order_id: String,
-    ) -> TradeInfo {
+    ) -> TradeInfoPO {
         let now = get_current_time();
-        let mut trade = TradeInfo {
+        let mut trade = TradeInfoPO {
             id: "".to_string(),
             block_height: -1,
             transaction_hash: "".to_string(),
@@ -128,7 +128,7 @@ impl TradeInfo {
     }
 }
 
-pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
+pub fn insert_trades(trades: &mut Vec<TradeInfoPO>) {
     info!("start insert info {:#?}", trades);
     if trades.is_empty() {
         return;
@@ -146,7 +146,7 @@ pub fn insert_trades(trades: &mut Vec<TradeInfo>) {
     info!("success insert traders {} rows", execute_res);
 }
 
-pub fn list_trades(filter: TradeFilter) -> Vec<TradeInfo> {
+pub fn list_trades(filter: TradeFilter) -> Vec<TradeInfoPO> {
     let sql = format!(
         "select \
     id,\
@@ -167,25 +167,23 @@ pub fn list_trades(filter: TradeFilter) -> Vec<TradeInfo> {
     from chemix_trades {}",
         filter.to_string()
     );
-    let mut trades: Vec<TradeInfo> = Vec::new();
+    let mut trades: Vec<TradeInfoPO> = Vec::new();
     info!("list_trades_sql {}", sql);
     let rows = crate::query(sql.as_str()).unwrap();
     for row in rows {
-        let side_str: String = row.get(10);
         //side要结合是taker还是marker来判断
-        let side = order::Side::from(side_str.as_str());
-        let info = TradeInfo {
+        let info = TradeInfoPO {
             id: row.get(0),
             block_height: row.get(1),
             transaction_hash: row.get(2),
             hash_data: row.get(3),
-            status: TradeStatus::from(row.get::<usize, &str>(4usize)), //row.get(3),
+            status: row.get::<usize, &str>(4usize).into(), //row.get(3),
             market_id: row.get(5),
             taker: row.get(6),
             maker: row.get(7),
             price: U256::from_str_radix(row.get::<usize, &str>(8), 10).unwrap(),
             amount: U256::from_str_radix(row.get::<usize, &str>(9), 10).unwrap(),
-            taker_side: side,
+            taker_side: row.get::<usize, &str>(10).into(),
             maker_order_id: row.get(11),
             taker_order_id: row.get(12),
             updated_at: row.get(13),

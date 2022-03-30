@@ -32,20 +32,20 @@ use tokio::runtime::Runtime;
 use clap::{App, Arg};
 
 use chemix_models::order::{
-    insert_orders, list_orders, update_orders, OrderFilter, OrderInfo, UpdateOrder,
+    insert_orders, list_orders, update_orders, OrderFilter, OrderInfoPO, UpdateOrder,
 };
-use chemix_models::trade::{insert_trades, TradeInfo};
+use chemix_models::trade::{insert_trades, TradeInfoPO};
 
 use chemix_chain::chemix::storage::{CancelOrderState2, Storage};
 use common::utils::math::{u256_to_f64, U256_ZERO};
 use common::utils::time::{get_current_time, get_unix_time};
 
-use chemix_models::market::{get_markets, MarketInfo};
+use chemix_models::market::{get_markets, MarketInfoPO};
 
 use crate::book::{
     gen_engine_buy_order, gen_engine_sell_order, Book, BookValue, BuyPriority, SellPriority,
 };
-use chemix_models::thaws::{insert_thaws, Thaws};
+use chemix_models::thaws::{insert_thaws, ThawsPO};
 use chemix_models::{transactin_begin, transactin_commit};
 use common::queue::*;
 use common::types::depth::{Depth, RawDepth};
@@ -71,7 +71,7 @@ pub struct EnigneSettleValues {
 }
 
 lazy_static! {
-    static ref MARKET: MarketInfo = {
+    static ref MARKET: MarketInfoPO = {
             let matches = App::new("engine")
         .version("1.0")
         .about("Does awesome things")
@@ -106,13 +106,13 @@ lazy_static! {
 
 }
 
-fn gen_depth_from_cancel_orders(pending_thaws: Vec<Thaws>) -> RawDepth {
+fn gen_depth_from_cancel_orders(pending_thaws: Vec<ThawsPO>) -> RawDepth {
     let mut add_depth = RawDepth {
         asks: HashMap::<U256, I256>::new(),
         bids: HashMap::<U256, I256>::new(),
     };
 
-    let mut update_depth = |x: Thaws| {
+    let mut update_depth = |x: ThawsPO| {
         let amount = I256::try_from(x.amount).unwrap();
         match x.side {
             Side::Buy => {
@@ -184,7 +184,7 @@ fn gen_depth_from_raw(add_depth: RawDepth) -> Depth {
     }
 }
 
-fn gen_agg_trade_from_raw(trades: Vec<TradeInfo>) -> Vec<AggTrade> {
+fn gen_agg_trade_from_raw(trades: Vec<TradeInfoPO>) -> Vec<AggTrade> {
     trades
         .into_iter()
         .map(|x| AggTrade {
@@ -314,7 +314,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 
         s.spawn(move |_| {
             loop {
-                let (legal_orders, mut orders): (Vec<CancelOrderState2>, Vec<OrderInfo>) =
+                let (legal_orders, mut orders): (Vec<CancelOrderState2>, Vec<OrderInfoPO>) =
                     event_receiver.recv().expect("failed to recv book order");
 
                 let mut add_depth = RawDepth {
@@ -345,7 +345,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             updated_at: get_current_time(),
                         };
                         pre_cancle_orders.push(update_info);
-                        pending_thaws.push(Thaws::new(
+                        pending_thaws.push(ThawsPO::new(
                             order.id.clone(),
                             order.account.clone(),
                             order.market_id.clone(),
@@ -360,7 +360,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 }
 
                 //处理新来的订单
-                let mut db_trades = Vec::<TradeInfo>::new();
+                let mut db_trades = Vec::<TradeInfoPO>::new();
                 if orders.is_empty() {
                     info!("Not found legal created orders");
                 } else {
