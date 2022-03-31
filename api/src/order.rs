@@ -43,7 +43,7 @@ pub fn get_order_detail(order: &OrderInfoPO) -> OrderDetail {
         market_info.base_contract_decimal as u32,
         market_info.quote_contract_decimal as u32,
     );
-    let trades = list_trades(TradeFilter::OrderId(order.id.clone()));
+    let trades = list_trades(TradeFilter::OrderId(&order.id));
     let mut total_volume = U256_ZERO;
     let mut trades2 = Vec::<Trade2>::new();
     for trade in trades.clone() {

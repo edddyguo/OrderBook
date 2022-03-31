@@ -13,16 +13,16 @@ use common::types::order::Side as OrderSide;
 use common::types::thaw::Status as ThawStatus;
 
 #[derive(Clone, Debug)]
-pub enum ThawsFilter {
+pub enum ThawsFilter<'a> {
     //market,account
-    NotConfirmed(String, String),
+    NotConfirmed(&'a str, &'a str),
     Status(ThawStatus),
     //hashdata,block_height
-    DelayConfirm(String, u32),
+    DelayConfirm(&'a str, u32),
     LastPushed,
 }
 
-impl ThawsFilter {
+impl ThawsFilter<'_> {
     pub fn to_string(&self) -> String {
         let filter_str = match self {
             ThawsFilter::NotConfirmed(market_id, account) => {
@@ -62,30 +62,30 @@ pub struct ThawsPO {
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
-pub struct UpdateThaw {
+pub struct UpdateThaw<'a> {
     pub order_id: String,
     pub cancel_id: String,
     pub block_height: u32,
     pub transaction_hash: String,
     pub status: ThawStatus,
-    pub updated_at: String,
+    pub updated_at: &'a str,
 }
 
 //todo:考虑没有返回hash但是交易成功的情况？
 //todo: 和orders同步的时候做事务的一致性
 impl ThawsPO {
     pub fn new(
-        order_id: String,
-        account: String,
-        market_id: String,
+        order_id: &str,
+        account: &str,
+        market_id: &str,
         amount: U256,
         price: U256,
         side: OrderSide,
     ) -> ThawsPO {
         ThawsPO {
-            order_id,
-            account,
-            market_id,
+            order_id: order_id.to_owned(),
+            account: account.to_owned(),
+            market_id: market_id.to_owned(),
             transaction_hash: "".to_string(),
             block_height: 0,
             thaws_hash: "".to_string(),

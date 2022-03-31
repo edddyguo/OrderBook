@@ -236,7 +236,7 @@ async fn deal_launched_trade(
     let now = get_current_time();
     //目前来说一个区块里只有一个清算
     for hash_data in new_settlements {
-        let db_trades = list_trades(TradeFilter::DelayConfirm(hash_data.clone(), block_height));
+        let db_trades = list_trades(TradeFilter::DelayConfirm(&hash_data, block_height));
         if db_trades.is_empty() {
             warn!(
                 "This trade hash {} have already dealed,and jump it",
@@ -244,14 +244,14 @@ async fn deal_launched_trade(
             );
             continue;
         }
-        for x in db_trades.clone() {
+        for x in db_trades {
             launched_trdade.push(UpdateTrade{
                 id: x.id.clone(),
                 status: TradeStatus::Confirmed,
                 block_height,
-                transaction_hash: x.transaction_hash.clone(),
-                hash_data: x.hash_data.clone(),
-                updated_at: now.clone()
+                transaction_hash: x.transaction_hash,
+                hash_data: x.hash_data,
+                updated_at: &now
             });
             let market_info = get_markets(x.market_id.as_str()).unwrap();
             let base_token_decimal = market_info.base_contract_decimal;
@@ -260,7 +260,7 @@ async fn deal_launched_trade(
             let user_amount = u256_to_f64(x.amount, base_token_decimal);
             if user_price != 0.0 && user_amount != 0.0 {
                 let agg_trade = AggTrade {
-                    id: x.id,
+                    id: x.id.clone(),
                     taker: x.taker.clone(),
                     maker: x.maker.clone(),
                     price: user_price,
@@ -308,7 +308,7 @@ async fn deal_launched_thaws(
     for new_thaw_flag in new_thaw_flags {
         //如果已经确认的跳过，可能发生在系统重启的时候
         let pending_thaws =
-            list_thaws(ThawsFilter::DelayConfirm(new_thaw_flag.clone(), height));
+            list_thaws(ThawsFilter::DelayConfirm(&new_thaw_flag, height));
         if pending_thaws.is_empty() {
             warn!(
                 "This thaw hash {} have already dealed,and jump it",
@@ -322,14 +322,14 @@ async fn deal_launched_thaws(
         let mut update_thaws_arr = Vec::new();
         for iter in iters.into_iter() {
             let mut thaw_infos = Vec::new();
-            for pending_thaw in iter.clone() {
+            for pending_thaw in iter.to_vec() {
                 update_thaws_arr.push(UpdateThaw{
-                    order_id: pending_thaw.order_id.clone(),
+                    order_id: pending_thaw.order_id,
                     cancel_id: pending_thaw.thaws_hash.clone(),
                     block_height: height,
                     transaction_hash: pending_thaw.transaction_hash.clone(),
                     status: ThawStatus::Confirmed,
-                    updated_at: now.clone()
+                    updated_at: &now
                 });
 
                 let market = get_markets(pending_thaw.market_id.as_str()).unwrap();
@@ -565,7 +565,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             block_height: 0,
                             transaction_hash: txid.clone(),
                             status: ThawStatus::Launched,
-                            updated_at: now.clone()
+                            updated_at: &now
                         }
                     }).collect::<Vec<UpdateThaw>>();
                     update_thaws(&pending_thaws2);
@@ -629,7 +629,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 block_height: 0,
                                 transaction_hash: txid.clone(),
                                 hash_data: last_order.hash_data.clone(),
-                                updated_at: now.clone()
+                                updated_at: &now
                             }
                         }).collect::<Vec<UpdateTrade>>();
                         update_trades(&trades);

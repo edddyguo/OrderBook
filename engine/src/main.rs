@@ -314,6 +314,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 
         s.spawn(move |_| {
             loop {
+                let now = get_current_time();
                 let (legal_orders, mut orders): (Vec<CancelOrderState2>, Vec<OrderInfoPO>) =
                     event_receiver.recv().expect("failed to recv book order");
 
@@ -342,13 +343,13 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             available_amount: U256_ZERO,
                             matched_amount: order.matched_amount,
                             canceled_amount: order.available_amount,
-                            updated_at: get_current_time(),
+                            updated_at: &now,
                         };
                         pre_cancle_orders.push(update_info);
                         pending_thaws.push(ThawsPO::new(
-                            order.id.clone(),
-                            order.account.clone(),
-                            order.market_id.clone(),
+                            &order.id,
+                            &order.account,
+                            &order.market_id,
                             order.available_amount,
                             order.price,
                             order.side.clone(),
@@ -407,7 +408,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     let mut pre_update_orders = Vec::new();
                     for orders in db_marker_orders_reduce {
                         let market_orders =
-                            list_orders(OrderFilter::ById(orders.0.clone())).unwrap();
+                            list_orders(OrderFilter::ById(&orders.0)).unwrap();
                         let marker_order_ori = market_orders.first().unwrap();
                         let new_matched_amount = marker_order_ori.matched_amount + orders.1;
                         info!(
@@ -428,7 +429,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             available_amount: new_available_amount,
                             canceled_amount: marker_order_ori.canceled_amount,
                             matched_amount: new_matched_amount,
-                            updated_at: get_current_time(),
+                            updated_at: &now,
                         };
                         pre_update_orders.push(update_info);
                     }

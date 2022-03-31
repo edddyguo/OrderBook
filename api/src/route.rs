@@ -305,7 +305,7 @@ async fn agg_trades(web::Query(info): web::Query<AggTradesRequest>) -> impl Resp
     let market = get_markets(&info.market_id).unwrap();
     let (base_decimal, quote_decimal) =
         (market.base_contract_decimal, market.quote_contract_decimal);
-    let trades = list_trades(TradeFilter::MarketId(info.market_id.clone(), info.limit))
+    let trades = list_trades(TradeFilter::MarketId(&info.market_id, info.limit))
         .iter()
         .map(|x| trade::Trade {
             id: x.id.clone(),
@@ -499,42 +499,41 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
     .unwrap();
 
     let mut orders = orders
-        .iter()
+        .into_iter()
         .map(|x| OpenOrder {
             id: info.market_id.clone(),
-            transaction_hash: x.transaction_hash.clone(),
+            transaction_hash: x.transaction_hash,
             thaws_hash: "".to_string(),
-            index: x.index.to_string(),
-            account: x.account.clone(),
+            index: x.index,
+            account: x.account,
             price: u256_to_f64(x.price, quote_decimal),
             amount: u256_to_f64(x.amount, base_decimal),
             matched_amount: u256_to_f64(x.matched_amount, base_decimal),
             side: x.side.clone(),
-            status: x.status.as_str().to_string(),
+            status: x.status.as_str(),
             created_at: time2unix(x.created_at.clone()),
         })
         .collect::<Vec<OpenOrder>>();
     let thaws = list_thaws(ThawsFilter::NotConfirmed(
-        market_id.clone(),
-        account.clone(),
+        &market_id,
+        &account,
     ));
     //XXX: 当前为了适配前端本地缓存的
     let mut mock_order = thaws
-        .iter()
+        .into_iter()
         .map(|x| {
-            let account = format!("{:?}", x.account);
-            let origin_order = list_orders2(OrderFilter::ById(x.order_id.clone())).unwrap();
+            let origin_order = list_orders2(OrderFilter::ById(&x.order_id)).unwrap();
             OpenOrder {
-                id: x.market_id.clone(),
+                id: x.market_id,
                 transaction_hash: origin_order[0].transaction_hash.clone(),
-                thaws_hash: x.thaws_hash.clone(),
-                index: origin_order[0].index.to_string(),
-                account,
+                thaws_hash: x.thaws_hash,
+                index: origin_order[0].index,
+                account: x.account,
                 price: u256_to_f64(x.price, quote_decimal),
                 amount: u256_to_f64(x.amount, base_decimal),
                 matched_amount: u256_to_f64(x.amount, base_decimal), //tmp code
                 side: x.side.clone(),
-                status: "thawing".to_string(), //tmp code
+                status: "thawing", //tmp code
                 created_at: time2unix(origin_order[0].created_at.clone()),
             }
         })
@@ -607,8 +606,8 @@ async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> imp
     );
     let account = info.account.clone().to_lowercase();
     let trades = list_trades(TradeFilter::Recent(
-        account.clone(),
-        info.market_id.clone(),
+        &account,
+        &info.market_id,
         TradeStatus::Confirmed,
         info.limit,
     ));

@@ -77,14 +77,14 @@ pub fn match_order(
                         std::cmp::min(taker_order.available_amount, marker_order.1.amount);
 
                     trades.push(TradeInfoPO::new(
-                        crate::MARKET.id.clone(),
-                        taker_order.account.clone(),
-                        marker_order.1.account.clone(),
+                        &crate::MARKET.id,
+                        &taker_order.account,
+                        &marker_order.1.account,
                         marker_order.0.price.clone(),
                         matched_amount.clone(),
                         taker_order.side.clone(),
-                        marker_order.1.id.clone(),
-                        taker_order.id.clone(),
+                        &marker_order.1.id,
+                        &taker_order.id,
                     ));
 
                     //吃掉的订单使卖单深度减少
@@ -150,14 +150,14 @@ pub fn match_order(
                         std::cmp::min(taker_order.available_amount, marker_order.1.amount);
 
                     trades.push(TradeInfoPO::new(
-                        crate::MARKET.id.clone(),
-                        taker_order.account.clone(),
-                        marker_order.1.account.clone(),
+                        &crate::MARKET.id,
+                        &taker_order.account,
+                        &marker_order.1.account,
                         marker_order.0.price.clone(),
                         matched_amount,
                         taker_order.side.clone(),
-                        marker_order.1.id.clone(),
-                        taker_order.id.clone(),
+                        &marker_order.1.id,
+                        &taker_order.id,
                     ));
 
                     let stat = raw_depth

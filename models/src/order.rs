@@ -19,27 +19,27 @@ use common::types::order::Side as OrderSide;
 use common::utils::math::U256_ZERO;
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
-pub struct UpdateOrder {
+pub struct UpdateOrder<'a> {
     pub id: String,
     pub status: OrderStatus,
     pub available_amount: U256,
     pub canceled_amount: U256,
     pub matched_amount: U256,
-    pub updated_at: String,
+    pub updated_at:  &'a str,
 }
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
-pub struct OpenOrder {
-    pub id: String,
-    pub transaction_hash: String,
-    pub thaws_hash: String,
-    pub index: String,
-    pub account: String,
+pub struct OpenOrder<'a> {
+    pub id:  String,
+    pub transaction_hash:  String,
+    pub thaws_hash:  String,
+    pub index:  u32,
+    pub account:  String,
     pub price: f64,
     pub amount: f64,
     pub matched_amount: f64,
     pub side: OrderSide,
-    pub status: String,
+    pub status:  &'a str,
     pub created_at: u64,
 }
 
@@ -70,9 +70,9 @@ pub struct MarketVolume {
 }
 
 #[derive(Clone, Debug)]
-pub enum OrderFilter {
+pub enum OrderFilter<'a> {
     GetLastOne,
-    ById(String),
+    ById(&'a str),
     ByIndex(u32),
     //market_id
     AvailableOrders(String, order::Side),
@@ -80,27 +80,24 @@ pub enum OrderFilter {
     UserOrders(String, String, order::Status, order::Status, u32),
 }
 
-impl OrderFilter {
+impl OrderFilter<'_> {
     pub fn to_string(&self) -> String {
-        match self {
+        let filter_str = match self {
             OrderFilter::GetLastOne => "order by index desc limit 1".to_string(),
             OrderFilter::ById(id) => {
-                let filter_str = format!("where id='{}'", id);
-                filter_str
+                format!("where id='{}'", id)
             }
             OrderFilter::ByIndex(index) => {
-                let filter_str = format!("where index='{}'", index);
-                filter_str
+                format!("where index='{}'", index)
             }
             OrderFilter::AvailableOrders(market_id, side) => {
-                let filter_str = format!("where market_id='{}' and available_amount!='0' and side='{}' order by created_at DESC",market_id,side.as_str());
-                filter_str
+                format!("where market_id='{}' and available_amount!='0' and side='{}' order by created_at DESC",market_id,side.as_str())
             }
             OrderFilter::UserOrders(market_id, account, status1, status2, limit) => {
-                let filter_str = format!("where market_id='{}' and account='{}' and (status='{}' or status='{}')  order by created_at DESC limit {}",market_id,account,status1.as_str(),status2.as_str(),limit);
-                filter_str
+                format!("where market_id='{}' and account='{}' and (status='{}' or status='{}')  order by created_at DESC limit {}",market_id,account,status1.as_str(),status2.as_str(),limit)
             }
-        }
+        };
+        filter_str
     }
 }
 

@@ -11,20 +11,20 @@ use common::types::trade::Status as TradeStatus;
 use common::utils::math::U256_ZERO;
 
 #[derive(Clone, Debug)]
-pub enum TradeFilter {
+pub enum TradeFilter<'a> {
     //id
-    OrderId(String),
+    OrderId(&'a str),
     //market,limit
-    MarketId(String, u32),
+    MarketId(&'a str, u32),
     //account,market,status,limit
-    Recent(String, String, TradeStatus, u32),
+    Recent(&'a str, &'a str, TradeStatus, u32),
     //hashdata,block_height
-    DelayConfirm(String, u32),
+    DelayConfirm(&'a str, u32),
     //status, limit
     Status(TradeStatus, u32),
     LastPushed,
 }
-impl TradeFilter {
+impl TradeFilter<'_> {
     pub fn to_string(&self) -> String {
         let filter_str = match self {
             TradeFilter::OrderId(id) => {
@@ -85,25 +85,25 @@ pub struct TradeInfoPO {
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
-pub struct UpdateTrade {
+pub struct UpdateTrade<'a> {
     pub id: String,
     pub status: TradeStatus,
     pub block_height: u32,
     pub transaction_hash: String,
     pub hash_data: String,
-    pub updated_at: String,
+    pub updated_at: &'a str,
 }
 
 impl TradeInfoPO {
     pub fn new(
-        market_id: String,
-        taker: String,
-        maker: String,
+        market_id: &str,
+        taker: &str,
+        maker: &str,
         price: U256,
         amount: U256,
         taker_side: OrderSide,
-        maker_order_id: String,
-        taker_order_id: String,
+        maker_order_id: & str,
+        taker_order_id: & str,
     ) -> TradeInfoPO {
         let now = get_current_time();
         let mut trade = TradeInfoPO {
@@ -112,14 +112,14 @@ impl TradeInfoPO {
             transaction_hash: "".to_string(),
             hash_data: "".to_string(),
             status: TradeStatus::Matched,
-            market_id,
-            taker,
-            maker,
+            market_id: market_id.to_owned(),
+            taker: taker.to_owned(),
+            maker: maker.to_owned(),
             price,
             amount,
             taker_side,
-            maker_order_id,
-            taker_order_id,
+            maker_order_id:maker_order_id.to_owned(),
+            taker_order_id:taker_order_id.to_owned(),
             updated_at: now.clone(),
             created_at: now.clone(),
         };
