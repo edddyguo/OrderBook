@@ -5,7 +5,6 @@ extern crate tokio;
 extern crate uuid;
 extern crate warp;
 
-use futures::TryFutureExt;
 use handler::Event;
 use log::info;
 use rsmq_async::{Rsmq, RsmqConnection};
@@ -100,13 +99,14 @@ async fn listen_depth(rsmq: Queues, clients: Clients, queue_name: &str) {
                     user_id: None,
                     message: serde_json::to_string(&market_depth.1).unwrap(),
                 };
-                handler::publish_handler(event, clients.clone()).await;
+                let _publish_res = handler::publish_handler(event, clients.clone()).await.unwrap();
             }
 
-            rsmq.write()
+            let res = rsmq.write()
                 .await
                 .delete_message(queue_name, &message.id)
-                .await;
+                .await.unwrap();
+            assert!(res);
         } else {
             tokio::time::sleep(time::Duration::from_millis(10)).await;
         }
@@ -132,13 +132,14 @@ async fn listen_thaws(rsmq: Queues, clients: Clients, queue_name: &str) {
                     user_id: None,
                     message: serde_json::to_string(&thaw).unwrap(),
                 };
-                handler::publish_handler(event, clients.clone()).await;
+                let _publish_res = handler::publish_handler(event, clients.clone()).await.unwrap();
             }
 
-            rsmq.write()
+            let res = rsmq.write()
                 .await
                 .delete_message(queue_name, &message.id)
-                .await;
+                .await.unwrap();
+            assert!(res);
         } else {
             tokio::time::sleep(time::Duration::from_millis(10)).await;
         }
@@ -168,13 +169,15 @@ async fn listen_trade(rsmq: Queues, clients: Clients, queue_name: &str) {
                     user_id: None,
                     message: json_str,
                 };
-                handler::publish_handler(event, clients.clone()).await;
+                let _publish_res = handler::publish_handler(event, clients.clone()).await.unwrap();
             }
 
-            rsmq.write()
+            let res = rsmq.write()
                 .await
                 .delete_message(queue_name, &message.id)
-                .await;
+                .await.unwrap();
+            //目前一定为true
+            assert!(res);
         } else {
             tokio::time::sleep(time::Duration::from_millis(10)).await;
         }

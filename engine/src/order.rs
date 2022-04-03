@@ -19,7 +19,7 @@ use common::utils::math::{u256_to_f64, U256_ZERO};
 
 use crate::book::SellPriority;
 
-#[derive(RustcEncodable, Clone, Serialize)]
+#[derive(Clone, Serialize)]
 pub struct EventOrder {
     pub market_id: String,
     pub side: OrderSide,

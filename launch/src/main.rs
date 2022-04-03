@@ -8,7 +8,6 @@ use std::collections::HashMap;
 
 use chemix_chain::chemix::{ChemixContractClient, ThawBalances2};
 use common::queue::*;
-use ethers_providers::StreamExt;
 use rsmq_async::{Rsmq, RsmqConnection};
 
 use chemix_chain::bsc::{get_block, get_current_block};
@@ -28,7 +27,7 @@ use tokio::time;
 
 use chemix_models::order::{list_orders, OrderFilter};
 use chemix_models::trade::{
-    list_trades, update_trade_by_hash, update_trades, TradeFilter, TradeInfoPO, UpdateTrade,
+    list_trades, update_trades, TradeFilter, TradeInfoPO, UpdateTrade,
 };
 use common::utils::algorithm::{sha256, u8_arr_from_str, u8_arr_to_str};
 use common::utils::math::u256_to_f64;
@@ -47,7 +46,6 @@ use common::types::order::{Side as OrderSide, Side};
 use common::types::thaw::Status as ThawStatus;
 use common::types::trade::{AggTrade, Status as TradeStatus};
 
-#[macro_use]
 extern crate lazy_static;
 
 #[macro_use]
@@ -62,7 +60,7 @@ use chemix_models::thaws::update_thaws;
 use common::types::depth::RawDepth;
 
 
-#[derive(RustcEncodable, Clone, Serialize)]
+#[derive(Clone, Serialize)]
 pub struct LastTrade {
     id: String,
     price: f64,
@@ -193,7 +191,7 @@ fn gen_settle_trades(db_trades: Vec<TradeInfoPO>) -> Vec<SettleValues3> {
     settle_trades
 }
 
-fn update_depth(depth_ori: &mut RawDepth, x: &TradeInfoPO) {
+fn _update_depth(depth_ori: &mut RawDepth, x: &TradeInfoPO) {
     let amount = I256::try_from(x.amount).unwrap();
     //maker吃掉的部分都做减法
     match x.taker_side {
@@ -609,7 +607,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         //todo: block_height为0的这部分交易放在新线程去处理
                         let now = get_current_time();
                         info!("settlement_trades trade={:?}_index={},hash={:?}",settle_trades,last_order.index,hash_data);
-                        let mut receipt =  vault_settel_client
+                        let receipt =  vault_settel_client
                             .clone()
                             .read()
                             .unwrap()
@@ -652,6 +650,5 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
     let queue = Queue::regist(vec![QueueType::Trade, QueueType::Depth, QueueType::Thaws]).await;
-    listen_blocks(queue).await;
-    Ok(())
+    listen_blocks(queue).await
 }

@@ -5,11 +5,6 @@ use tokio::sync::mpsc;
 
 use warp::{http::StatusCode, ws::Message, Reply};
 
-#[derive(Deserialize, Debug)]
-pub struct RegisterRequest {
-    user_id: usize,
-}
-
 #[derive(Serialize, Debug)]
 pub struct PublishRespond {
     pub channel: String,
@@ -50,7 +45,7 @@ pub async fn publish_handler(body: Event, clients: Clients) -> Result<impl Reply
         })
         .for_each(|(_, client)| {
             if let Some(sender) = &client.sender {
-                sender.send(Ok(Message::text(respond_str.clone())));
+                let _res = sender.send(Ok(Message::text(respond_str.clone()))).unwrap();
             }
         });
 

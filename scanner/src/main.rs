@@ -1,3 +1,5 @@
+#[deny(warnings)]
+
 use std::time;
 
 use ethers_core::types::U256;
@@ -20,11 +22,8 @@ use common::utils::math::U256_ZERO;
 extern crate common;
 
 static ONE_HOUR: u64 = 60 * 60;
+#[allow(dead_code)]
 static TEN_MINS: u64 = 10 * 60;
-
-fn gen_kline() {
-    todo!()
-}
 
 //get {token}-usdt price
 fn get_token_price(quote_symbol: &str) -> Option<U256> {

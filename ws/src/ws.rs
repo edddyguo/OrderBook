@@ -1,33 +1,27 @@
 use crate::Clients;
-use futures::{FutureExt, SinkExt, StreamExt};
+use futures::{FutureExt, StreamExt};
 use log::{error, info};
 use serde::Deserialize;
 use serde_json::from_str;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::ws::{Message, WebSocket};
-//use warp::filters::ws::Message;
 
 use crate::handler::{register_client, PublishRespond};
 use uuid::Uuid;
 
-#[derive(Deserialize, Debug)]
-pub struct TopicsRequest {
-    topics: Vec<String>,
-}
-
 #[derive(Deserialize, Debug, PartialEq)]
 pub enum WSMethod {
     #[serde(rename = "UNSUBSCRIBE")]
-    UNSUBSCRIBE,
+    Unsubscribe,
     #[serde(rename = "SUBSCRIBE")]
-    SUBSCRIBE,
+    Subscribe,
     #[serde(rename = "GET_PROPERTY")]
-    GET_PROPERTY,
+    GetProperty,
     #[serde(rename = "PING")]
-    PING,
+    Ping,
     #[serde(rename = "PONG")]
-    PONG,
+    Pong,
 }
 
 /***{
@@ -111,7 +105,7 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
     if let Some(v) = locked.get_mut(id) {
         info!("new subcribe topics {:?}", topics_req.params.channel);
         match topics_req.method {
-            WSMethod::SUBSCRIBE => {
+            WSMethod::Subscribe => {
                 for item in topics_req.params.channel {
                     if !v.topics.contains(&item) {
                         v.topics.push(item)
@@ -132,15 +126,15 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
                     //todo: 可能要推全量数据
                 }
             }
-            WSMethod::UNSUBSCRIBE => {
+            WSMethod::Unsubscribe => {
                 for param in topics_req.params.channel {
                     v.topics.retain(|x| x.to_string() != param);
                 }
             }
-            WSMethod::GET_PROPERTY => {
+            WSMethod::GetProperty => {
                 todo!()
             }
-            WSMethod::PING => {
+            WSMethod::Ping => {
                 let respond = PublishRespond {
                     method: "PONG".to_string(),
                     channel: "".to_string(),
@@ -151,7 +145,7 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
                     let _ = sender.send(Ok(Message::text(&respond_str)));
                 }
             }
-            WSMethod::PONG => {}
+            WSMethod::Pong => {}
         }
     }
 }

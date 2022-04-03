@@ -236,7 +236,7 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     let mut bids = Vec::<(f64, f64)>::new();
 
     'buy_orders: for available_buy_order in available_buy_orders {
-        'bids: for mut bid in bids.iter_mut() {
+        for mut bid in bids.iter_mut() {
             if u256_to_f64(available_buy_order.price, quote_decimal) == bid.0 {
                 bid.1 += u256_to_f64(available_buy_order.available_amount, base_decimal);
                 continue 'buy_orders;
@@ -252,7 +252,7 @@ async fn dex_depth(web::Query(info): web::Query<DepthRequest>) -> String {
     }
 
     'sell_orders: for available_sell_order in available_sell_orders {
-        'asks: for mut ask in asks.iter_mut() {
+        for mut ask in asks.iter_mut() {
             if u256_to_f64(available_sell_order.price, quote_decimal) == ask.0 {
                 ask.1 += u256_to_f64(available_sell_order.available_amount, base_decimal);
                 continue 'sell_orders;
