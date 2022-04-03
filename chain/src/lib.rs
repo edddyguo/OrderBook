@@ -98,9 +98,10 @@ fn gen_contract_client(prikey_str: &str) -> ContractClient {
     Arc::new(SignerMiddleware::new(PROVIDER.provide.clone(), wallet))
 }
 
+//机器人暂时不需要校验txid
 async fn contract_call_send<D: Detokenize,M: Middleware>(call: ContractCall<M, D>) -> Result<TransactionReceipt,ProviderError>{
     loop {
-        let hash = call.tx.sighash(U64::from(crate::CHAIN_ID.clone()));
+        let _hash = call.tx.sighash(U64::from(crate::CHAIN_ID.clone()));
         let mut times = 10;
         while times != 0 {
             let signature1 = crate::CONTRACT_CLIENT
@@ -132,8 +133,9 @@ async fn contract_call_send<D: Detokenize,M: Middleware>(call: ContractCall<M, D
     }
 }
 
+//todo，暂时节点故障直接unwarp
 async fn  sign_tx(transaction: &mut TypedTransaction) -> Bytes{
-    crate::CONTRACT_CLIENT.fill_transaction(transaction, None).await;
+    let _res = crate::CONTRACT_CLIENT.fill_transaction(transaction, None).await.unwrap();
     info!("[text_txid]:: transaction1 {:?}",transaction);
     let signature = crate::CONTRACT_CLIENT.sign_transaction(transaction, Address::default()).await.unwrap();
     transaction.rlp_signed(crate::CHAIN_ID.clone(),&signature)

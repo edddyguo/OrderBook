@@ -22,7 +22,7 @@ lazy_static! {
     };
 }
 
-#[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
+#[derive(Deserialize, Debug, PartialEq, Clone, Serialize)]
 pub enum QueueType {
     Thaws,
     Depth,

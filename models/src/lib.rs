@@ -6,7 +6,6 @@ pub mod thaws;
 pub mod tokens;
 pub mod trade;
 
-#[macro_use]
 extern crate jsonrpc_client_core;
 extern crate jsonrpc_client_http;
 
@@ -28,7 +27,6 @@ extern crate log;
 #[macro_use]
 extern crate lazy_static;
 
-#[macro_use]
 extern crate common;
 
 use chrono::Local;
@@ -44,7 +42,7 @@ use serde::Serialize;
 
 static TRY_TIMES: u8 = 5;
 
-#[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
+#[derive(Deserialize, Debug, PartialEq, Clone, Serialize)]
 pub enum TimeScope {
     NoLimit,
     SevenDay,
@@ -62,22 +60,22 @@ impl TimeScope {
 }
 
 lazy_static! {
-    static ref CLIENTDB: Mutex<postgres::Client> = Mutex::new(connetDB().unwrap());
+    static ref CLIENTDB: Mutex<postgres::Client> = Mutex::new(connet_db().unwrap());
 }
 
-pub fn restartDB() -> bool {
+pub fn restart_db() -> bool {
     let now = Local::now();
 
     println!("restart postgresql {:?}", now);
     // let client =  connetDB();
-    if let Some(client) = connetDB() {
+    if let Some(client) = connet_db() {
         *crate::CLIENTDB.lock().unwrap() = client;
         return true;
     }
     false
 }
 
-fn connetDB() -> Option<postgres::Client> {
+fn connet_db() -> Option<postgres::Client> {
     let dbname = match env::var_os("CHEMIX_MODE") {
         None => "chemix_local".to_string(),
         Some(mist_mode) => {
@@ -103,7 +101,7 @@ fn connetDB() -> Option<postgres::Client> {
 }
 
 pub fn transactin_begin() {
-    crate::CLIENTDB.lock().unwrap().simple_query("BEGIN");
+    let _res = crate::CLIENTDB.lock().unwrap().simple_query("BEGIN").unwrap();
 }
 
 pub fn transactin_commit() {
@@ -127,7 +125,7 @@ pub fn query(raw_sql: &str) -> anyhow::Result<Vec<Row>> {
                     return Err(anyhow!("retry query failed"));
                 } else {
                     info!("error {:?}", error);
-                    crate::restartDB();
+                    crate::restart_db();
                     try_times -= 1;
                     continue;
                 }
@@ -149,7 +147,7 @@ pub fn execute(raw_sql: &str) -> anyhow::Result<u64> {
                     return Err(anyhow!("retry execute failed"));
                 } else {
                     info!("error {:?}", error);
-                    crate::restartDB();
+                    crate::restart_db();
                     try_times -= 1;
                     continue;
                 }

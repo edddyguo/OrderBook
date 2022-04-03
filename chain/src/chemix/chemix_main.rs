@@ -43,30 +43,30 @@ impl ChemixContractClient<Main> {
     pub async fn new_order(
         &self,
         side: Side,
-        baseToken: &str,
-        quoteToken: &str,
+        base_token: &str,
+        quote_token: &str,
         price: f64,
         amount: f64,
     ) -> Result<()> {
         let contract = ChemixMain::new(self.contract_addr, self.client.clone());
-        let tokenADecimal = teen_power!(10u32); //18 -8
-        let tokenBDecimal = teen_power!(7u32); //15 -8
+        let base_decimal = teen_power!(10u32); //18 -8
+        let quote_decimal = teen_power!(7u32); //15 -8
 
-        let quoteToken = Address::from_str(quoteToken).unwrap();
-        let baseToken = Address::from_str(baseToken).unwrap();
+        let quote_token = Address::from_str(quote_token).unwrap();
+        let base_token = Address::from_str(base_token).unwrap();
 
-        let amount = U256::from(amount.to_nano()).mul(tokenADecimal);
-        let price = U256::from(price.to_nano()).mul(tokenBDecimal);
+        let amount = U256::from(amount.to_nano()).mul(base_decimal);
+        let price = U256::from(price.to_nano()).mul(quote_decimal);
         match side {
             Side::Buy => {
                 info!(
                     "new_limit_buy_order,quoteToken={},baseToken={},price={},amount={}",
-                    quoteToken, baseToken, price, amount
+                    quote_token, base_token, price, amount
                 );
                 let result = contract
                     .new_limit_buy_order(
-                        baseToken,
-                        quoteToken,
+                        base_token,
+                        quote_token,
                         price,
                         amount,
                         U256::from(18u32),
@@ -84,12 +84,12 @@ impl ChemixContractClient<Main> {
             Side::Sell => {
                 info!(
                     "new_limit_sell_order,quoteToken={},baseToken={},price={},amount={}",
-                    quoteToken, baseToken, price, amount
+                    quote_token, base_token, price, amount
                 );
                 let result = contract
                     .new_limit_sell_order(
-                        baseToken,
-                        quoteToken,
+                        base_token,
+                        quote_token,
                         price,
                         amount,
                         U256::from(18u32),
@@ -110,20 +110,20 @@ impl ChemixContractClient<Main> {
 
     pub async fn cancel_order(
         &self,
-        baseToken: &str,
-        quoteToken: &str,
+        base_token: &str,
+        quote_token: &str,
         order_index: u32,
     ) -> std::result::Result<TransactionReceipt, ProviderError> {
         let contract = ChemixMain::new(self.contract_addr, self.client.clone());
-        let quoteToken = Address::from_str(quoteToken).unwrap();
-        let baseToken = Address::from_str(baseToken).unwrap();
+        let quote_token = Address::from_str(quote_token).unwrap();
+        let base_token = Address::from_str(base_token).unwrap();
 
         info!(
             "cancel_order market: {}-{} order_index: {}",
-            baseToken, quoteToken, order_index
+            base_token, quote_token, order_index
         );
         let call = contract
-            .new_cancel_order(baseToken, quoteToken, U256::from(order_index))
+            .new_cancel_order(base_token, quote_token, U256::from(order_index))
             .legacy();
         contract_call_send(call).await
     }

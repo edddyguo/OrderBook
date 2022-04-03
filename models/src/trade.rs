@@ -1,5 +1,4 @@
 use crate::{assembly_insert_values, struct2array, TimeScope};
-use common::types::*;
 use common::utils::algorithm::sha256;
 use common::utils::time::get_current_time;
 use ethers_core::types::U256;
@@ -134,12 +133,12 @@ pub fn insert_trades(trades: &mut Vec<TradeInfoPO>) {
         return;
     }
     let mut sql = format!("insert into chemix_trades values(");
-    let tradesArr: Vec<Vec<String>> = trades
+    let trades_arr: Vec<Vec<String>> = trades
         .into_iter()
         .map(|x| struct2array(x))
         .collect::<Vec<Vec<String>>>();
 
-    let values = assembly_insert_values(tradesArr);
+    let values = assembly_insert_values(trades_arr);
     sql += &values;
 
     let execute_res = crate::execute(sql.as_str()).unwrap();

@@ -64,12 +64,6 @@ extern crate common;
 
 const CONFIRM_HEIGHT: u32 = 2;
 
-#[derive(Clone, Serialize, Debug)]
-pub struct EnigneSettleValues {
-    pub incomeQuoteToken: I256,
-    pub incomeBaseToken: I256,
-}
-
 lazy_static! {
     static ref MARKET: MarketInfoPO = {
             let matches = App::new("engine")
@@ -116,24 +110,12 @@ fn gen_depth_from_cancel_orders(pending_thaws: Vec<ThawsPO>) -> RawDepth {
         let amount = I256::try_from(x.amount).unwrap();
         match x.side {
             Side::Buy => {
-                match add_depth.bids.get_mut(&x.price) {
-                    None => {
-                        add_depth.bids.insert(x.price, -amount);
-                    }
-                    Some(mut tmp1) => {
-                        tmp1 = &mut tmp1.sub(amount);
-                    }
-                };
+                let new_bids = add_depth.bids.entry(x.price).or_insert(I256::from(0i32));
+                *new_bids -= amount;
             }
             Side::Sell => {
-                match add_depth.asks.get_mut(&x.price) {
-                    None => {
-                        add_depth.asks.insert(x.price, -amount);
-                    }
-                    Some(mut tmp1) => {
-                        tmp1 = &mut tmp1.sub(amount);
-                    }
-                };
+                let new_asks = add_depth.asks.entry(x.price).or_insert(I256::from(0i32));
+                *new_asks -= amount;
             }
         }
     };
@@ -465,6 +447,5 @@ async fn main() -> anyhow::Result<()> {
     let queue = Queue::regist(vec![QueueType::Depth, QueueType::Trade, QueueType::Thaws]).await;
     info!("market {}", MARKET.base_token_address);
     info!("initial book {:#?}", crate::BOOK.lock().unwrap());
-    listen_blocks(queue).await;
-    Ok(())
+    listen_blocks(queue).await
 }

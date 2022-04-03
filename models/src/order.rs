@@ -65,7 +65,7 @@ pub struct OrderInfoPO {
 
 #[derive(Deserialize, Debug, Default)]
 pub struct MarketVolume {
-    pub marketID: String,
+    pub market_id: String,
     pub volume: f64,
 }
 
@@ -138,12 +138,12 @@ impl OrderInfoPO {
 pub fn insert_orders(orders: &Vec<OrderInfoPO>) {
     //todo 这个后边的括号可以挪走
     let mut sql = format!("insert into chemix_orders values(");
-    let ordersArr: Vec<Vec<String>> = orders
+    let orders_arr: Vec<Vec<String>> = orders
         .into_iter()
         .map(|x| struct2array(x))
         .collect::<Vec<Vec<String>>>();
 
-    let values = assembly_insert_values(ordersArr);
+    let values = assembly_insert_values(orders_arr);
     sql += &values;
 
     let execute_res = crate::execute(sql.as_str()).unwrap();

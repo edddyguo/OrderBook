@@ -5,7 +5,7 @@ use serde::Deserialize;
 //#[derive(Serialize)]
 use serde::Serialize;
 
-#[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
+#[derive(Deserialize, Debug, PartialEq, Clone, Serialize)]
 pub enum Status {
     #[serde(rename = "pending")]
     Pending,

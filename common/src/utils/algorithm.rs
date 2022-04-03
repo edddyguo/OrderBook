@@ -16,10 +16,8 @@ pub fn sha256(data: String) -> String {
 }
 pub fn u8_arr_to_str(data_arr: [u8; 32]) -> String {
     let mut data = "".to_string();
-    let mut index = 0;
     for i in data_arr {
         let char = format!("{:0>2x}", i);
-        index += 1;
         data += &char;
     }
     data

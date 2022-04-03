@@ -61,11 +61,6 @@ const CONFIRM_HEIGHT: u32 = 2;
 use chemix_models::thaws::update_thaws;
 use common::types::depth::RawDepth;
 
-#[derive(Clone, Serialize, Debug)]
-pub struct EnigneSettleValues {
-    pub incomeQuoteToken: I256,
-    pub incomeBaseToken: I256,
-}
 
 #[derive(RustcEncodable, Clone, Serialize)]
 pub struct LastTrade {
@@ -179,8 +174,8 @@ fn gen_settle_trades(db_trades: Vec<TradeInfoPO>) -> Vec<SettleValues3> {
         .map(|(k, v)| SettleValues3 {
             user: Address::from_str(k.0.as_str()).unwrap(),
             token: Address::from_str(k.1.as_str()).unwrap(),
-            isPositive: k.2,
-            incomeTokenAmount: v.to_owned(),
+            is_positive: k.2,
+            income_token_amount: v.to_owned(),
         })
         .collect::<Vec<SettleValues3>>();
 
@@ -189,8 +184,8 @@ fn gen_settle_trades(db_trades: Vec<TradeInfoPO>) -> Vec<SettleValues3> {
         .map(|(k, v)| SettleValues3 {
             user: Address::from_str(k.0.as_str()).unwrap(),
             token: Address::from_str(k.1.as_str()).unwrap(),
-            isPositive: k.2,
-            incomeTokenAmount: v.to_owned(),
+            is_positive: k.2,
+            income_token_amount: v.to_owned(),
         })
         .collect::<Vec<SettleValues3>>();
 

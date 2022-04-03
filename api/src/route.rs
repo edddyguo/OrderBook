@@ -40,14 +40,14 @@ async fn index(web::Path((id, name)): web::Path<(u32, String)>) -> impl Responde
 
 #[derive(Deserialize, Serialize)]
 struct DexProfile {
-    cumulativeTVL: f64,
-    cumulativeTransactions: u32,
-    cumulativeTraders: u32,
-    numberOfTraders: u32,
-    tradingVolume: f64,
-    numberOfTransactions: u32,
-    TVL: f64,
-    tradingPairs: u8,
+    cumulative_tvl: f64,
+    cumulative_transactions: u32,
+    cumulative_traders: u32,
+    traders_num: u32,
+    trading_volume: f64,
+    transactions_num: u32,
+    tvl: f64,
+    trading_pairs: u8,
     price: f64,
     snapshot_time: u64,
 }
@@ -407,30 +407,30 @@ async fn dex_profile() -> impl Responder {
     let cays = get_snapshot().unwrap();
     let price = cays.0.cec_price;
     //如果有清库的行为则会造成溢出
-    let currentTVL = cays.0.order_volume - cays.0.withdraw;
-    let cumulativeTransactions = cays.0.transactions as u32;
-    let cumulativeTraders = cays.0.traders as u32;
-    let tradingPairs = cays.0.trading_pairs as u8;
+    let current_tvl = cays.0.order_volume - cays.0.withdraw;
+    let cumulative_transactions = cays.0.transactions as u32;
+    let cumulative_traders = cays.0.traders as u32;
+    let trading_pairs = cays.0.trading_pairs as u8;
     let current_transcations = cays.0.transactions as u32;
     let snapshot_time = cays.0.snapshot_time as u64;
     let current_trade_volume = cays.0.trade_volume;
 
     let yesterday_trader_volume = cays.1.trade_volume;
     let yesterday_transcations = cays.1.transactions as u32;
-    let yesterdayTVL = cays.1.order_volume - cays.1.withdraw;
+    let yesterday_tvl = cays.1.order_volume - cays.1.withdraw;
 
     let profile = DexProfile {
-        cumulativeTVL: u256_to_f64(currentTVL, cec_token_decimal),
-        cumulativeTransactions,
-        cumulativeTraders,
-        numberOfTraders: get_user_number(TimeScope::OneDay),
-        tradingVolume: u256_to_f64(
+        cumulative_tvl: u256_to_f64(current_tvl, cec_token_decimal),
+        cumulative_transactions: cumulative_transactions,
+        cumulative_traders: cumulative_traders,
+        traders_num: get_user_number(TimeScope::OneDay),
+        trading_volume: u256_to_f64(
             current_trade_volume - yesterday_trader_volume,
             cec_token_decimal,
         ),
-        numberOfTransactions: current_transcations - yesterday_transcations,
-        TVL: u256_to_f64(currentTVL - yesterdayTVL, cec_token_decimal),
-        tradingPairs,
+        transactions_num: current_transcations - yesterday_transcations,
+        tvl: u256_to_f64(current_tvl - yesterday_tvl, cec_token_decimal),
+        trading_pairs: trading_pairs,
         price: u256_to_f64(price, cec_token_decimal),
         snapshot_time,
     };

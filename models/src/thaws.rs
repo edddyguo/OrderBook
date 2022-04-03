@@ -129,12 +129,12 @@ pub fn update_thaws(thaws: &Vec<UpdateThaw>) {
 
 pub fn insert_thaws(thaw_info: &Vec<ThawsPO>) {
     let mut sql = format!("insert into chemix_thaws values(");
-    let thawsArr: Vec<Vec<String>> = thaw_info
+    let thaws_arr: Vec<Vec<String>> = thaw_info
         .into_iter()
         .map(|x| struct2array(x))
         .collect::<Vec<Vec<String>>>();
 
-    let values = assembly_insert_values(thawsArr);
+    let values = assembly_insert_values(thaws_arr);
     sql += &values;
 
     let execute_res = crate::execute(sql.as_str()).unwrap();

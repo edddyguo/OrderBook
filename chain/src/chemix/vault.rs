@@ -1,23 +1,14 @@
 use anyhow::Result;
-
-use chrono::Local;
-
 use common::env::CONF as ENV_CONF;
-
 use common::utils::algorithm::u8_arr_to_str;
-
 use ethers::prelude::*;
 use ethers::types::Address;
 use serde::{Deserialize, Serialize};
-
 use std::marker::PhantomData;
-
 use std::str::FromStr;
-use ethers::abi::Detokenize;
-use ethers::prelude::builders::ContractCall;
 
 use crate::chemix::ChemixContractClient;
-use crate::{contract_call_send, gen_contract_client, sign_tx, TypedTransaction};
+use crate::{gen_contract_client, sign_tx};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ThawBalances {
@@ -31,8 +22,8 @@ pub struct ThawBalances {
 pub struct SettleValues3 {
     pub user: Address,
     pub token: Address,
-    pub isPositive: bool,
-    pub incomeTokenAmount: U256,
+    pub is_positive: bool,
+    pub income_token_amount: U256,
 }
 
 #[derive(Clone)]
@@ -94,8 +85,8 @@ impl ChemixContractClient<Vault> {
             .map(|x| SettleValues {
                 user: x.user,
                 token: x.token,
-                is_positive: x.isPositive,
-                income_token_amount: x.incomeTokenAmount,
+                is_positive: x.is_positive,
+                income_token_amount: x.income_token_amount,
             })
             .collect::<Vec<SettleValues>>();
 

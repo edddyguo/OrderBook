@@ -3,7 +3,7 @@ extern crate rustc_serialize;
 use crate::types::order;
 use serde::{Deserialize, Serialize};
 
-#[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
+#[derive(Deserialize, Debug, PartialEq, Clone, Serialize)]
 pub enum Status {
     #[serde(rename = "matched")]
     Matched,

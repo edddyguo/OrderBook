@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use crate::types::order::Side::{Buy, Sell};
 
-#[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
+#[derive(Deserialize, Debug, PartialEq, Clone, Serialize)]
 pub enum Status {
     #[serde(rename = "full_filled")]
     FullFilled,
@@ -42,7 +42,7 @@ impl From<&str> for Status {
     }
 }
 
-#[derive(RustcEncodable, Deserialize, Debug, PartialEq, Clone, Serialize)]
+#[derive(Deserialize, Debug, PartialEq, Clone, Serialize)]
 pub enum Side {
     #[serde(rename = "buy")]
     Buy,

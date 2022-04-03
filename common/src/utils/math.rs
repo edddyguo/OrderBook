@@ -2,10 +2,7 @@ use rust_decimal::Decimal;
 
 use rust_decimal::prelude::ToPrimitive;
 use std::ops::Div;
-
 use ethers_core::types::U256;
-
-use num::pow::Pow;
 
 pub const U256_ZERO: U256 = U256([0; 4]);
 
@@ -71,7 +68,7 @@ pub fn u256_to_f64(ori: U256, decimal: u32) -> f64 {
     let decimal_value = U256::from(10u32).pow(U256::from(decimal - 8));
     let dist_int = ori.div(decimal_value);
     let mut dist = Decimal::from(dist_int.as_u128());
-    dist.set_scale(8);
+    let _set_res = dist.set_scale(8).unwrap();
     dist.to_f64().unwrap()
 }
 
