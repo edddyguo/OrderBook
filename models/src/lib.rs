@@ -252,7 +252,7 @@ pub fn struct2array<T: Any + Debug>(value: &T) -> Vec<String> {
 }
 
 fn assembly_insert_values(lines: Vec<Vec<String>>) -> String {
-    let mut lines_str = format!("");
+    let mut lines_str = "".to_string();
     let mut index = 0;
     let len = lines.len();
     for line in lines {

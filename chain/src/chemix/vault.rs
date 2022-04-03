@@ -46,7 +46,7 @@ impl ChemixContractClient<Vault> {
     pub fn new(prikey: &str) -> ChemixContractClient<Vault> {
         ChemixContractClient {
             client: gen_contract_client(prikey),
-            contract_addr: VAULT_ADDR.clone(),
+            contract_addr: *VAULT_ADDR,
             phantom: PhantomData,
         }
     }

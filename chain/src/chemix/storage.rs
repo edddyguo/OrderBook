@@ -64,7 +64,7 @@ impl ChemixContractClient<Storage> {
     pub fn new(prikey: &str) -> ChemixContractClient<Storage> {
         ChemixContractClient {
             client: gen_contract_client(prikey),
-            contract_addr: STORAGE_ADDR.clone(),
+            contract_addr: *STORAGE_ADDR,
             phantom: PhantomData,
         }
     }
@@ -140,7 +140,7 @@ impl ChemixContractClient<Storage> {
                     account,
                     index: event.order_index.as_u32(),
                     num_power: event.num_power.as_u32(),
-                    hash_data: hash_data_str.clone(),
+                    hash_data: hash_data_str,
                     side,
                     price: event.limit_price,
                     amount: event.order_amount,

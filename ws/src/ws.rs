@@ -35,14 +35,14 @@ pub enum WSMethod {
 ***/
 
 #[derive(Deserialize, Debug, PartialEq)]
-pub struct PARAMS {
+pub struct Params {
     hash: String,
     channel: Vec<String>,
 }
 #[derive(Deserialize, Debug)]
 pub struct TopicsRequest2 {
     method: WSMethod,
-    params: PARAMS,
+    params: Params,
 }
 
 //{"method": "PING","params":{"channel":[],"hash":""}}
@@ -128,7 +128,7 @@ async fn client_msg(id: &str, msg: Message, clients: &Clients) {
             }
             WSMethod::Unsubscribe => {
                 for param in topics_req.params.channel {
-                    v.topics.retain(|x| x.to_string() != param);
+                    v.topics.retain(|x| *x != param);
                 }
             }
             WSMethod::GetProperty => {

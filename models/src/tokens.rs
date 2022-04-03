@@ -14,10 +14,8 @@ pub struct TokenPO {
 }
 
 pub fn list_tokens() -> Vec<TokenPO> {
-    let sql = format!(
-        "select symbol,name,address,front_decimals,\
-    base_contract_decimal,cvt_url,show_cvt from chemix_tokens "
-    );
+    let sql = "select symbol,name,address,front_decimals,\
+    base_contract_decimal,cvt_url,show_cvt from chemix_tokens ".to_string();
     let rows = crate::query(sql.as_str()).unwrap();
     let mut tokens = Vec::new();
     info!("get_snapshot: raw sql {}", sql);

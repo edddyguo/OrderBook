@@ -429,8 +429,8 @@ async fn dex_profile() -> impl Responder {
 
     let profile = DexProfile {
         cumulative_tvl: u256_to_f64(current_tvl, cec_token_decimal),
-        cumulative_transactions: cumulative_transactions,
-        cumulative_traders: cumulative_traders,
+        cumulative_transactions,
+        cumulative_traders,
         traders_num: get_user_number(TimeScope::OneDay),
         trading_volume: u256_to_f64(
             current_trade_volume - yesterday_trader_volume,
@@ -438,7 +438,7 @@ async fn dex_profile() -> impl Responder {
         ),
         transactions_num: current_transcations - yesterday_transcations,
         tvl: u256_to_f64(current_tvl - yesterday_tvl, cec_token_decimal),
-        trading_pairs: trading_pairs,
+        trading_pairs,
         price: u256_to_f64(price, cec_token_decimal),
         snapshot_time,
     };

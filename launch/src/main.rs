@@ -81,7 +81,7 @@ fn gen_settle_trades(db_trades: Vec<TradeInfoPO>) -> Vec<SettleValues3> {
     let mut quote_settle_values: HashMap<(String, String, bool), U256> = HashMap::new();
 
     let mut update_base_settle_values =
-        |k: &(String, String, bool), v: &U256| match base_settle_values.get_mut(&k) {
+        |k: &(String, String, bool), v: &U256| match base_settle_values.get_mut(k) {
             None => {
                 base_settle_values.insert(k.to_owned(), v.to_owned());
             }
@@ -90,7 +90,7 @@ fn gen_settle_trades(db_trades: Vec<TradeInfoPO>) -> Vec<SettleValues3> {
             }
         };
     let mut update_quote_settle_values =
-        |k: &(String, String, bool), v: &U256| match quote_settle_values.get_mut(&k) {
+        |k: &(String, String, bool), v: &U256| match quote_settle_values.get_mut(k) {
             None => {
                 quote_settle_values.insert(k.to_owned(), v.to_owned());
             }
@@ -99,7 +99,7 @@ fn gen_settle_trades(db_trades: Vec<TradeInfoPO>) -> Vec<SettleValues3> {
             }
         };
 
-    for trader in db_trades.clone() {
+    for trader in db_trades {
         let market = get_markets(&trader.market_id).unwrap();
         let token_base_decimal = teen_power!(market.base_contract_decimal);
 
@@ -306,7 +306,7 @@ async fn deal_launched_thaws(
 
         //所有交易对的解冻一起更新
         let mut update_thaws_arr = Vec::new();
-        for iter in iters.into_iter() {
+        for iter in iters {
             let mut thaw_infos = Vec::new();
             for pending_thaw in iter.to_vec() {
                 update_thaws_arr.push(UpdateThaw {
@@ -376,11 +376,11 @@ async fn get_last_process_height() -> u32 {
     let last_thaw = list_thaws(ThawsFilter::LastPushed);
     let last_trade = list_trades(TradeFilter::LastPushed);
 
-    if last_thaw.len() == 0 && last_trade.len() == 0 {
+    if last_thaw.is_empty() && last_trade.is_empty() {
         get_current_block().await
-    } else if last_thaw.len() == 0 && last_trade.len() == 1 {
+    } else if last_thaw.is_empty() && last_trade.len() == 1 {
         last_trade[0].block_height as u32
-    } else if last_thaw.len() == 1 && last_trade.len() == 0 {
+    } else if last_thaw.len() == 1 && last_trade.is_empty() {
         last_thaw[0].block_height as u32
     } else if last_thaw.len() == 1 && last_trade.len() == 1 {
         //因为解冻和清算同步扫块，所以这里取大数即可
@@ -397,7 +397,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
     let arc_queue = Arc::new(RwLock::new(queue));
     let pri_key = ENV_CONF.chemix_relayer_prikey.to_owned().unwrap();
     let chemix_vault_client =
-        ChemixContractClient::<Vault>::new(pri_key.clone().to_str().unwrap());
+        ChemixContractClient::<Vault>::new(pri_key.to_str().unwrap());
     let chemix_vault_client = Arc::new(RwLock::new(chemix_vault_client));
 
     rayon::scope(|s| {
@@ -435,7 +435,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 .clone()
                                 .write()
                                 .unwrap()
-                                .filter_settlement_event(block_hash.clone())
+                                .filter_settlement_event(block_hash)
                                 .await
                                 .unwrap();
                             if new_settlements.is_empty() {

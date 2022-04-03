@@ -20,8 +20,8 @@ pub struct SnapshotPO {
 
 //取当前和一天之前的快照
 pub fn get_snapshot() -> Option<(SnapshotPO, SnapshotPO)> {
-    let sql = format!("select traders,transactions,order_volume,withdraw,\
-    trade_volume,trading_pairs,cec_price,snapshot_time from chemix_snapshot order by created_at desc limit 24");
+    let sql = "select traders,transactions,order_volume,withdraw,\
+    trade_volume,trading_pairs,cec_price,snapshot_time from chemix_snapshot order by created_at desc limit 24".to_string();
     let execute_res = crate::query(sql.as_str()).unwrap();
     info!("get_snapshot: raw sql {}", sql);
     if execute_res.is_empty() {
@@ -45,7 +45,7 @@ pub fn get_snapshot() -> Option<(SnapshotPO, SnapshotPO)> {
 
 pub fn insert_snapshot(data: SnapshotPO) {
     let data_arr = struct2array(&data);
-    let mut sql = format!("insert into chemix_snapshot values(");
+    let mut sql = "insert into chemix_snapshot values(".to_string();
     for i in 0..data_arr.len() {
         if i < data_arr.len() - 1 {
             sql = format!("{}{},", sql, data_arr[i]);

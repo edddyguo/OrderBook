@@ -2,6 +2,7 @@ use crate::{assembly_insert_values, struct2array, TimeScope};
 use common::utils::algorithm::sha256;
 use common::utils::time::get_current_time;
 use ethers_core::types::U256;
+use postgres::types::ToSql;
 use serde::{Deserialize, Serialize};
 
 extern crate rustc_serialize;
@@ -57,7 +58,7 @@ impl TradeFilter<'_> {
                 )
             }
             TradeFilter::LastPushed => {
-                format!("where status='confirmed' order by created_at desc  limit 1")
+                "where status='confirmed' order by created_at desc  limit 1".to_string()
             }
         };
         filter_str
@@ -132,9 +133,9 @@ pub fn insert_trades(trades: &mut Vec<TradeInfoPO>) {
     if trades.is_empty() {
         return;
     }
-    let mut sql = format!("insert into chemix_trades values(");
+    let mut sql = "insert into chemix_trades values(".to_string();
     let trades_arr: Vec<Vec<String>> = trades
-        .into_iter()
+        .iter()
         .map(|x| struct2array(x))
         .collect::<Vec<Vec<String>>>();
 

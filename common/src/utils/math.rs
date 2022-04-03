@@ -25,8 +25,7 @@ impl MathOperation for f64 {
         let number = self * times as f64;
         let real_number = number.round();
         let decimal_number = Decimal::new(real_number as i64, precision);
-        let scaled = decimal_number.to_f64().unwrap();
-        scaled
+        decimal_number.to_f64().unwrap()
     }
 
     //fixme： 失效了

@@ -38,7 +38,7 @@ impl ThawsFilter<'_> {
                 )
             }
             ThawsFilter::LastPushed => {
-                format!("where status='confirmed' order by created_at DESC limit 1")
+                "where status='confirmed' order by created_at DESC limit 1".to_string()
             }
         };
         filter_str
@@ -128,9 +128,9 @@ pub fn update_thaws(thaws: &Vec<UpdateThaw>) {
 }
 
 pub fn insert_thaws(thaw_info: &Vec<ThawsPO>) {
-    let mut sql = format!("insert into chemix_thaws values(");
+    let mut sql = "insert into chemix_thaws values(".to_string();
     let thaws_arr: Vec<Vec<String>> = thaw_info
-        .into_iter()
+        .iter()
         .map(|x| struct2array(x))
         .collect::<Vec<Vec<String>>>();
 

@@ -245,7 +245,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 .write()
                                 .unwrap()
                                 .filter_new_cancel_order_created_event(
-                                    block_hash.clone(),
+                                    block_hash,
                                     crate::MARKET.base_token_address.clone(),
                                     crate::MARKET.quote_token_address.clone(),
                                 )

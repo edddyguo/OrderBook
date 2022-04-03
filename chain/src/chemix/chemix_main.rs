@@ -9,7 +9,7 @@ use ethers::prelude::*;
 use ethers::types::Address;
 
 use std::marker::PhantomData;
-use std::ops::Mul;
+use std::ops::{Deref, Mul};
 use std::str::FromStr;
 
 use crate::chemix::ChemixContractClient;
@@ -35,7 +35,7 @@ impl ChemixContractClient<Main> {
     pub fn new(prikey: &str) -> ChemixContractClient<Main> {
         ChemixContractClient {
             client: gen_contract_client(prikey),
-            contract_addr: MAIN_ADDR.clone(),
+            contract_addr: *MAIN_ADDR,
             phantom: PhantomData,
         }
     }

@@ -137,9 +137,9 @@ impl OrderInfoPO {
 
 pub fn insert_orders(orders: &Vec<OrderInfoPO>) {
     //todo 这个后边的括号可以挪走
-    let mut sql = format!("insert into chemix_orders values(");
+    let mut sql = "insert into chemix_orders values(".to_string();
     let orders_arr: Vec<Vec<String>> = orders
-        .into_iter()
+        .iter()
         .map(|x| struct2array(x))
         .collect::<Vec<Vec<String>>>();
 
