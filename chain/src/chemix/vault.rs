@@ -51,11 +51,7 @@ impl ChemixContractClient<Vault> {
         }
     }
 
-    pub async fn thaw_balances(
-        &self,
-        users: Vec<ThawBalances>,
-        cancel_id: [u8; 32],
-    ) -> Bytes {
+    pub async fn thaw_balances(&self, users: Vec<ThawBalances>, cancel_id: [u8; 32]) -> Bytes {
         let contract = ChemixVault::new(self.contract_addr, self.client.clone());
 
         let users = users
@@ -67,9 +63,7 @@ impl ChemixContractClient<Vault> {
             })
             .collect::<Vec<ThawInfos>>();
 
-        let mut call = contract
-            .thaw_balance(cancel_id, users)
-            .legacy();
+        let mut call = contract.thaw_balance(cancel_id, users).legacy();
         sign_tx(&mut call.tx).await
     }
 

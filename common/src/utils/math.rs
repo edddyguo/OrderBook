@@ -1,8 +1,8 @@
 use rust_decimal::Decimal;
 
+use ethers_core::types::U256;
 use rust_decimal::prelude::ToPrimitive;
 use std::ops::Div;
-use ethers_core::types::U256;
 
 pub const U256_ZERO: U256 = U256([0; 4]);
 

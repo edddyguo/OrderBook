@@ -514,10 +514,7 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
             created_at: time2unix(x.created_at.clone()),
         })
         .collect::<Vec<OpenOrder>>();
-    let thaws = list_thaws(ThawsFilter::NotConfirmed(
-        &market_id,
-        &account,
-    ));
+    let thaws = list_thaws(ThawsFilter::NotConfirmed(&market_id, &account));
     //XXX: 当前为了适配前端本地缓存的
     let mut mock_order = thaws
         .into_iter()

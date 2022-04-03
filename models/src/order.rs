@@ -25,21 +25,21 @@ pub struct UpdateOrder<'a> {
     pub available_amount: U256,
     pub canceled_amount: U256,
     pub matched_amount: U256,
-    pub updated_at:  &'a str,
+    pub updated_at: &'a str,
 }
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct OpenOrder<'a> {
-    pub id:  String,
-    pub transaction_hash:  String,
-    pub thaws_hash:  String,
-    pub index:  u32,
-    pub account:  String,
+    pub id: String,
+    pub transaction_hash: String,
+    pub thaws_hash: String,
+    pub index: u32,
+    pub account: String,
     pub price: f64,
     pub amount: f64,
     pub matched_amount: f64,
     pub side: OrderSide,
-    pub status:  &'a str,
+    pub status: &'a str,
     pub created_at: u64,
 }
 

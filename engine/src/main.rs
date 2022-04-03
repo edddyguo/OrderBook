@@ -6,12 +6,12 @@ pub mod order;
 use ethers::prelude::*;
 use std::collections::{BTreeMap, HashMap};
 
+use chemix_chain::bsc::{get_block, get_current_block};
 use chemix_chain::chemix::ChemixContractClient;
 use rsmq_async::{Rsmq, RsmqConnection};
-use chemix_chain::bsc::{get_block, get_current_block};
-use std::string::String;
 use std::convert::TryFrom;
 use std::iter::FromIterator;
+use std::string::String;
 
 use crate::order::{legal_cancel_orders_filter, legal_new_orders_filter, match_order};
 use std::sync::Mutex;
@@ -380,8 +380,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     info!("db_marker_orders_reduce {:?}", db_marker_orders_reduce);
                     let mut pre_update_orders = Vec::new();
                     for orders in db_marker_orders_reduce {
-                        let market_orders =
-                            list_orders(OrderFilter::ById(&orders.0)).unwrap();
+                        let market_orders = list_orders(OrderFilter::ById(&orders.0)).unwrap();
                         let marker_order_ori = market_orders.first().unwrap();
                         let new_matched_amount = marker_order_ori.matched_amount + orders.1;
                         info!(

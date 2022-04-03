@@ -99,13 +99,17 @@ async fn listen_depth(rsmq: Queues, clients: Clients, queue_name: &str) {
                     user_id: None,
                     message: serde_json::to_string(&market_depth.1).unwrap(),
                 };
-                let _publish_res = handler::publish_handler(event, clients.clone()).await.unwrap();
+                let _publish_res = handler::publish_handler(event, clients.clone())
+                    .await
+                    .unwrap();
             }
 
-            let res = rsmq.write()
+            let res = rsmq
+                .write()
                 .await
                 .delete_message(queue_name, &message.id)
-                .await.unwrap();
+                .await
+                .unwrap();
             assert!(res);
         } else {
             tokio::time::sleep(time::Duration::from_millis(10)).await;
@@ -132,13 +136,17 @@ async fn listen_thaws(rsmq: Queues, clients: Clients, queue_name: &str) {
                     user_id: None,
                     message: serde_json::to_string(&thaw).unwrap(),
                 };
-                let _publish_res = handler::publish_handler(event, clients.clone()).await.unwrap();
+                let _publish_res = handler::publish_handler(event, clients.clone())
+                    .await
+                    .unwrap();
             }
 
-            let res = rsmq.write()
+            let res = rsmq
+                .write()
                 .await
                 .delete_message(queue_name, &message.id)
-                .await.unwrap();
+                .await
+                .unwrap();
             assert!(res);
         } else {
             tokio::time::sleep(time::Duration::from_millis(10)).await;
@@ -169,13 +177,17 @@ async fn listen_trade(rsmq: Queues, clients: Clients, queue_name: &str) {
                     user_id: None,
                     message: json_str,
                 };
-                let _publish_res = handler::publish_handler(event, clients.clone()).await.unwrap();
+                let _publish_res = handler::publish_handler(event, clients.clone())
+                    .await
+                    .unwrap();
             }
 
-            let res = rsmq.write()
+            let res = rsmq
+                .write()
                 .await
                 .delete_message(queue_name, &message.id)
-                .await.unwrap();
+                .await
+                .unwrap();
             //目前一定为true
             assert!(res);
         } else {

@@ -101,7 +101,11 @@ fn connet_db() -> Option<postgres::Client> {
 }
 
 pub fn transactin_begin() {
-    let _res = crate::CLIENTDB.lock().unwrap().simple_query("BEGIN").unwrap();
+    let _res = crate::CLIENTDB
+        .lock()
+        .unwrap()
+        .simple_query("BEGIN")
+        .unwrap();
 }
 
 pub fn transactin_commit() {

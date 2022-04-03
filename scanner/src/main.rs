@@ -1,5 +1,4 @@
-#[deny(warnings)]
-
+#![deny(warnings)]
 use std::time;
 
 use ethers_core::types::U256;

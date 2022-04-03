@@ -257,7 +257,10 @@ pub fn legal_cancel_orders_filter(
     legal_orders
 }
 
-pub fn legal_new_orders_filter(raw_orders: Vec<ChainNewOrder>, height: u32) -> Vec<OrderInfoPO> {
+pub fn legal_new_orders_filter(
+    raw_orders: Vec<ChainNewOrder>,
+    height: u32,
+) -> Vec<OrderInfoPO> {
     let mut db_new_orders = Vec::new();
     for order in raw_orders {
         let base_decimal = crate::MARKET.base_contract_decimal as u32;

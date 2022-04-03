@@ -26,17 +26,15 @@ use tokio::runtime::Runtime;
 use tokio::time;
 
 use chemix_models::order::{list_orders, OrderFilter};
-use chemix_models::trade::{
-    list_trades, update_trades, TradeFilter, TradeInfoPO, UpdateTrade,
-};
+use chemix_models::trade::{list_trades, update_trades, TradeFilter, TradeInfoPO, UpdateTrade};
 use common::utils::algorithm::{sha256, u8_arr_from_str, u8_arr_to_str};
 use common::utils::math::u256_to_f64;
 use common::utils::time::{get_current_time, get_unix_time};
 
 use chemix_chain::chemix::vault::{SettleValues3, ThawBalances, Vault};
+use chemix_chain::{gen_txid, send_raw_transaction};
 use chemix_models::market::get_markets;
 use log::info;
-use chemix_chain::{gen_txid, send_raw_transaction};
 
 //use common::env::CONF as ENV_CONF;
 use chemix_models::thaws::{list_thaws, ThawsFilter, UpdateThaw};
@@ -58,7 +56,6 @@ const CONFIRM_HEIGHT: u32 = 2;
 
 use chemix_models::thaws::update_thaws;
 use common::types::depth::RawDepth;
-
 
 #[derive(Clone, Serialize)]
 pub struct LastTrade {
@@ -238,13 +235,13 @@ async fn deal_launched_trade(
             continue;
         }
         for x in db_trades {
-            launched_trdade.push(UpdateTrade{
+            launched_trdade.push(UpdateTrade {
                 id: x.id.clone(),
                 status: TradeStatus::Confirmed,
                 block_height,
                 transaction_hash: x.transaction_hash,
                 hash_data: x.hash_data,
-                updated_at: &now
+                updated_at: &now,
             });
             let market_info = get_markets(x.market_id.as_str()).unwrap();
             let base_token_decimal = market_info.base_contract_decimal;
@@ -264,10 +261,7 @@ async fn deal_launched_trade(
                 };
                 match agg_trades.get_mut(x.market_id.as_str()) {
                     None => {
-                        agg_trades.insert(
-                            x.market_id.clone(),
-                            vec![agg_trade],
-                        );
+                        agg_trades.insert(x.market_id.clone(), vec![agg_trade]);
                     }
                     Some(trades) => {
                         trades.push(agg_trade);
@@ -300,8 +294,7 @@ async fn deal_launched_thaws(
     let now = get_current_time();
     for new_thaw_flag in new_thaw_flags {
         //如果已经确认的跳过，可能发生在系统重启的时候
-        let pending_thaws =
-            list_thaws(ThawsFilter::DelayConfirm(&new_thaw_flag, height));
+        let pending_thaws = list_thaws(ThawsFilter::DelayConfirm(&new_thaw_flag, height));
         if pending_thaws.is_empty() {
             warn!(
                 "This thaw hash {} have already dealed,and jump it",
@@ -316,13 +309,13 @@ async fn deal_launched_thaws(
         for iter in iters.into_iter() {
             let mut thaw_infos = Vec::new();
             for pending_thaw in iter.to_vec() {
-                update_thaws_arr.push(UpdateThaw{
+                update_thaws_arr.push(UpdateThaw {
                     order_id: pending_thaw.order_id,
                     cancel_id: pending_thaw.thaws_hash.clone(),
                     block_height: height,
                     transaction_hash: pending_thaw.transaction_hash.clone(),
                     status: ThawStatus::Confirmed,
-                    updated_at: &now
+                    updated_at: &now,
                 });
 
                 let market = get_markets(pending_thaw.market_id.as_str()).unwrap();
@@ -465,10 +458,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             info!("new_orders_event {:?}", new_thaws);
 
                             if new_thaws.is_empty() {
-                                info!(
-                                    "Not found new thaws created at height {}",
-                                    height
-                                );
+                                info!("Not found new thaws created at height {}", height);
                             } else {
                                 //只要拿到事件的hashdata就可以判断这个解冻是ok的，不需要比对其他
                                 //todo： 另外起一个服务，循环判断是否有超8个区块还没确认的处理，有的话将起launch重新设置为pending
@@ -478,7 +468,6 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         }
                         last_process_height = current_height - CONFIRM_HEIGHT;
                     }
-
                 }
             });
         });
@@ -541,32 +530,33 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     );
                     let cancel_id = u8_arr_from_str(sha256(order_json));
 
-                    let raw_data =  vault_thaws_client
-                            .clone()
-                            .read()
-                            .unwrap()
-                            .thaw_balances(thaw_infos.clone(), cancel_id)
-                            .await;
+                    let raw_data = vault_thaws_client
+                        .clone()
+                        .read()
+                        .unwrap()
+                        .thaw_balances(thaw_infos.clone(), cancel_id)
+                        .await;
                     let txid = gen_txid(&raw_data);
 
                     let cancel_id_str = u8_arr_to_str(cancel_id);
                     let now = get_current_time();
-                    let mut pending_thaws2 = pending_thaws.iter().map(|x| {
-                        UpdateThaw {
+                    let mut pending_thaws2 = pending_thaws
+                        .iter()
+                        .map(|x| UpdateThaw {
                             order_id: x.order_id.clone(),
                             cancel_id: cancel_id_str.to_string(),
                             block_height: 0,
                             transaction_hash: txid.clone(),
                             status: ThawStatus::Launched,
-                            updated_at: &now
-                        }
-                    }).collect::<Vec<UpdateThaw>>();
+                            updated_at: &now,
+                        })
+                        .collect::<Vec<UpdateThaw>>();
                     update_thaws(&pending_thaws2);
                     //todo: 此时节点问题或者分叉,或者gas不足
                     let receipt = send_raw_transaction(raw_data).await;
                     info!("finish thaw balance res:{:?}", receipt);
                     let transaction_hash = format!("{:?}", receipt.transaction_hash);
-                    assert_eq!(txid,transaction_hash);
+                    assert_eq!(txid, transaction_hash);
                     let height = receipt.block_number.unwrap().as_u32();
                     for pending_thaw in pending_thaws2.iter_mut() {
                         pending_thaw.block_height = height;

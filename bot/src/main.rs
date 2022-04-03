@@ -76,9 +76,9 @@ async fn cancel_order(
                 break;
             }
             Err(error) => {
-                    //tmp code
-                    error!("{}", error.to_string());
-                    panic!("cancel failed");
+                //tmp code
+                error!("{}", error.to_string());
+                panic!("cancel failed");
             }
         }
     }

@@ -101,8 +101,8 @@ impl TradeInfoPO {
         price: U256,
         amount: U256,
         taker_side: OrderSide,
-        maker_order_id: & str,
-        taker_order_id: & str,
+        maker_order_id: &str,
+        taker_order_id: &str,
     ) -> TradeInfoPO {
         let now = get_current_time();
         let mut trade = TradeInfoPO {
@@ -117,8 +117,8 @@ impl TradeInfoPO {
             price,
             amount,
             taker_side,
-            maker_order_id:maker_order_id.to_owned(),
-            taker_order_id:taker_order_id.to_owned(),
+            maker_order_id: maker_order_id.to_owned(),
+            taker_order_id: taker_order_id.to_owned(),
             updated_at: now.clone(),
             created_at: now.clone(),
         };
