@@ -40,13 +40,21 @@ async fn index(web::Path((id, name)): web::Path<(u32, String)>) -> impl Responde
 
 #[derive(Deserialize, Serialize)]
 struct DexProfile {
+    #[serde(rename = "cumulativeTVL")]
     cumulative_tvl: f64,
+    #[serde(rename = "cumulativeTransactions")]
     cumulative_transactions: u32,
+    #[serde(rename = "cumulativeTraders")]
     cumulative_traders: u32,
+    #[serde(rename = "numberOfTraders")]
     traders_num: u32,
+    #[serde(rename = "tradingVolume")]
     trading_volume: f64,
+    #[serde(rename = "numberOfTransactions")]
     transactions_num: u32,
+    #[serde(rename = "TVL")]
     tvl: f64,
+    #[serde(rename = "tradingPairs")]
     trading_pairs: u8,
     price: f64,
     snapshot_time: u64,
