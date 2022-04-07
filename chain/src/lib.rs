@@ -196,8 +196,7 @@ mod tests {
             from: Some(
                 "91352ab925F5ee09937F2E7753b243C648a975C4"
                     .parse::<Address>()
-                    .unwrap()
-                    .into(),
+                    .unwrap(),
             ),
             to: Some(
                 "F0109fC8DF283027b6285cc889F5aA624EaC1F55"

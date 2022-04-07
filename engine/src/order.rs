@@ -61,7 +61,7 @@ pub fn match_order(
                     //剩余的订单使深度增加
                     let stat = raw_depth
                         .bids
-                        .entry(taker_order.price.clone())
+                        .entry(taker_order.price)
                         .or_insert(I256::from(0i32));
                     *stat += I256::from_raw(taker_order.available_amount);
                     /***
@@ -80,8 +80,8 @@ pub fn match_order(
                         &crate::MARKET.id,
                         &taker_order.account,
                         &marker_order.1.account,
-                        marker_order.0.price.clone(),
-                        matched_amount.clone(),
+                        marker_order.0.price,
+                        matched_amount,
                         taker_order.side.clone(),
                         &marker_order.1.id,
                         &taker_order.id,
@@ -90,7 +90,7 @@ pub fn match_order(
                     //吃掉的订单使卖单深度减少
                     let stat = raw_depth
                         .asks
-                        .entry(marker_order.0.price.clone())
+                        .entry(marker_order.0.price)
                         .or_insert(I256::from(0i32));
                     *stat -= I256::from_raw(matched_amount);
 
@@ -140,7 +140,7 @@ pub fn match_order(
 
                     let stat = raw_depth
                         .asks
-                        .entry(taker_order.price.clone())
+                        .entry(taker_order.price)
                         .or_insert(I256::from(0i32));
                     *stat += I256::from_raw(taker_order.available_amount);
                     break 'marker_orders;
@@ -153,7 +153,7 @@ pub fn match_order(
                         &crate::MARKET.id,
                         &taker_order.account,
                         &marker_order.1.account,
-                        marker_order.0.price.clone(),
+                        marker_order.0.price,
                         matched_amount,
                         taker_order.side.clone(),
                         &marker_order.1.id,
@@ -162,7 +162,7 @@ pub fn match_order(
 
                     let stat = raw_depth
                         .bids
-                        .entry(marker_order.0.price.clone())
+                        .entry(marker_order.0.price)
                         .or_insert(I256::from(0i32));
                     *stat -= I256::from_raw(matched_amount);
 

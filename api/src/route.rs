@@ -495,7 +495,7 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
         market_info.base_contract_decimal,
         market_info.quote_contract_decimal,
     );
-    let account = info.account.clone().to_lowercase();
+    let account = info.account.to_lowercase();
     let market_id = info.market_id.clone();
     let orders = list_orders2(OrderFilter::UserOrders(
         market_id.clone(),
@@ -537,7 +537,7 @@ async fn list_orders(web::Query(info): web::Query<ListOrdersRequest>) -> impl Re
                 price: u256_to_f64(x.price, quote_decimal),
                 amount: u256_to_f64(x.amount, base_decimal),
                 matched_amount: u256_to_f64(x.amount, base_decimal), //tmp code
-                side: x.side.clone(),
+                side: x.side,
                 status: "thawing", //tmp code
                 created_at: time2unix(origin_order[0].created_at.clone()),
             }
@@ -559,7 +559,7 @@ struct OrderHistoryRequest {
 
 #[get("/chemix/orderHistory")]
 async fn order_history(web::Query(info): web::Query<OrderHistoryRequest>) -> impl Responder {
-    let account = info.account.clone().to_lowercase();
+    let account = info.account.to_lowercase();
     let market_id = info.market_id.clone();
     let orders = list_orders2(OrderFilter::UserOrders(
         market_id,
@@ -571,7 +571,7 @@ async fn order_history(web::Query(info): web::Query<OrderHistoryRequest>) -> imp
     .unwrap();
     let orders = orders
         .iter()
-        .map(|x| get_order_detail(x))
+        .map(get_order_detail)
         .collect::<Vec<OrderDetail>>();
     respond_json(200, "".to_string(), serde_json::to_string(&orders).unwrap())
 }
@@ -609,7 +609,7 @@ async fn recent_trades(web::Query(info): web::Query<RecentTradesRequest>) -> imp
         market_info.base_contract_decimal,
         market_info.quote_contract_decimal,
     );
-    let account = info.account.clone().to_lowercase();
+    let account = info.account.to_lowercase();
     let trades = list_trades(TradeFilter::Recent(
         &account,
         &info.market_id,

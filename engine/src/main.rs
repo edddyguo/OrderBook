@@ -111,7 +111,7 @@ fn gen_depth_from_cancel_orders(pending_thaws: Vec<ThawsPO>) -> RawDepth {
         }
     };
 
-    for pending_thaw in pending_thaws.clone() {
+    for pending_thaw in pending_thaws {
         update_depth(pending_thaw);
     }
     add_depth
