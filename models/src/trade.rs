@@ -289,10 +289,11 @@ pub fn get_trade_volume(scope: TimeScope, market_id: &str) -> U256 {
         }
     };
     let sql = format!("select amount from chemix_trades {}", filter_str);
-    let mut sum = U256_ZERO;
     let rows = crate::query(sql.as_str()).unwrap();
-    for row in rows {
-        sum += U256::from_str_radix(row.get::<usize, &str>(0), 10).unwrap()
-    }
-    sum
+
+    //sum the volume
+    rows.iter().fold(
+        U256_ZERO,
+        |acc,x| acc + U256::from_str_radix(x.get::<usize, &str>(0), 10).unwrap()
+    )
 }
