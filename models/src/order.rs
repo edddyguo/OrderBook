@@ -247,10 +247,9 @@ pub fn get_order_volume(scope: TimeScope, market_id: &str) -> U256 {
     let rows = crate::query(sql.as_str()).unwrap();
 
     //sum the volume
-    rows.iter().fold(
-        U256_ZERO,
-        |acc,x| acc + U256::from_str_radix(x.get::<usize, &str>(0), 10).unwrap()
-    )
+    rows.iter().fold(U256_ZERO, |acc, x| {
+        acc + U256::from_str_radix(x.get::<usize, &str>(0), 10).unwrap()
+    })
 }
 
 //user num from scope time age to now or no time limit

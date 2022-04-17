@@ -118,9 +118,7 @@ async fn contract_call_send<D: Detokenize, M: Middleware>(
             .sign_transaction(&call.tx, Address::default())
             .await
             .unwrap();
-        let txid2 = call
-            .tx
-            .rlp_signed(U64::from(*crate::CHAIN_ID), &signature);
+        let txid2 = call.tx.rlp_signed(U64::from(*crate::CHAIN_ID), &signature);
         let txid3: H256 = keccak256(txid2).into();
         info!("local txid {:?}", txid3);
         match call.send().await.unwrap().await {

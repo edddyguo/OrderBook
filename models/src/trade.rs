@@ -292,8 +292,7 @@ pub fn get_trade_volume(scope: TimeScope, market_id: &str) -> U256 {
     let rows = crate::query(sql.as_str()).unwrap();
 
     //sum the volume
-    rows.iter().fold(
-        U256_ZERO,
-        |acc,x| acc + U256::from_str_radix(x.get::<usize, &str>(0), 10).unwrap()
-    )
+    rows.iter().fold(U256_ZERO, |acc, x| {
+        acc + U256::from_str_radix(x.get::<usize, &str>(0), 10).unwrap()
+    })
 }

@@ -1,5 +1,8 @@
 #![feature(slice_group_by)]
 
+mod thaw;
+mod trade;
+
 use ethers::prelude::*;
 use std::cmp::max;
 use std::collections::HashMap;
@@ -54,6 +57,8 @@ extern crate common;
 
 const CONFIRM_HEIGHT: u32 = 2;
 
+use crate::thaw::{deal_launched_thaws, send_launch_thaw};
+use crate::trade::{deal_launched_trade, send_launch_trade};
 use chemix_models::thaws::update_thaws;
 use common::types::depth::RawDepth;
 
@@ -215,163 +220,6 @@ fn _update_depth(depth_ori: &mut RawDepth, x: &TradeInfoPO) {
     }
 }
 
-async fn deal_launched_trade(
-    new_settlements: Vec<String>,
-    arc_queue: Arc<RwLock<Rsmq>>,
-    block_height: u32,
-) {
-    info!("Get settlement event {:?}", new_settlements);
-    let mut agg_trades = HashMap::<String, Vec<AggTrade>>::new();
-    let mut launched_trdade = Vec::new();
-    let now = get_current_time();
-    //目前来说一个区块里只有一个清算
-    for hash_data in new_settlements {
-        let db_trades = list_trades(TradeFilter::DelayConfirm(&hash_data, block_height));
-        if db_trades.is_empty() {
-            warn!(
-                "This trade hash {} have already dealed,and jump it",
-                hash_data.clone()
-            );
-            continue;
-        }
-        for x in db_trades {
-            launched_trdade.push(UpdateTrade {
-                id: x.id.clone(),
-                status: TradeStatus::Confirmed,
-                block_height,
-                transaction_hash: x.transaction_hash,
-                hash_data: x.hash_data,
-                updated_at: &now,
-            });
-            let market_info = get_markets(x.market_id.as_str()).unwrap();
-            let base_token_decimal = market_info.base_contract_decimal;
-            let quote_token_decimal = market_info.quote_contract_decimal;
-            let user_price = u256_to_f64(x.price, quote_token_decimal);
-            let user_amount = u256_to_f64(x.amount, base_token_decimal);
-            if user_price != 0.0 && user_amount != 0.0 {
-                let agg_trade = AggTrade {
-                    id: x.id.clone(),
-                    taker: x.taker.clone(),
-                    maker: x.maker.clone(),
-                    price: user_price,
-                    amount: user_amount,
-                    height: x.block_height,
-                    taker_side: x.taker_side.clone(),
-                    updated_at: get_unix_time(),
-                };
-                match agg_trades.get_mut(x.market_id.as_str()) {
-                    None => {
-                        agg_trades.insert(x.market_id.clone(), vec![agg_trade]);
-                    }
-                    Some(trades) => {
-                        trades.push(agg_trade);
-                    }
-                }
-            }
-        }
-
-        //update_trade_by_hash(TradeStatus::Confirmed, &hash_data, block_height);
-        update_trades(&launched_trdade);
-
-        //push agg trade
-        if !agg_trades.is_empty() {
-            let json_str = serde_json::to_string(&agg_trades).unwrap();
-            arc_queue
-                .write()
-                .unwrap()
-                .send_message(QueueType::Trade.to_string().as_str(), json_str, None)
-                .await
-                .expect("failed to send message");
-        }
-    }
-}
-
-async fn deal_launched_thaws(
-    new_thaw_flags: Vec<String>,
-    arc_queue: Arc<RwLock<Rsmq>>,
-    height: u32,
-) {
-    let now = get_current_time();
-    for new_thaw_flag in new_thaw_flags {
-        //如果已经确认的跳过，可能发生在系统重启的时候
-        let pending_thaws = list_thaws(ThawsFilter::DelayConfirm(&new_thaw_flag, height));
-        if pending_thaws.is_empty() {
-            warn!(
-                "This thaw hash {} have already dealed,and jump it",
-                new_thaw_flag.clone()
-            );
-            continue;
-        }
-        let iters = pending_thaws.group_by(|a, b| a.market_id == b.market_id);
-
-        //所有交易对的解冻一起更新
-        let mut update_thaws_arr = Vec::new();
-        for iter in iters {
-            let mut thaw_infos = Vec::new();
-            for pending_thaw in iter.to_vec() {
-                update_thaws_arr.push(UpdateThaw {
-                    order_id: pending_thaw.order_id,
-                    cancel_id: pending_thaw.thaws_hash.clone(),
-                    block_height: height,
-                    transaction_hash: pending_thaw.transaction_hash.clone(),
-                    status: ThawStatus::Confirmed,
-                    updated_at: &now,
-                });
-
-                let market = get_markets(pending_thaw.market_id.as_str()).unwrap();
-                let token_base_decimal = teen_power!(market.base_contract_decimal);
-                let (token_address, amount, decimal) = match pending_thaw.side {
-                    OrderSide::Sell => {
-                        info!("available_amount {}", pending_thaw.amount);
-                        (
-                            market.base_token_address,
-                            pending_thaw.amount,
-                            market.base_contract_decimal,
-                        )
-                    }
-                    OrderSide::Buy => {
-                        info!(
-                            "available_amount {},price {},thaw_amount {}",
-                            pending_thaw.amount,
-                            pending_thaw.price,
-                            pending_thaw.amount * pending_thaw.price / token_base_decimal
-                        );
-                        (
-                            market.quote_token_address,
-                            pending_thaw.amount * pending_thaw.price / token_base_decimal,
-                            market.quote_contract_decimal,
-                        )
-                    }
-                };
-                thaw_infos.push(ThawBalances {
-                    token: Address::from_str(token_address.as_str()).unwrap(),
-                    from: Address::from_str(pending_thaw.account.as_str()).unwrap(),
-                    decimal: decimal as u32,
-                    amount,
-                });
-            }
-
-            let thaw_infos2 = thaw_infos
-                .iter()
-                .map(|x| ThawBalances2 {
-                    token: x.token,
-                    from: x.from,
-                    amount: u256_to_f64(x.amount, x.decimal),
-                })
-                .collect::<Vec<ThawBalances2>>();
-            let json_str = serde_json::to_string(&thaw_infos2).unwrap();
-
-            arc_queue
-                .write()
-                .unwrap()
-                .send_message(QueueType::Thaws.to_string().as_str(), json_str, None)
-                .await
-                .expect("failed to send message");
-        }
-        update_thaws(&update_thaws_arr);
-    }
-}
-
 async fn get_last_process_height() -> u32 {
     let last_thaw = list_thaws(ThawsFilter::LastPushed);
     let last_trade = list_trades(TradeFilter::LastPushed);
@@ -396,8 +244,7 @@ async fn get_last_process_height() -> u32 {
 async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
     let arc_queue = Arc::new(RwLock::new(queue));
     let pri_key = ENV_CONF.chemix_relayer_prikey.to_owned().unwrap();
-    let chemix_vault_client =
-        ChemixContractClient::<Vault>::new(pri_key.to_str().unwrap());
+    let chemix_vault_client = ChemixContractClient::<Vault>::new(pri_key.to_str().unwrap());
     let chemix_vault_client = Arc::new(RwLock::new(chemix_vault_client));
 
     rayon::scope(|s| {
@@ -485,84 +332,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         info!("{:#?}", pending_thaws);
                     }
                     //todo: 可以汇总
-                    let mut thaw_infos = Vec::new();
-                    for pending_thaw in pending_thaws.clone() {
-                        let market = get_markets(pending_thaw.market_id.as_str()).unwrap();
-                        let token_base_decimal = teen_power!(market.base_contract_decimal);
-                        let (token_address, amount, decimal) = match pending_thaw.side {
-                            OrderSide::Sell => {
-                                info!("available_amount {}", pending_thaw.amount);
-                                (
-                                    market.base_token_address,
-                                    pending_thaw.amount,
-                                    market.base_contract_decimal,
-                                )
-                            }
-                            OrderSide::Buy => {
-                                info!(
-                                    "available_amount {},price {},thaw_amount {}",
-                                    pending_thaw.amount,
-                                    pending_thaw.price,
-                                    pending_thaw.amount * pending_thaw.price
-                                        / token_base_decimal
-                                );
-                                (
-                                    market.quote_token_address,
-                                    pending_thaw.amount * pending_thaw.price
-                                        / token_base_decimal,
-                                    market.quote_contract_decimal,
-                                )
-                            }
-                        };
-                        thaw_infos.push(ThawBalances {
-                            token: Address::from_str(token_address.as_str()).unwrap(),
-                            from: Address::from_str(pending_thaw.account.as_str()).unwrap(),
-                            decimal: decimal as u32,
-                            amount,
-                        });
-                    }
-                    info!("start thaw balance,all thaw info {:?}", thaw_infos);
-
-                    let order_json = format!(
-                        "{}{}",
-                        serde_json::to_string(&thaw_infos).unwrap(),
-                        get_current_time()
-                    );
-                    let cancel_id = u8_arr_from_str(sha256(order_json));
-
-                    let raw_data = vault_thaws_client
-                        .clone()
-                        .read()
-                        .unwrap()
-                        .thaw_balances(thaw_infos.clone(), cancel_id)
-                        .await;
-                    let txid = gen_txid(&raw_data);
-
-                    let cancel_id_str = u8_arr_to_str(cancel_id);
-                    let now = get_current_time();
-                    let mut pending_thaws2 = pending_thaws
-                        .iter()
-                        .map(|x| UpdateThaw {
-                            order_id: x.order_id.clone(),
-                            cancel_id: cancel_id_str.to_string(),
-                            block_height: 0,
-                            transaction_hash: txid.clone(),
-                            status: ThawStatus::Launched,
-                            updated_at: &now,
-                        })
-                        .collect::<Vec<UpdateThaw>>();
-                    update_thaws(&pending_thaws2);
-                    //todo: 此时节点问题或者分叉,或者gas不足
-                    let receipt = send_raw_transaction(raw_data).await;
-                    info!("finish thaw balance res:{:?}", receipt);
-                    let transaction_hash = format!("{:?}", receipt.transaction_hash);
-                    assert_eq!(txid, transaction_hash);
-                    let height = receipt.block_number.unwrap().as_u32();
-                    for pending_thaw in pending_thaws2.iter_mut() {
-                        pending_thaw.block_height = height;
-                    }
-                    update_thaws(&pending_thaws2);
-                    //todo: 取消的订单也超过100这种
+                    send_launch_thaw(vault_thaws_client.clone(), pending_thaws).await;
                 }
             });
         });
@@ -570,9 +340,9 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
         s.spawn(move |_| {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
-                let mut last_height = get_current_block().await - 1;
                 loop {
                     //fix: 50是经验值，放到外部参数注入
+                    //目前在engine模块保证大订单不再撮合
                     let db_trades = list_trades(TradeFilter::Status(TradeStatus::Matched,50));
                     if db_trades.is_empty() {
                         info!("Have no matched trade need launch,and wait 5 seconds for next check");
@@ -583,52 +353,9 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     let last_order = last_orders.first().unwrap();
                     info!("db_trades = {:?}",db_trades);
 
-                    let settle_trades = gen_settle_trades(db_trades.clone());
-                    info!("settle_trades {:?} ",settle_trades);
+                    //todo: block_height为0的这部分交易，只会在宕机的情况下出现，放在初始化的时候去处理
+                    send_launch_trade(vault_settel_client.clone(),last_order,db_trades).await;
 
-                    let hash_data = u8_arr_from_str(last_order.hash_data.clone());
-                    if !settle_trades.is_empty() {
-                        while get_current_block().await - last_height == 0u32 {
-                            info!("current {},wait for next block",last_height);
-                            tokio::time::sleep(time::Duration::from_millis(500)).await;
-                        }
-                        //todo: 先更新db，在进行广播，如果失败，在监控确认逻辑中，该结算会一直处于launched状态（实际没发出去），在8个区块的检查时效后，
-                        // 状态重置为matched，重新进行清算，如果先广播再清算的话，如果广播后宕机，还没来得及更新db，就会造成重复清算
-                        //todo: block_height为0的这部分交易放在新线程去处理
-                        let now = get_current_time();
-                        info!("settlement_trades trade={:?}_index={},hash={:?}",settle_trades,last_order.index,hash_data);
-                        let receipt =  vault_settel_client
-                            .clone()
-                            .read()
-                            .unwrap()
-                            .settlement_trades2(last_order.index, hash_data, settle_trades.clone())
-                            .await;
-                        let txid = gen_txid(&receipt);
-                        info!("[test_txid]::local {}",txid);
-                        let mut trades = db_trades.iter().map(|x| {
-                            UpdateTrade{
-                                id: x.id.clone(),
-                                status: TradeStatus::Launched,
-                                block_height: 0,
-                                transaction_hash: txid.clone(),
-                                hash_data: last_order.hash_data.clone(),
-                                updated_at: &now
-                            }
-                        }).collect::<Vec<UpdateTrade>>();
-                        update_trades(&trades);
-
-                        //todo: 此时节点问题或者分叉,待处理
-                        let receipt = send_raw_transaction(receipt).await;
-                        let transaction_hash = format!("{:?}", receipt.transaction_hash);
-                        info!("[test_txid]::remote {}",transaction_hash);
-                        assert_eq!(txid,transaction_hash);
-                        let height = receipt.block_number.unwrap().to_string().parse::<u32>().unwrap();
-                        for trade in trades.iter_mut() {
-                            trade.block_height = height;
-                        }
-                        update_trades(&trades);
-                        last_height = height;
-                    }
                 }
             });
         });
@@ -636,9 +363,15 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
     Ok(())
 }
 
+//检查宕机时还没广播出去的交易，重新广播
+async fn check_history_launch() {
+    todo!()
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
+    //check_history_launch().await;
     let queue = Queue::regist(vec![QueueType::Trade, QueueType::Depth, QueueType::Thaws]).await;
     listen_blocks(queue).await
 }

@@ -9,7 +9,7 @@ use ethers::prelude::*;
 use ethers::types::Address;
 
 use std::marker::PhantomData;
-use std::ops::{Mul};
+use std::ops::Mul;
 use std::str::FromStr;
 
 use crate::chemix::ChemixContractClient;
