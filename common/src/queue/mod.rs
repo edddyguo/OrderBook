@@ -32,11 +32,6 @@ pub enum QueueType {
 impl QueueType {
     pub fn to_string(&self) -> String {
         match self {
-            /***
-            Self::Thaws => "thaws",
-            Self::Depth => "depth",
-            Self::Trade => "trade",
-             */
             Self::Thaws => format!("thaw_order_{}", *CHEMIX_MODE),
             Self::Depth => format!("update_book_{}", *CHEMIX_MODE),
             Self::Trade => format!("new_trade_{}", *CHEMIX_MODE),

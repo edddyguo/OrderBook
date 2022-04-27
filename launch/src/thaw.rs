@@ -21,7 +21,7 @@ pub async fn send_launch_thaw(
     let mut thaw_infos = Vec::new();
     for pending_thaw in pending_thaws.clone() {
         let market = get_markets(pending_thaw.market_id.as_str()).unwrap();
-        let token_base_decimal = teen_power!(market.base_contract_decimal);
+        let token_base_decimal = u256_power!(10u32,market.base_contract_decimal);
         let (token_address, amount, decimal) = match pending_thaw.side {
             OrderSide::Sell => {
                 info!("available_amount {}", pending_thaw.amount);
@@ -129,7 +129,7 @@ pub async fn deal_launched_thaws(
                 });
 
                 let market = get_markets(pending_thaw.market_id.as_str()).unwrap();
-                let token_base_decimal = teen_power!(market.base_contract_decimal);
+                let token_base_decimal = u256_power!(10u32,market.base_contract_decimal);
                 let (token_address, amount, decimal) = match pending_thaw.side {
                     OrderSide::Sell => {
                         info!("available_amount {}", pending_thaw.amount);

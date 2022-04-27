@@ -47,7 +47,7 @@ pub fn get_order_detail(order: &OrderInfoPO) -> OrderDetail {
     let mut total_volume = U256_ZERO;
     let mut trades2 = Vec::<Trade2>::new();
     for trade in trades {
-        total_volume += trade.amount * trade.price / teen_power!(base_decimal);
+        total_volume += trade.amount * trade.price / u256_power!(10u32,base_decimal);
 
         trades2.push(Trade2 {
             id: trade.id.clone(),

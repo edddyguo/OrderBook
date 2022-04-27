@@ -30,8 +30,8 @@ fn get_token_price(quote_symbol: &str) -> Option<U256> {
         return Some(U256::from(1_000_000_000_000_000i64)); //1U
     }
     let market_id = format!("{}-USDT", quote_symbol);
-
-    let cec_dicimal = teen_power!(get_token("CEC").unwrap().base_contract_decimal);
+    let cec_raw_dicimal = get_token("CEC").unwrap().base_contract_decimal;
+    let cec_dicimal = u256_power!(10u32,cec_raw_dicimal);
     match get_markets(&market_id) {
         None => {
             //必须usdt和cec有一个交易对
@@ -50,7 +50,7 @@ fn get_token_price(quote_symbol: &str) -> Option<U256> {
 async fn gen_chemix_profile(vault_client: &ChemixContractClient<Vault>) {
     let mut current_withdraw_value = U256_ZERO;
     for token in list_tokens() {
-        let base_token_decimal = teen_power!(token.base_contract_decimal);
+        let base_token_decimal = u256_power!(10u32,token.base_contract_decimal);
         let price = get_token_price(token.symbol.as_str()).unwrap();
         let withdraw_volume = vault_client
             .vault_total_withdraw_volume(token.address)
@@ -65,7 +65,7 @@ async fn gen_chemix_profile(vault_client: &ChemixContractClient<Vault>) {
 
     let total_markets = list_markets();
     for market in total_markets.clone() {
-        let base_token_decimal = teen_power!(market.base_contract_decimal);
+        let base_token_decimal = u256_power!(10u32,market.base_contract_decimal);
 
         //单个交易对的交易量
         let volume = get_order_volume(TimeScope::NoLimit, &market.id);

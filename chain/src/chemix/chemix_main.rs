@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use common::env::CONF as ENV_CONF;
-use common::teen_power;
+use common::u256_power;
 use common::types::order::Side;
 
 use common::utils::math::MathOperation;
@@ -49,8 +49,8 @@ impl ChemixContractClient<Main> {
         amount: f64,
     ) -> Result<()> {
         let contract = ChemixMain::new(self.contract_addr, self.client.clone());
-        let base_decimal = teen_power!(10u32); //18 -8
-        let quote_decimal = teen_power!(7u32); //15 -8
+        let base_decimal = u256_power!(10u32,10u32); //18 -8
+        let quote_decimal = u256_power!(10u32,7u32); //15 -8
 
         let quote_token = Address::from_str(quote_token).unwrap();
         let base_token = Address::from_str(base_token).unwrap();

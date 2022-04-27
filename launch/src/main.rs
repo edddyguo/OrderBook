@@ -106,7 +106,7 @@ fn gen_settle_trades(db_trades: Vec<TradeInfoPO>) -> Vec<SettleValues3> {
 
     for trader in db_trades {
         let market = get_markets(&trader.market_id).unwrap();
-        let token_base_decimal = teen_power!(market.base_contract_decimal);
+        let token_base_decimal = u256_power!(10u32,market.base_contract_decimal);
 
         let base_amount = trader.amount;
         let quote_amount = trader.amount * trader.price / token_base_decimal;

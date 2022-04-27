@@ -7,9 +7,9 @@ use std::ops::Div;
 pub const U256_ZERO: U256 = U256([0; 4]);
 
 #[macro_export]
-macro_rules! teen_power {
-    ($a:expr) => {{
-        U256::from(10u32).pow(U256::from($a))
+macro_rules! u256_power {
+    ( $a:expr,$b:expr) => {{
+        U256::from($a).pow(U256::from($b))
     }};
 }
 
@@ -18,7 +18,7 @@ pub trait MathOperation {
     fn to_nano(&self) -> u64;
 }
 
-//fixme: 再次检查丢精度问题
+//todo: 再次检查丢精度问题
 impl MathOperation for f64 {
     fn to_fix(&self, precision: u32) -> f64 {
         let times = 10_u32.pow(precision);
@@ -36,33 +36,13 @@ impl MathOperation for f64 {
     }
 }
 
-/***
-pub trait ExtensionNat {
-    fn to_int<T>(&self) -> T
-        where
-            T: FromStr,
-            T::Err: std::fmt::Debug;
-}
-impl ExtensionNat for Nat {
-    fn to_int<T>(&self) -> T
-        where
-            T: FromStr,
-            T::Err: std::fmt::Debug,
-    {
-        self.to_string().replace("_", "").parse::<T>().unwrap()
-    }
-}
-            fee: self.fee.to_int::<u64>(),
-
- */
-
 pub fn narrow(ori: u64) -> f64 {
     let decimal_number = Decimal::new(ori as i64, 8);
     decimal_number.to_f64().unwrap()
 }
 
-//fixme:考虑用其他库,硬编码精度为8位，decimal超过37的话仍溢出，目前业务不会触发
-//fixme: f64的有效精度为16位,当前业务做一定的取舍，总账对上就行
+//fixme:考虑用其他库,硬编码精度为8位，decimal超过37的话仍溢出，目前业务不会触发,
+// f64的有效精度为16位,当前业务做一定的取舍，总账对上就行
 pub fn u256_to_f64(ori: U256, decimal: u32) -> f64 {
     let decimal_value = U256::from(10u32).pow(U256::from(decimal - 8));
     let dist_int = ori.div(decimal_value);
@@ -74,7 +54,6 @@ pub fn u256_to_f64(ori: U256, decimal: u32) -> f64 {
 #[cfg(test)]
 mod tests {
     use ethers_core::types::U256;
-
     use crate::utils::math::u256_to_f64;
 
     #[test]
