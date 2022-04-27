@@ -344,6 +344,9 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     //fix: 50是经验值，放到外部参数注入
                     //目前在engine模块保证大订单不再撮合
                     let db_trades = list_trades(TradeFilter::Status(TradeStatus::Matched,50));
+                    //在撮合模块保证过大的单不进行撮合，视为非法订单,
+                    //todo: 怎么获取500以内个数的，所有交易对的，所有账号的trade
+                    assert!(db_trades.len() <= 500);
                     if db_trades.is_empty() {
                         info!("Have no matched trade need launch,and wait 5 seconds for next check");
                         tokio::time::sleep(time::Duration::from_millis(5000)).await;
@@ -364,14 +367,14 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 }
 
 //检查宕机时还没广播出去的交易，重新广播
-async fn check_history_launch() {
+async fn check_dirty_launch() {
     todo!()
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
-    //check_history_launch().await;
+    check_dirty_launch().await;
     let queue = Queue::regist(vec![QueueType::Trade, QueueType::Depth, QueueType::Thaws]).await;
     listen_blocks(queue).await
 }
