@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@acala-network/eth-providers": "^2.4.7",
     "@openzeppelin/contracts": "^4.4.2",
     "@openzeppelin/contracts-upgradeable": "^4.4.2",
     "@openzeppelin/hardhat-upgrades": "^1.13.0",
