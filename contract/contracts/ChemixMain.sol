@@ -52,7 +52,7 @@ contract ChemixMain is
     {
         require(baseToken != quoteToken, 'Chemix: IDENTICAL_ADDRESSES');
         require(quoteToken != address(0) && baseToken != address(0), 'Chemix: ZERO_ADDRESS');
-        require(!ChemixStorage(env.STORAGE).checkPairExist(baseToken,quoteToken), 'Chemix: PAIR_NOTEXISTS');
+        require(!ChemixStorage(env.STORAGE).checkPairExist(baseToken,quoteToken), 'Chemix: PAIR_ALREADY_EXISTS');
         ChemixStorage(env.STORAGE).createNewPair(baseToken,quoteToken);
         return true;
     }
