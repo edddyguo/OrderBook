@@ -129,38 +129,25 @@ async function main() {
     console.log('erc20_balance:: wbtc=',erc20_balance_wbtc,'weth=',
         erc20_balance_weth,'cec=',erc20_balance_cec,'usdt=',erc20_balance_usdt);
 
-    return;
-    /***
-    try {
-        await contractTokenCEC.approve(contractTokenProxy.address, balanceBcc1+100, options)
-    } catch (e) {
-        console.log("", e)
-    }*/
+    //approve permission to chemix
+    let ApproveWBTCRes = await contractTokenWBTC.approve(contractTokenProxy.address, erc20_balance_wbtc, gasConf);
+    console.log('ApproveWBTCRes ', ApproveWBTCRes);
+    let ApproveUSDTRes = await contractTokenUSDT.approve(contractTokenProxy.address, erc20_balance_usdt, gasConf);
+    console.log('ApproveUSDTRes ', ApproveUSDTRes);
+    let ApproveWETHRes = await contractTokenWETH.approve(contractTokenProxy.address, erc20_balance_weth, gasConf);
+    console.log('ApproveWETHRes ', ApproveWETHRes);
+    let ApproveCECRes = await contractTokenCEC.approve(contractTokenProxy.address, erc20_balance_cec, gasConf);
+    console.log('ApproveCECRes ', ApproveCECRes);
 
-    //approve
-    let acc1ApproveTokenARes = await contractTokenWBTC.approve(contractTokenProxy.address, balanceAcc1, options);
-    console.log('acc1ApproveTokenARes ', acc1ApproveTokenARes);
-    let acc1ApproveTokenBRes = await contractTokenUSDT.approve(contractTokenProxy.address, balanceBcc1, options);
-    console.log('acc1ApproveTokenBRes ', acc1ApproveTokenBRes);
-    let acc1ApproveTokenCRes = await contractTokenWETH.approve(contractTokenProxy.address, balanceAcc1, options);
-    console.log('acc1ApproveTokenCRes ', acc1ApproveTokenCRes);
-    let acc1ApproveTokenCHERes = await contractTokenCEC.approve(contractTokenProxy.address, balanceBcc1, options);
-    console.log('acc1ApproveTokenCHERes ', acc1ApproveTokenCHERes);
-
-    let allowanceA = await contractTokenWBTC.allowance(account1, contractTokenProxy.address, options);
-    console.log('allowanceA ', allowanceA);
-    let allowanceB = await contractTokenUSDT.allowance(account1, contractTokenProxy.address, options);
-    console.log('allowanceB ', allowanceB);
-
-    let allowanceC = await contractTokenWETH.allowance(account1, contractTokenProxy.address, options);
-    console.log('allowanceC ', allowanceC);
-    let allowanceCHE = await contractTokenCEC.allowance(account1, contractTokenProxy.address, options);
-    console.log('allowanceCHE ', allowanceCHE);
-    //
-
-
-    let authorizeCreatePair1 = await contractChemixMain.authorizeCreatePair(account1, options);
-    console.log('check_pair1 authorizeCreatePair ', authorizeCreatePair1);
+    //check allowance
+    let allowance_WBTC = await contractTokenWBTC.allowance(account1, contractTokenProxy.address, gasConf);
+    console.log('allowance_WBTC ', allowance_WBTC);
+    let allowance_USDT = await contractTokenUSDT.allowance(account1, contractTokenProxy.address, gasConf);
+    console.log('allowance_USDT ', allowance_USDT);
+    let allowance_WETH = await contractTokenWETH.allowance(account1, contractTokenProxy.address, gasConf);
+    console.log('allowance_WETH ', allowance_WETH);
+    let allowance_CEC = await contractTokenCEC.allowance(account1, contractTokenProxy.address, gasConf);
+    console.log('allowance_CEC ', allowance_CEC);
 
     let check_pair_result1 = await contractChemixStorage.checkPairExist(contractTokenWBTC.address, contractTokenUSDT.address, options);
     console.log('check_pair_wbtc_usdt result ', check_pair_result1);
@@ -173,19 +160,6 @@ async function main() {
     let check_pair_result5 = await contractChemixStorage.checkPairExist(contractTokenWETH.address, contractTokenCEC.address, options);
     console.log('check_pair_weth_cec result ', check_pair_result5);
 
-
-    //const contractTokenWBTC = await ethers.getContractAt("TokenA",'0xF20e4447DF5D02A9717a1c9a25B8d2FBF973bE56')
-
-
-    //function newOrder(uint _id,string memory _baseToken, string memory _quoteToken ,uint _amount, uint _price) external returns (string memory){
-    /***
-     let result = await DemoUpgrade.newOrder(1,"BTC","USDT","buy",3,4);
-     console.log('result  ',result);
-     //0x3b0536683133b13f50f1778971752086ad00d9340e564d790b9c534e0cdd76fc
-     let result2 = await DemoUpgrade.listOrders(1);
-     console.log('orders  ',result2);
-     ***/
-
     //1、createpair
     //2、issuseA to account1
     //3、issuaB to account1
@@ -195,7 +169,6 @@ async function main() {
     //7、acount1 approve tokenB to tokenProxy
     //8、acount2 approve tokenA to tokenProxy
     //9、acount2 approve tokenB to tokenProxy
-
 
 }
 
