@@ -44,21 +44,32 @@ async function main() {
      *  * deployChemiMain:   0x98cdEee565d00AC793866B194cB562A6254f4495
      *  *
      *
+     *
+     *  ^@deployTokenCEC:   0x4A0C012c4db5801254B47CE142cf916b196FdAdd
+     * deployTokenUSDT:   0xa86785aA400B6b27e0bAD7E1CC7dA425b21E6B69
+     * deployTokenWBTC:   0x7E005517EcDf953c05c5E07E844155E007C6285E
+     * deployTokenWETH:   0xAB1415967609bE6654a8e1FEDa209275DB1f5B9c
+     * deployStorage:   0xb3f1410AA0f358771417a53519B634a50Ee3AB1b
+     * deployTokenProxy:   0xf86a0a65435Ab39B355b8FA3651346Dbe8EEe14B
+     * deployVault:   0xFe61B257B40D189A311Ef9c1F61BcE78df8F5c18
+     * deployChemiMain:   0x65479F56d9c60d11e12441A136eeCE11c4d8f4D6
+     *
      * */
 
 
     //token
-    const contractTokenCEC = await ethers.getContractAt("ChemixPlatform", '0xfd4322c6026A761A1ecbD7B5F656FF3C4aCD6fBf', chemix_signer)
-    const contractTokenUSDT = await ethers.getContractAt("TetherToken", '0xe54183F5cB818d2AAaddC25dD03a5687cF527c84', chemix_signer)
-    const contractTokenWBTC = await ethers.getContractAt("WrapedBitcoin", '0x0F381a51b032aFbc020856B5E0C764DD910488D2', chemix_signer)
-    const contractTokenWETH = await ethers.getContractAt("WrapedEtherum", '0x35f88BD3A6c2486D5f4115f5eEFF277FCf5278fA', chemix_signer)
+    const contractTokenCEC = await ethers.getContractAt("ChemixPlatform", '0x4A0C012c4db5801254B47CE142cf916b196FdAdd', chemix_signer)
+    const contractTokenUSDT = await ethers.getContractAt("TetherToken", '0xa86785aA400B6b27e0bAD7E1CC7dA425b21E6B69', chemix_signer)
+    const contractTokenWBTC = await ethers.getContractAt("WrapedBitcoin", '0x7E005517EcDf953c05c5E07E844155E007C6285E', chemix_signer)
+    const contractTokenWETH = await ethers.getContractAt("WrapedEtherum", '0xAB1415967609bE6654a8e1FEDa209275DB1f5B9c', chemix_signer)
     //chemix
-    const contractChemixStorage = await ethers.getContractAt("ChemixStorage", '0x67A4BCF181314053C6A8410Df3b763Fc15F85041', chemix_signer)
-    const contractTokenProxy = await ethers.getContractAt("TokenProxy", '0x700cf11FB9906b38166D586ff2E9Ab390181b265', chemix_signer)
-    const contractVault = await ethers.getContractAt("Vault", '0x5254A4A50e5D87a33cF15a477283fa682671509C', chemix_signer)
-    const contractChemixMain = await ethers.getContractAt("ChemixMain", '0x98cdEee565d00AC793866B194cB562A6254f4495', chemix_signer)
+    const contractChemixStorage = await ethers.getContractAt("ChemixStorage", '0xb3f1410AA0f358771417a53519B634a50Ee3AB1b', chemix_signer)
+    const contractTokenProxy = await ethers.getContractAt("TokenProxy", '0xf86a0a65435Ab39B355b8FA3651346Dbe8EEe14B', chemix_signer)
+    const contractVault = await ethers.getContractAt("Vault", '0xFe61B257B40D189A311Ef9c1F61BcE78df8F5c18', chemix_signer)
+    const contractChemixMain = await ethers.getContractAt("ChemixMain", '0x65479F56d9c60d11e12441A136eeCE11c4d8f4D6', chemix_signer)
 
-    //检查交易对是否存在
+
+     //检查交易对是否存在
     console.log('check_pair_wbtc_usdt result ', await contractChemixStorage.checkPairExist(contractTokenWBTC.address, contractTokenUSDT.address, options));
     console.log('check_pair_weth_usdt result ', await contractChemixStorage.checkPairExist(contractTokenWETH.address, contractTokenUSDT.address, options));
     console.log('check_pair_cec_usdt result ', await contractChemixStorage.checkPairExist(contractTokenCEC.address, contractTokenUSDT.address, options));
@@ -94,17 +105,18 @@ async function main() {
 
 
     //create pair
-    /***
     console.log('start create pair');
     let create_result_WBTC_USDT = await contractChemixMain.createPair(contractTokenWBTC.address, contractTokenUSDT.address, gasConf);
     console.log('create WBTC-USDT pair result ', create_result_WBTC_USDT);
     console.log('start create pair TokenC-TokenCHE');
     let create_result_WETH_CHE = await contractChemixMain.createPair(contractTokenWETH.address, contractTokenUSDT.address, gasConf);
     console.log('create WETH-USDT pair result ', create_result_WETH_CHE);
+
     await contractChemixMain.createPair(contractTokenCEC.address, contractTokenUSDT.address, gasConf);
     await contractChemixMain.createPair(contractTokenWBTC.address, contractTokenCEC.address, gasConf);
-    await contractChemixMain.createPair(contractTokenWETH.address, contractTokenCEC.address, gasConf);
-    **/
+     await contractChemixMain.createPair(contractTokenWETH.address, contractTokenCEC.address, gasConf);
+
+
 
     //issue token to account1
     let tokenAIssueAcc1Res = await contractTokenWBTC.issue(issueAmountDefault, gasConf);

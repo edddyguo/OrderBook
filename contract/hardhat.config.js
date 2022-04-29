@@ -74,7 +74,8 @@ module.exports = {
       ]
     },
     p_acala: {
-      url: 'http://139.196.155.96:8545', //本地RPC地址
+      //url: 'http://139.196.155.96:8545', //本地RPC地址
+      url: 'https://dex.qachemix.io/chain/rpc/', 
       //url: 'http://192.168.1.21:8545',
       //本地区块链账户地址(需要启动运行npx hardhat node命令开启本地开发环境的区块链)
       //这些账户地址和秘钥每次重启区块链都是相同的,并且数据会重置
