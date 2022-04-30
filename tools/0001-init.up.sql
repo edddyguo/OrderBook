@@ -10,7 +10,7 @@ create table chemix_tokens(
  updated_at timestamp,
  created_at timestamp
 );
-create unique index idx_local_chemix_tokens_address on chemix_tokens (address);
+create unique index idx_chemix_tokens_symbol on chemix_tokens (symbol);
 
 -- markets table
 create table chemix_markets(
@@ -29,6 +29,8 @@ create table chemix_markets(
  updated_at timestamp ,
  created_at timestamp
 );
+create unique index idx_chemix_markets_symbol on chemix_markets (online);
+
 
 -- trades table
 create table chemix_trades(
@@ -48,13 +50,11 @@ create table chemix_trades(
   updated_at timestamp ,
   created_at timestamp
 );
-create index idx_local_chemix_trades_taker on chemix_trades (taker);
-create index idx_local_chemix_trades_maker on chemix_trades (maker);
-create index idx_local_chemix_trades_taker_order_id  on chemix_trades (taker_order_id);
-create index idx_local_chemix_trades_maker_order_id on chemix_trades (maker_order_id);
-create index idx_local_chemix_trades_quotation  on chemix_trades (market_id, created_at);
-create index idx_local_chemix_trades_delete on chemix_trades (status,transaction_hash,created_at);
 
+create index idx_chemix_trades_market on chemix_trades (market_id);
+create index idx_chemix_trades_recent on chemix_trades (taker,maker,status);
+create index idx_chemix_trades_confirm  on chemix_trades (hash_data,block_height);
+create index idx_chemix_trades_status on chemix_trades (status);
 
 -- orders table
 create table chemix_orders(
@@ -75,8 +75,10 @@ create table chemix_orders(
   updated_at  timestamp,
   created_at  timestamp
 );
-create index idx_local_chemix_myorders_status on chemix_orders (status);
 
+create index idx_chemix_orders_index on chemix_orders (index);
+create index idx_chemix_orders_available on chemix_orders (market_id,status);
+create index idx_chemix_orders_users on chemix_orders (account,market_id,status,status);
 
 create table chemix_thaws(
   order_id text  primary key,
@@ -92,7 +94,11 @@ create table chemix_thaws(
   updated_at  timestamp,
   created_at  timestamp
 );
-create index idx_local_chemix_thaws_status on chemix_thaws (status);
+
+create index idx_chemix_thaws_uncertain on chemix_thaws (market_id,account,status);
+create index idx_chemix_thaws_status on chemix_thaws (status);
+create index idx_chemix_thaws_delay_confirm on chemix_thaws (thaws_hash,block_height,status);
+
 
 create table chemix_snapshot(
   traders int default 0,

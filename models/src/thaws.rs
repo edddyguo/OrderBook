@@ -71,8 +71,6 @@ pub struct UpdateThaw<'a> {
     pub updated_at: &'a str,
 }
 
-//todo:考虑没有返回hash但是交易成功的情况？
-//todo: 和orders同步的时候做事务的一致性
 impl ThawsPO {
     pub fn new(
         order_id: &str,
