@@ -29,7 +29,6 @@ create table chemix_markets(
  updated_at timestamp ,
  created_at timestamp
 );
-create unique index idx_chemix_markets_symbol on chemix_markets (online);
 
 
 -- trades table
