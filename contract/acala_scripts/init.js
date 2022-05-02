@@ -4,6 +4,7 @@ const {defaultHardhatNetworkHdAccountsConfigParams} = require("hardhat/internal/
 const {getAccountPath} = require("ethers/lib/utils");
 const {networks} = require("../hardhat.config"); //断言模块
 const { txParams } = require("./utils/transactionHelper");
+const hre = require("hardhat");
 
 
 
@@ -19,33 +20,20 @@ async function main() {
 
     let account_tj = "0x3bB395b668Ff9Cb84e55aadFC8e646Dd9184Da9d"
 
-
     let signer = await ethers.getSigners();
+
     //let account1 = signer[0].address;
     //let chemix_signer = signer[0];
     let account1 = signer[0].address;
     let chemix_signer = signer[0];
 
     const issueAmountDefault = BigInt(100_000_000_000_000_000_000_000_000_000) //100_000_000_000
-    const options = {gasPrice: 100000000000, gasLimit: 2950000, value: 0};
-
     const ethParams = await txParams();
-    const gasConf = { gasPrice: ethParams.txGasPrice, gasLimit: ethParams.txGasLimit, value: 0};
+    const options = { gasPrice: ethParams.txGasPrice, gasLimit: ethParams.txGasLimit, value: 0};
 
     /***
      *  *
-     *  * deployTokenCEC:   0xfd4322c6026A761A1ecbD7B5F656FF3C4aCD6fBf
-     *  * deployTokenUSDT:   0xe54183F5cB818d2AAaddC25dD03a5687cF527c84
-     *  * deployTokenWBTC:   0x0F381a51b032aFbc020856B5E0C764DD910488D2
-     *  * deployTokenWETH:   0x35f88BD3A6c2486D5f4115f5eEFF277FCf5278fA
-     *  * ^@deployStorage:   0x67A4BCF181314053C6A8410Df3b763Fc15F85041
-     *  * deployTokenProxy:   0x700cf11FB9906b38166D586ff2E9Ab390181b265
-     *  * deployVault:   0x5254A4A50e5D87a33cF15a477283fa682671509C
-     *  * deployChemiMain:   0x98cdEee565d00AC793866B194cB562A6254f4495
-     *  *
-     *
-     *
-     *  ^@deployTokenCEC:   0x4A0C012c4db5801254B47CE142cf916b196FdAdd
+     * deployTokenCEC:   0x4A0C012c4db5801254B47CE142cf916b196FdAdd
      * deployTokenUSDT:   0xa86785aA400B6b27e0bAD7E1CC7dA425b21E6B69
      * deployTokenWBTC:   0x7E005517EcDf953c05c5E07E844155E007C6285E
      * deployTokenWETH:   0xAB1415967609bE6654a8e1FEDa209275DB1f5B9c
@@ -76,7 +64,6 @@ async function main() {
     console.log('check_pair_wbtc_cec result ', await contractChemixStorage.checkPairExist(contractTokenWBTC.address, contractTokenCEC.address, options));
     console.log('check_pair_weth_cec result ', await contractChemixStorage.checkPairExist(contractTokenWETH.address, contractTokenCEC.address, options));
 
-
     //检查权限是否到位
     let authorizeSettle_res = await contractVault.authorizeSettle(account1, options);
     console.log('check authorizeSettle result ', authorizeSettle_res);
@@ -86,11 +73,11 @@ async function main() {
     console.log('check authorizeCreatePair result ', authorizeCreatePair);
 
     //申请解冻和清算权限
-    let grantSettleAddr_result2 = await contractVault.grantSettleAddr(account1, gasConf);
+    let grantSettleAddr_result2 = await contractVault.grantSettleAddr(account1, options);
     console.log('apply grantSettleAddr_result result ', grantSettleAddr_result2);
-    let grantFronzenAddr_result2 = await contractVault.grantFronzenAddr(account1, gasConf);
+    let grantFronzenAddr_result2 = await contractVault.grantFronzenAddr(account1, options);
     console.log('apply grantSettleAddr_result result ', grantSettleAddr_result2);
-    let grantCreatePairAddr_result = await contractChemixMain.grantCreatePairAddr(account1, gasConf);
+    let grantCreatePairAddr_result = await contractChemixMain.grantCreatePairAddr(account1, options);
     console.log('apply grantCreatePairAddr result ', grantCreatePairAddr_result);
 
     //vault内的balance和erc20的balance
@@ -106,59 +93,58 @@ async function main() {
 
     //create pair
     console.log('start create pair');
-    let create_result_WBTC_USDT = await contractChemixMain.createPair(contractTokenWBTC.address, contractTokenUSDT.address, gasConf);
+    let create_result_WBTC_USDT = await contractChemixMain.createPair(contractTokenWBTC.address, contractTokenUSDT.address, options);
     console.log('create WBTC-USDT pair result ', create_result_WBTC_USDT);
     console.log('start create pair TokenC-TokenCHE');
-    let create_result_WETH_CHE = await contractChemixMain.createPair(contractTokenWETH.address, contractTokenUSDT.address, gasConf);
+    let create_result_WETH_CHE = await contractChemixMain.createPair(contractTokenWETH.address, contractTokenUSDT.address, options);
     console.log('create WETH-USDT pair result ', create_result_WETH_CHE);
-
-    await contractChemixMain.createPair(contractTokenCEC.address, contractTokenUSDT.address, gasConf);
-    await contractChemixMain.createPair(contractTokenWBTC.address, contractTokenCEC.address, gasConf);
-     await contractChemixMain.createPair(contractTokenWETH.address, contractTokenCEC.address, gasConf);
+    await contractChemixMain.createPair(contractTokenCEC.address, contractTokenUSDT.address, options);
+    await contractChemixMain.createPair(contractTokenWBTC.address, contractTokenCEC.address, options);
+    await contractChemixMain.createPair(contractTokenWETH.address, contractTokenCEC.address, options);
 
 
 
     //issue token to account1
-    let tokenAIssueAcc1Res = await contractTokenWBTC.issue(issueAmountDefault, gasConf);
+    let tokenAIssueAcc1Res = await contractTokenWBTC.issue(issueAmountDefault, options);
     await contractTokenWBTC.transfer(account1, issueAmountDefault);
 
-    let tokenBIssueAcc1Res = await contractTokenUSDT.issue(issueAmountDefault, gasConf);
+    let tokenBIssueAcc1Res = await contractTokenUSDT.issue(issueAmountDefault, options);
     await contractTokenUSDT.transfer(account1, issueAmountDefault);
 
-    let tokenCIssueAcc1Res = await contractTokenWETH.issue(issueAmountDefault, gasConf);
+    let tokenCIssueAcc1Res = await contractTokenWETH.issue(issueAmountDefault, options);
     await contractTokenWETH.transfer(account1, issueAmountDefault);
 
 
-    let tokenCHEIssueAcc1Res = await contractTokenCEC.issue(issueAmountDefault, gasConf);
+    let tokenCHEIssueAcc1Res = await contractTokenCEC.issue(issueAmountDefault, options);
     await contractTokenCEC.transfer(account1, issueAmountDefault);
 
 
-    let erc20_balance_wbtc = await contractTokenWBTC.balanceOf(account1, gasConf);
-    let erc20_balance_weth = await contractTokenWETH.balanceOf(account1, gasConf);
-    let erc20_balance_cec = await contractTokenCEC.balanceOf(account1, gasConf);
-    let erc20_balance_usdt = await contractTokenUSDT.balanceOf(account1, gasConf);
+    let erc20_balance_wbtc = await contractTokenWBTC.balanceOf(account1, options);
+    let erc20_balance_weth = await contractTokenWETH.balanceOf(account1, options);
+    let erc20_balance_cec = await contractTokenCEC.balanceOf(account1, options);
+    let erc20_balance_usdt = await contractTokenUSDT.balanceOf(account1, options);
 
     console.log('erc20_balance:: wbtc=',erc20_balance_wbtc,'weth=',
         erc20_balance_weth,'cec=',erc20_balance_cec,'usdt=',erc20_balance_usdt);
 
     //approve permission to chemix
-    let ApproveWBTCRes = await contractTokenWBTC.approve(contractTokenProxy.address, erc20_balance_wbtc, gasConf);
+    let ApproveWBTCRes = await contractTokenWBTC.approve(contractTokenProxy.address, erc20_balance_wbtc, options);
     console.log('ApproveWBTCRes ', ApproveWBTCRes);
-    let ApproveUSDTRes = await contractTokenUSDT.approve(contractTokenProxy.address, erc20_balance_usdt, gasConf);
+    let ApproveUSDTRes = await contractTokenUSDT.approve(contractTokenProxy.address, erc20_balance_usdt, options);
     console.log('ApproveUSDTRes ', ApproveUSDTRes);
-    let ApproveWETHRes = await contractTokenWETH.approve(contractTokenProxy.address, erc20_balance_weth, gasConf);
+    let ApproveWETHRes = await contractTokenWETH.approve(contractTokenProxy.address, erc20_balance_weth, options);
     console.log('ApproveWETHRes ', ApproveWETHRes);
-    let ApproveCECRes = await contractTokenCEC.approve(contractTokenProxy.address, erc20_balance_cec, gasConf);
+    let ApproveCECRes = await contractTokenCEC.approve(contractTokenProxy.address, erc20_balance_cec, options);
     console.log('ApproveCECRes ', ApproveCECRes);
 
     //check allowance
-    let allowance_WBTC = await contractTokenWBTC.allowance(account1, contractTokenProxy.address, gasConf);
+    let allowance_WBTC = await contractTokenWBTC.allowance(account1, contractTokenProxy.address, options);
     console.log('allowance_WBTC ', allowance_WBTC);
-    let allowance_USDT = await contractTokenUSDT.allowance(account1, contractTokenProxy.address, gasConf);
+    let allowance_USDT = await contractTokenUSDT.allowance(account1, contractTokenProxy.address, options);
     console.log('allowance_USDT ', allowance_USDT);
-    let allowance_WETH = await contractTokenWETH.allowance(account1, contractTokenProxy.address, gasConf);
+    let allowance_WETH = await contractTokenWETH.allowance(account1, contractTokenProxy.address, options);
     console.log('allowance_WETH ', allowance_WETH);
-    let allowance_CEC = await contractTokenCEC.allowance(account1, contractTokenProxy.address, gasConf);
+    let allowance_CEC = await contractTokenCEC.allowance(account1, contractTokenProxy.address, options);
     console.log('allowance_CEC ', allowance_CEC);
 
     let check_pair_result1 = await contractChemixStorage.checkPairExist(contractTokenWBTC.address, contractTokenUSDT.address, options);
@@ -171,16 +157,6 @@ async function main() {
     console.log('check_pair_wbtc_cec result ', check_pair_result4);
     let check_pair_result5 = await contractChemixStorage.checkPairExist(contractTokenWETH.address, contractTokenCEC.address, options);
     console.log('check_pair_weth_cec result ', check_pair_result5);
-
-    //1、createpair
-    //2、issuseA to account1
-    //3、issuaB to account1
-    //4、issuaA to account2
-    //5、issuaB to account2
-    //6、acount1 approve tokenA to tokenProxy
-    //7、acount1 approve tokenB to tokenProxy
-    //8、acount2 approve tokenA to tokenProxy
-    //9、acount2 approve tokenB to tokenProxy
 
 }
 

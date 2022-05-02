@@ -13,7 +13,7 @@ async function main() {
     let account2 = "0x37BA121cdE7a0e24e483364185E80ceF655346DD"
     let account3 = "0xca9B361934fc7A7b07814D34423d665268111726"
     let account4 = "0xF668b864756a2fB53b679bb13e0F9AB2d9C5fEE0"
-    let account_tj = "0x3bB395b668Ff9Cb84e55aadFC8e646Dd9184Da9d"
+    let account_tj = "0x0085560b24769dAC4ed057F1B2ae40746AA9aAb6"
 
 
     let signer = await ethers.getSigners();
@@ -21,7 +21,8 @@ async function main() {
     //let chemix_signer = signer[0];
     let account1 = signer[0].address;
     let chemix_signer = signer[0];
-    let receiver = signer[1].address;
+    //let receiver = signer[1].address;
+    let receiver = account_tj;
     let receiver_signer = signer[1];
 
     const issueAmountDefault = BigInt(100_000_000_000_000_000_000_000_000_000) //100_000_000_000
