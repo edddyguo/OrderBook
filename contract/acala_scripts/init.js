@@ -58,13 +58,12 @@ async function main() {
 
 
      //检查交易对是否存在
-    console.log('check_pair_wbtc_usdt result ', await contractChemixStorage.checkPairExist(contractTokenWBTC.address, contractTokenUSDT.address, options));
+     console.log('check_pair_wbtc_usdt result ', await contractChemixStorage.checkPairExist(contractTokenWBTC.address, contractTokenUSDT.address, options));
     console.log('check_pair_weth_usdt result ', await contractChemixStorage.checkPairExist(contractTokenWETH.address, contractTokenUSDT.address, options));
     console.log('check_pair_cec_usdt result ', await contractChemixStorage.checkPairExist(contractTokenCEC.address, contractTokenUSDT.address, options));
     console.log('check_pair_wbtc_cec result ', await contractChemixStorage.checkPairExist(contractTokenWBTC.address, contractTokenCEC.address, options));
     console.log('check_pair_weth_cec result ', await contractChemixStorage.checkPairExist(contractTokenWETH.address, contractTokenCEC.address, options));
-
-    //检查权限是否到位
+     //检查权限是否到位
     let authorizeSettle_res = await contractVault.authorizeSettle(account1, options);
     console.log('check authorizeSettle result ', authorizeSettle_res);
     let authorizeFronzenAddr = await contractVault.authorizeFronzen(account1, options);
@@ -90,7 +89,6 @@ async function main() {
     let balanceAcc_erc20_B = await contractTokenUSDT.balanceOf(account1, options);
     console.log('Erc20 BalanceB ', balanceAcc_erc20_B);
 
-
     //create pair
     console.log('start create pair');
     let create_result_WBTC_USDT = await contractChemixMain.createPair(contractTokenWBTC.address, contractTokenUSDT.address, options);
@@ -101,6 +99,7 @@ async function main() {
     await contractChemixMain.createPair(contractTokenCEC.address, contractTokenUSDT.address, options);
     await contractChemixMain.createPair(contractTokenWBTC.address, contractTokenCEC.address, options);
     await contractChemixMain.createPair(contractTokenWETH.address, contractTokenCEC.address, options);
+
 
 
 
