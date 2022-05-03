@@ -20,9 +20,9 @@ tokio = { version = "1", features = ["full"] }
 rand = "0.8.3"
 anyhow = "1.0.53"
 rustc-serialize = "0.3.18"
-ethers = { version = "0.6.2"}
-ethers-providers = "0.6.2"
-ethers-contract-abigen = "0.6.0"
+ethers = { path = "../../acala-rs"}
+ethers-providers = {path =  "../../acala-rs/ethers-providers"}
+ethers-contract-abigen = {path =  "../../acala-rs/ethers-contract/ethers-contract-abigen"}
 rsmq_async = "5.1.2"
 num = "0.2"
 rust_decimal = { version = "1.0.3", features = ["postgres"] }

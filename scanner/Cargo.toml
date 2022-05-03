@@ -20,6 +20,6 @@ env_logger = "0.7.1"
 log = "0.4.8"
 tokio = { version = "1", features = ["full"] }
 rand = "0.8.3"
-ethers-core = "0.6.0"
+ethers-core = {path = "../../acala-rs/ethers-core"}
 anyhow = "1.0.53"
 

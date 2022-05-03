@@ -7,8 +7,8 @@ edition = "2018"
 
 [dependencies]
 ##ethers = { git = "https://github.com/gakonst/ethers-rs", features = ["legacy"] }
-ethers = { version = "0.6.2"}
-ethers-providers = "0.6.2"
+ethers = {path = "../../acala-rs"}
+ethers-providers = {path =  "../../acala-rs/ethers-providers"}
 anyhow = "1.0.53"
 env_logger = "0.7.1"
 log = "0.4.8"

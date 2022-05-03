@@ -103,7 +103,6 @@ async fn contract_call_send<D: Detokenize, M: Middleware>(
     call: ContractCall<M, D>,
 ) -> Result<TransactionReceipt, ProviderError> {
     loop {
-        let _hash = call.tx.sighash(U64::from(*crate::CHAIN_ID));
         let mut times = 10;
         while times != 0 {
             let signature1 = crate::CONTRACT_CLIENT
@@ -118,7 +117,7 @@ async fn contract_call_send<D: Detokenize, M: Middleware>(
             .sign_transaction(&call.tx, Address::default())
             .await
             .unwrap();
-        let txid2 = call.tx.rlp_signed(U64::from(*crate::CHAIN_ID), &signature);
+        let txid2 = call.tx.rlp_signed(&signature);
         let txid3: H256 = keccak256(txid2).into();
         info!("local txid {:?}", txid3);
         match call.send().await.unwrap().await {
@@ -150,7 +149,7 @@ async fn sign_tx(transaction: &mut TypedTransaction) -> Bytes {
         .sign_transaction(transaction, Address::default())
         .await
         .unwrap();
-    transaction.rlp_signed(*crate::CHAIN_ID, &signature)
+    transaction.rlp_signed(&signature)
 }
 
 pub fn gen_txid(data: &Bytes) -> String {
