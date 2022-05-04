@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use anyhow::Result;
 use ethers::prelude::*;
 
@@ -25,4 +26,17 @@ pub async fn get_current_block() -> u32 {
         .await
         .unwrap()
         .as_u32()
+}
+
+
+pub async fn transaction_at(hash: &str) -> Option<u64> {
+    let tx_hash = TxHash::from_str(hash).unwrap();
+    //检查event
+    crate::PROVIDER
+        .provide
+        .get_transaction(tx_hash).await.unwrap()
+        .and_then(
+            |x| x.block_number.and_then(|x| Some(x.as_u64()))
+        )
+
 }

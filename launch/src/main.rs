@@ -58,7 +58,7 @@ extern crate common;
 const CONFIRM_HEIGHT: u32 = 2;
 
 use crate::thaw::{deal_launched_thaws, send_launch_thaw};
-use crate::trade::{deal_launched_trade, send_launch_trade};
+use crate::trade::{check_last_launch, deal_launched_trade, send_launch_trade};
 use chemix_models::thaws::update_thaws;
 use common::types::depth::RawDepth;
 
@@ -356,7 +356,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     let last_order = last_orders.first().unwrap();
                     info!("db_trades = {:?}",db_trades);
 
-                    //todo: block_height为0的这部分交易，只会在宕机的情况下出现，放在初始化的时候去处理
+                    //block_height为0的这部分交易
                     send_launch_trade(vault_settel_client.clone(),last_order,db_trades).await;
 
                 }
@@ -366,15 +366,11 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
     Ok(())
 }
 
-//检查宕机时还没广播出去的交易，重新广播
-async fn check_dirty_launch() {
-    todo!()
-}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
-    check_dirty_launch().await;
+    check_last_launch().await;
     let queue = Queue::regist(vec![QueueType::Trade, QueueType::Depth, QueueType::Thaws]).await;
     listen_blocks(queue).await
 }

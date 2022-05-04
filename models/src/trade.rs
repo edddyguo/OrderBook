@@ -23,6 +23,7 @@ pub enum TradeFilter<'a> {
     //status, limit
     Status(TradeStatus, u32),
     LastPushed,
+    ZeroHeight,
 }
 impl TradeFilter<'_> {
     pub fn to_string(&self) -> String {
@@ -59,6 +60,9 @@ impl TradeFilter<'_> {
             }
             TradeFilter::LastPushed => {
                 "where status='confirmed' order by created_at desc  limit 1".to_string()
+            }
+            TradeFilter::ZeroHeight => {
+                "where block_height='0' ".to_string()
             }
         };
         filter_str

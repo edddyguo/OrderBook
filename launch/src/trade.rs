@@ -15,6 +15,9 @@ use ethers::types::Address;
 use rsmq_async::{Rsmq, RsmqConnection};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use chemix_chain::bsc::{transaction_at};
+use common::types::thaw::Status;
+use common::types::trade;
 
 pub async fn send_launch_trade(
     vault_settel_client: Arc<RwLock<ChemixContractClient<Vault>>>,
@@ -136,5 +139,50 @@ pub async fn deal_launched_trade(
                 .await
                 .expect("failed to send message");
         }
+    }
+}
+
+//检查宕机时还没广播出去的交易重新广播
+pub async fn check_last_launch() {
+    let last_batch_trade = list_trades(TradeFilter::ZeroHeight);
+    if last_batch_trade.is_empty() {
+        info!("Histrory launch is ok");
+        return;
+    }else {
+        //check txhash is exist
+        let batch_group_by = last_batch_trade.group_by(
+            |a,b| a.transaction_hash == b.transaction_hash
+        );
+        //理论上只有一个transaction处于这种状态
+        assert_eq!(batch_group_by.into_iter().count(),1);
+        //确认的更新为confirm已经高度，没有上链的重新去launche
+        let now = get_current_time();
+        let uptrade = match transaction_at(&last_batch_trade.first().unwrap().transaction_hash).await {
+            Some(height) => {
+                last_batch_trade.into_iter().map(|x| {
+                    UpdateTrade{
+                        id: x.id,
+                        status: trade::Status::Confirmed,
+                        block_height: height as u32,
+                        transaction_hash: x.transaction_hash,
+                        hash_data: x.hash_data,
+                        updated_at: &now
+                    }
+                }).collect::<Vec<UpdateTrade>>()
+            }
+            None => {
+                last_batch_trade.into_iter().map(|x| {
+                    UpdateTrade{
+                        id: x.id,
+                        status: trade::Status::Matched,
+                        block_height: 0,
+                        transaction_hash: x.transaction_hash,
+                        hash_data: x.hash_data,
+                        updated_at: &now
+                    }
+                }).collect::<Vec<UpdateTrade>>()
+            }
+        };
+        update_trades(&uptrade);
     }
 }
