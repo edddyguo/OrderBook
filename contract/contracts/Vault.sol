@@ -37,7 +37,7 @@ contract Vault is
     );
 
     event Settlement(
-        bytes32 indexed hashData
+        settleOrders[] indexed orders
     );
 
     event WithdrawFromVault(
@@ -64,6 +64,11 @@ contract Vault is
         uint256  incomeTokenAmount;
     }
 
+    struct settleOrders {
+        bytes32 hash;
+        uint256 index;
+    }
+
     // ============ State Variables ============
 
     // Address of the TokenProxy contract. Used for moving tokens.
@@ -76,6 +81,7 @@ contract Vault is
     // Map from token address to total amount of that token attributed to some account.
     mapping (address => uint256) public totalBalances;
     mapping (address => uint256) public totalWithdraw;
+    mapping (uint256 => bytes32) public settleOrdersMap;
 
     // ============ Constructor ============
 
@@ -250,16 +256,27 @@ contract Vault is
         return true;
     }
 
+
+
     function settlement(
-        uint256   largestIndex,
-        bytes32   hashData,
+        //uint256   largestIndex,
+        //bytes32   hashData,
+        settleOrders[] calldata orders,
         settleValues[] calldata settleInfo
     )
         external
         onlySettleAddr
         nonReentrant
     {
-        require(ChemixStorage(STORAGE).checkHashData(largestIndex,hashData), 'Chemix: Wrong HashData');
+        //2、检查所有订单的hash，并保存
+        for(uint i = 0; i < orders.length; i++){
+            require(ChemixStorage(STORAGE).checkHashData(orders[i].index,orders[i].hash), 'Chemix: Wrong HashData');
+            //1、所有的订单index必须连续
+            require(settleOrdersMap[orders[i].index - 1] != 0x00, 'chemix: the last index must be setteled');
+            require(settleOrdersMap[orders[i].index] == 0x00, 'Chemix: order have already settled');
+            settleOrdersMap[orders[i].index] = orders[i].hash;
+        }
+
         uint256 totalPostiveToken = 0;
         uint256 totalNegativeToken = 0;
         for(uint i = 0; i < settleInfo.length; i++){
@@ -273,7 +290,7 @@ contract Vault is
             }
         }
         require(totalPostiveToken == totalNegativeToken, "detail settleInfo not correct");
-        emit Settlement(hashData);
+        emit Settlement(orders);
     }
 
     // ============ Private Helper-Functions ============
