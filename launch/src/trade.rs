@@ -49,13 +49,14 @@ pub async fn send_launch_trade(
             updated_at: &now,
         })
         .collect::<Vec<UpdateTrade>>();
-    update_trades(&trades);
+    //update_trades(&trades);
 
     //todo: 此时节点问题或者分叉,待处理
     let receipt = send_raw_transaction(receipt).await;
     let transaction_hash = format!("{:?}", receipt.transaction_hash);
     info!("[test_txid]::remote {}", transaction_hash);
-    assert_eq!(txid, transaction_hash);
+    //todo:acala和eth的txid计算方式有出入，不再获取本地txid,后期找acala技术再对接实现本地的计算
+    //assert_eq!(txid, transaction_hash);
     let height = receipt
         .block_number
         .unwrap()

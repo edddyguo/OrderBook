@@ -55,7 +55,8 @@ extern crate log;
 #[macro_use]
 extern crate common;
 
-const CONFIRM_HEIGHT: u32 = 2;
+//fixme: 目前acala的只能跑通--instant-sealing模式,暂时没办法做到延时8区块确认
+const CONFIRM_HEIGHT: u32 = 0;
 
 use crate::thaw::{deal_launched_thaws, send_launch_thaw};
 use crate::trade::{deal_launched_trade, send_launch_trade};
@@ -271,6 +272,8 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         //绝大多数情况last_process_height + 1 等于current_height - CONFIRM_HEIGHT
                         for height in last_process_height + 1..=current_height - CONFIRM_HEIGHT
                         {
+                            //fixme:强制等待rpc返回结果，为了规避rpc还没返回这边就已经扫到事件
+                            tokio::time::sleep(time::Duration::from_millis(5000)).await;
                             info!("check height {}", height);
                             let block_hash = get_block(BlockId::from(height as u64))
                                 .await
@@ -278,13 +281,23 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 .unwrap()
                                 .hash
                                 .unwrap();
-                            let new_settlements = vault_listen_client
-                                .clone()
-                                .write()
-                                .unwrap()
-                                .filter_settlement_event(block_hash)
-                                .await
-                                .unwrap();
+                            //fixme:和engine一样的原因，getlog接口不稳定,多次获取确认
+                            let mut new_settlements = Vec::new();
+                            for _ in 0..10 {
+                                new_settlements = vault_listen_client
+                                    .clone()
+                                    .write()
+                                    .unwrap()
+                                    .filter_settlement_event(block_hash)
+                                    .await
+                                    .unwrap();
+                                info!("filter_settlement_event {:?} at height {}", new_settlements, height);
+                                if new_settlements.is_empty(){
+                                    tokio::time::sleep(time::Duration::from_millis(1000)).await;
+                                }else {
+                                    break;
+                                }
+                            }
                             if new_settlements.is_empty() {
                                 info!(
                                     "Not found settlement orders created at height {}",
@@ -302,7 +315,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 .filter_thaws_event(block_hash)
                                 .await
                                 .unwrap();
-                            info!("new_orders_event {:?}", new_thaws);
+                            info!("filter_thaws_event {:?}", new_thaws);
 
                             if new_thaws.is_empty() {
                                 info!("Not found new thaws created at height {}", height);
@@ -366,15 +379,9 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
     Ok(())
 }
 
-//检查宕机时还没广播出去的交易，重新广播
-async fn check_dirty_launch() {
-    todo!()
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
-    check_dirty_launch().await;
     let queue = Queue::regist(vec![QueueType::Trade, QueueType::Depth, QueueType::Thaws]).await;
     listen_blocks(queue).await
 }
