@@ -21,7 +21,7 @@ rand = "0.8.3"
 anyhow = "1.0.53"
 rustc-serialize = "0.3.18"
 ethers = { path = "../../acala-rs"}
-ethers-providers = {path =  "../../acala-rs/ethers-providers"}
+ethers-providers = {path =  "../../acala-rs/ethers-providers",features = ["acala"]}
 ethers-contract-abigen = {path =  "../../acala-rs/ethers-contract/ethers-contract-abigen"}
 rsmq_async = "5.1.2"
 num = "0.2"
