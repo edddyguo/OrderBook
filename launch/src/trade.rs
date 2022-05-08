@@ -1,6 +1,6 @@
-use crate::U256;
+
 use crate::{gen_settle_trades, TradeStatus};
-use chemix_chain::chemix::vault::{SettleValues3, Vault};
+use chemix_chain::chemix::vault::{Vault};
 use chemix_chain::chemix::ChemixContractClient;
 use chemix_chain::{gen_txid, send_raw_transaction};
 use chemix_models::market::get_markets;
@@ -11,12 +11,12 @@ use common::types::trade::AggTrade;
 use common::utils::algorithm::u8_arr_from_str;
 use common::utils::math::u256_to_f64;
 use common::utils::time::{get_current_time, get_unix_time};
-use ethers::types::Address;
+
 use rsmq_async::{Rsmq, RsmqConnection};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use chemix_chain::bsc::{transaction_at};
-use common::types::thaw::Status;
+
 use common::types::trade;
 
 pub async fn send_launch_trade(
@@ -147,7 +147,7 @@ pub async fn check_last_launch() {
     let last_batch_trade = list_trades(TradeFilter::ZeroHeight);
     if last_batch_trade.is_empty() {
         info!("Histrory launch is ok");
-        return;
+        
     }else {
         //check txhash is exist
         let batch_group_by = last_batch_trade.group_by(
@@ -188,7 +188,7 @@ pub async fn check_last_launch() {
 }
 
 pub fn check_invalid_settelment(last_process_height: u32){
-    let mut invalid_settelment = list_trades(TradeFilter::NotConfirm(last_process_height));
+    let invalid_settelment = list_trades(TradeFilter::NotConfirm(last_process_height));
     let now = get_current_time();
     let reseted_trades = invalid_settelment.iter().map(|x|{
         UpdateTrade{

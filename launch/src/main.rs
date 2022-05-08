@@ -11,9 +11,9 @@ use std::collections::HashMap;
 
 //use ethers::providers::Ws;
 
-use chemix_chain::chemix::{ChemixContractClient, ThawBalances2};
+use chemix_chain::chemix::{ChemixContractClient};
 use common::queue::*;
-use rsmq_async::{Rsmq, RsmqConnection};
+use rsmq_async::{Rsmq};
 
 use chemix_chain::bsc::{get_block, get_current_block};
 use std::string::String;
@@ -31,23 +31,23 @@ use tokio::runtime::Runtime;
 use tokio::time;
 
 use chemix_models::order::{list_orders, OrderFilter};
-use chemix_models::trade::{list_trades, update_trades, TradeFilter, TradeInfoPO, UpdateTrade};
-use common::utils::algorithm::{sha256, u8_arr_from_str, u8_arr_to_str};
-use common::utils::math::u256_to_f64;
-use common::utils::time::{get_current_time, get_unix_time};
+use chemix_models::trade::{list_trades, TradeFilter, TradeInfoPO};
 
-use chemix_chain::chemix::vault::{SettleValues3, ThawBalances, Vault};
-use chemix_chain::{gen_txid, send_raw_transaction};
+
+
+
+use chemix_chain::chemix::vault::{SettleValues3, Vault};
+
 use chemix_models::market::get_markets;
 use log::info;
 
 //use common::env::CONF as ENV_CONF;
-use chemix_models::thaws::{list_thaws, ThawsFilter, UpdateThaw};
+use chemix_models::thaws::{list_thaws, ThawsFilter};
 use common::env::CONF as ENV_CONF;
 
 use common::types::order::{Side as OrderSide, Side};
 use common::types::thaw::Status as ThawStatus;
-use common::types::trade::{AggTrade, Status as TradeStatus};
+use common::types::trade::{Status as TradeStatus};
 
 extern crate lazy_static;
 
@@ -61,7 +61,7 @@ const CONFIRM_HEIGHT: u32 = 2;
 
 use crate::thaw::{deal_launched_thaws, send_launch_thaw};
 use crate::trade::{check_invalid_settelment, check_last_launch, deal_launched_trade, send_launch_trade};
-use chemix_models::thaws::update_thaws;
+
 use common::types::depth::RawDepth;
 
 #[derive(Clone, Serialize)]

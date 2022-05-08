@@ -36,7 +36,7 @@ pub async fn transaction_at(hash: &str) -> Option<u64> {
         .provide
         .get_transaction(tx_hash).await.unwrap()
         .and_then(
-            |x| x.block_number.and_then(|x| Some(x.as_u64()))
+            |x| x.block_number.map(|x| x.as_u64())
         )
 
 }

@@ -2,7 +2,6 @@ use crate::{assembly_insert_values, struct2array, TimeScope};
 use common::utils::algorithm::sha256;
 use common::utils::time::get_current_time;
 use ethers_core::types::U256;
-use postgres::types::ToSql;
 use serde::{Deserialize, Serialize};
 
 extern crate rustc_serialize;

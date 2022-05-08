@@ -266,9 +266,9 @@ pub fn legal_new_orders_filter(
         let base_decimal = crate::MARKET.base_contract_decimal as u32;
 
         let raw_amount = if base_decimal > order.num_power {
-            order.amount * u256_power!(10u32,(base_decimal - order.num_power))
+            order.amount * u256_power!(10u32,base_decimal - order.num_power)
         } else {
-            order.amount / u256_power!(10u32,(order.num_power - base_decimal))
+            order.amount / u256_power!(10u32,order.num_power - base_decimal)
         };
         info!(
             "amount_ori {},order.num_power {},amount_cur {}",

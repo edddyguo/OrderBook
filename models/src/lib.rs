@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 pub mod chain;
 pub mod market;
 pub mod order;
