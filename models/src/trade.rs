@@ -22,6 +22,8 @@ pub enum TradeFilter<'a> {
     DelayConfirm(&'a str, u32),
     //status, limit
     Status(TradeStatus, u32),
+    //height
+    NotConfirm(u32),
     LastPushed,
     ZeroHeight,
 }
@@ -57,6 +59,10 @@ impl TradeFilter<'_> {
                     " where status='launched' and hash_data='{}' and (block_height='{}' or  block_height=0)",
                     hash, height
                 )
+            }
+            //    NotConfirm(u32),
+            TradeFilter::NotConfirm(height) => {
+                format!(" where status='launched' and block_height<{}", height)
             }
             TradeFilter::LastPushed => {
                 "where status='confirmed' order by created_at desc  limit 1".to_string()

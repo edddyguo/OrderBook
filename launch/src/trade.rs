@@ -186,3 +186,19 @@ pub async fn check_last_launch() {
         update_trades(&uptrade);
     }
 }
+
+pub fn check_invalid_settelment(last_process_height: u32){
+    let mut invalid_settelment = list_trades(TradeFilter::NotConfirm(last_process_height));
+    let now = get_current_time();
+    let reseted_trades = invalid_settelment.iter().map(|x|{
+        UpdateTrade{
+            id: x.id.clone(),
+            status: trade::Status::Matched,
+            block_height: 0,
+            transaction_hash: "".to_string(),
+            hash_data: "".to_string(),
+            updated_at: &now
+        }
+    }).collect::<Vec<UpdateTrade>>();
+    update_trades(&reseted_trades);
+}

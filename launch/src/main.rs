@@ -1,4 +1,6 @@
 #![feature(slice_group_by)]
+//#![deny(missing_docs)]
+#![deny(warnings)]
 
 mod thaw;
 mod trade;
@@ -58,7 +60,7 @@ extern crate common;
 const CONFIRM_HEIGHT: u32 = 2;
 
 use crate::thaw::{deal_launched_thaws, send_launch_thaw};
-use crate::trade::{check_last_launch, deal_launched_trade, send_launch_trade};
+use crate::trade::{check_invalid_settelment, check_last_launch, deal_launched_trade, send_launch_trade};
 use chemix_models::thaws::update_thaws;
 use common::types::depth::RawDepth;
 
@@ -314,6 +316,8 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             }
                         }
                         last_process_height = current_height - CONFIRM_HEIGHT;
+                        //fixme: 过了8区块还没确认的视为清算失败，状态重置为matched重新清算，逻辑上可以更严谨一些
+                        check_invalid_settelment(last_process_height);
                     }
                 }
             });
