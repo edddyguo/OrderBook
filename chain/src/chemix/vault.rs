@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use anyhow::Result;
 use common::env::CONF as ENV_CONF;
 use common::utils::algorithm::u8_arr_to_str;

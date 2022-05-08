@@ -1,6 +1,15 @@
+//#![deny(missing_docs)]
+//#![deny(warnings)]
+//#![deny(unused_crate_dependencies)]
+//#![warn(perf)]
+
+//env config
 pub mod env;
+//redis message queue
 pub mod queue;
+//chemix types
 pub mod types;
+//Some general utils
 pub mod utils;
 
 #[macro_use]

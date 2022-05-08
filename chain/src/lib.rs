@@ -1,4 +1,11 @@
+//! encapsulation of some eth insterface for easy call
+#![deny(missing_docs)]
+#![deny(warnings)]
+//#![deny(unused_crate_dependencies)]
+//#![warn(perf)]
+///publish bsc chain interface
 pub mod bsc;
+///publish chemix contract insterface
 pub mod chemix;
 
 use std::convert::TryFrom;
@@ -25,14 +32,17 @@ use ethers::core::utils::keccak256;
 use std::sync::Arc;
 use std::time;
 
+///chain p2p peers client
 #[derive(Clone, Debug)]
 pub struct Node<P> {
+    ///chain p2p peers client provide
     pub provide: Provider<P>,
 }
 
 //"ws://58.33.12.252:7548/"
 //"http://58.33.12.252:8548";
 impl Node<Http> {
+    ///new a rpc client
     pub fn new(host: &str) -> Node<Http> {
         Node {
             provide: Provider::<Http>::try_from(host).unwrap(),
@@ -41,6 +51,7 @@ impl Node<Http> {
 }
 
 impl Node<Ws> {
+    ///new a ws client
     pub async fn new(host: &str) -> Node<Ws> {
         let ws = Ws::connect(host).await.unwrap();
         Node {
@@ -77,6 +88,7 @@ lazy_static! {
     };
 }
 
+///unused code
 pub async fn listen_block() -> anyhow::Result<()> {
     let ws = Ws::connect("wss://rinkeby.infura.io/ws/v3/c60b0bb42f8a4c6481ecd229eddaca27")
         .await
@@ -153,6 +165,7 @@ async fn sign_tx(transaction: &mut TypedTransaction) -> Bytes {
     transaction.rlp_signed(*crate::CHAIN_ID, &signature)
 }
 
+///calculate transaction's hash at local
 pub fn gen_txid(data: &Bytes) -> String {
     let hash: H256 = keccak256(data).into();
     let txid = format!("{:?}", hash);
@@ -160,9 +173,10 @@ pub fn gen_txid(data: &Bytes) -> String {
 }
 
 //todo: 异常处理
-pub async fn send_raw_transaction(tx3: Bytes) -> TransactionReceipt {
+///send raw data of transaction to node
+pub async fn send_raw_transaction(tx: Bytes) -> TransactionReceipt {
     let receipt = crate::CONTRACT_CLIENT
-        .send_raw_transaction(tx3)
+        .send_raw_transaction(tx)
         .await
         .unwrap()
         .await

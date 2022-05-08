@@ -13,7 +13,7 @@ use std::convert::Infallible;
 use std::env;
 use std::sync::Arc;
 
-use chemix_chain::chemix::ThawBalances2;
+use common::types::thaw::ThawBalancesVO;
 use common::queue::*;
 
 //use serde_json::Value::String;
@@ -127,7 +127,7 @@ async fn listen_thaws(rsmq: Queues, clients: Clients, queue_name: &str) {
             .expect("cannot receive message");
         if let Some(message) = message {
             info!("receive new message {:?}", message);
-            let thaw_infos: Vec<ThawBalances2> =
+            let thaw_infos: Vec<ThawBalancesVO> =
                 serde_json::from_str(message.message.as_str()).unwrap();
             for thaw in thaw_infos {
                 let event = Event {

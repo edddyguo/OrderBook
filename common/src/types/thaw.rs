@@ -1,8 +1,7 @@
 extern crate rustc_serialize;
 
+use ethers_core::types::Address;
 use serde::Deserialize;
-
-//#[derive(Serialize)]
 use serde::Serialize;
 
 #[derive(Deserialize, Debug, PartialEq, Clone, Serialize)]
@@ -38,4 +37,15 @@ impl From<&str> for Status {
             _ => unreachable!(),
         }
     }
+}
+
+///user's thaw balances
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ThawBalancesVO {
+    /// token erc20 address
+    pub token: Address,
+    /// user's address
+    pub from: Address,
+    /// amount of balances
+    pub amount: f64,
 }

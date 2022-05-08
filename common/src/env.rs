@@ -2,20 +2,35 @@ use std::env;
 
 use std::ffi::OsString;
 
+///read config data for env
 pub struct EnvConf {
+    /// dev or pro
     pub chemix_mode: Option<OsString>,
+    ///http service port
     pub api_port: Option<OsString>,
+    /// ws servie prot
     pub ws_port: Option<OsString>,
+    /// psql connect url
     pub psql: Option<OsString>,
+    /// redis
     pub redis: Option<OsString>,
+    /// eth rpc url
     pub chain_rpc: Option<OsString>,
+    /// chain id
     pub chain_id: Option<OsString>,
+    /// chain ws url
     pub chain_ws: Option<OsString>,
+    /// chemix main address
     pub chemix_main: Option<OsString>,
+    /// chemix stroage contract address
     pub chemix_storage: Option<OsString>,
+    /// chemix token proxy contract address
     pub chemix_token_proxy: Option<OsString>,
+    /// chemix vault contract address
     pub chemix_vault: Option<OsString>,
+    ///pri key for settlement
     pub chemix_relayer_prikey: Option<OsString>,
+    ///bot key
     pub chemix_bot_prikey: Option<OsString>,
 }
 

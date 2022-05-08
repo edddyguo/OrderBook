@@ -1,15 +1,12 @@
+#![allow(missing_docs)]
+
 use anyhow::Result;
-
 use chrono::Local;
-
 use common::env::CONF as ENV_CONF;
-
 use common::types::*;
 use common::utils::algorithm::{sha256, u8_arr_to_str};
-
 use ethers::prelude::*;
 use ethers::types::Address;
-
 use std::marker::PhantomData;
 
 use std::str::FromStr;

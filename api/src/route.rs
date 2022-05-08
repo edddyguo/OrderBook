@@ -1,3 +1,9 @@
+//! Chemix http service
+#![deny(missing_docs)]
+#![deny(warnings)]
+//#![deny(unused_crate_dependencies)]
+//#![warn(perf)]
+
 mod depth;
 mod error_code;
 mod kline;
@@ -137,15 +143,21 @@ async fn dex_info(web::Path(()): web::Path<()>) -> impl Responder {
 *@apiSampleRequest http://139.196.155.96:7010/chemix/listMarkets
  * */
 
+///Market's status and info
 #[derive(Serialize, Debug, Default)]
 pub struct MarketInfoVO {
+    ///market id
     pub id: String,
+    ///base token's erc20 address
     pub base_token_address: String,
     base_token_symbol: String,
+    ///base token's erc20 decimal
     pub base_contract_decimal: u32,
     base_front_decimal: u32,
+    ///quote token's erc20 address
     pub quote_token_address: String,
     quote_token_symbol: String,
+    ///quote token's erc20 decimal
     pub quote_contract_decimal: u32,
     quote_front_decimal: u32,
     seven_day_volume: f64,

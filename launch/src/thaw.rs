@@ -1,7 +1,7 @@
 use crate::U256;
 use crate::{OrderSide, ThawStatus};
 use chemix_chain::chemix::vault::{ThawBalances, Vault};
-use chemix_chain::chemix::{ChemixContractClient, ThawBalances2};
+use chemix_chain::chemix::{ChemixContractClient};
 use chemix_chain::{gen_txid, send_raw_transaction};
 use chemix_models::market::get_markets;
 use chemix_models::thaws::{list_thaws, update_thaws, ThawsFilter, ThawsPO, UpdateThaw};
@@ -13,6 +13,7 @@ use ethers::types::Address;
 use rsmq_async::{Rsmq, RsmqConnection};
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
+use common::types::thaw::ThawBalancesVO;
 
 pub async fn send_launch_thaw(
     vault_settel_client: Arc<RwLock<ChemixContractClient<Vault>>>,
@@ -161,15 +162,15 @@ pub async fn deal_launched_thaws(
                 });
             }
 
-            let thaw_infos2 = thaw_infos
+            let thaw_infos = thaw_infos
                 .iter()
-                .map(|x| ThawBalances2 {
+                .map(|x| ThawBalancesVO {
                     token: x.token,
                     from: x.from,
                     amount: u256_to_f64(x.amount, x.decimal),
                 })
-                .collect::<Vec<ThawBalances2>>();
-            let json_str = serde_json::to_string(&thaw_infos2).unwrap();
+                .collect::<Vec<ThawBalancesVO>>();
+            let json_str = serde_json::to_string(&thaw_infos).unwrap();
 
             arc_queue
                 .write()

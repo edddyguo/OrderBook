@@ -1,5 +1,6 @@
-use anyhow::Result;
+#![allow(missing_docs)]
 
+use anyhow::Result;
 use common::env::CONF as ENV_CONF;
 use common::u256_power;
 use common::types::order::Side;
@@ -15,6 +16,7 @@ use std::str::FromStr;
 use crate::chemix::ChemixContractClient;
 use crate::{contract_call_send, gen_contract_client};
 
+///Null struct for use ChemixContractClient
 #[derive(Clone)]
 pub struct Main {}
 

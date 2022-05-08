@@ -1,6 +1,9 @@
 #![feature(slice_group_by)]
-//#![deny(missing_docs)]
+//! Call contract selltlement by engined trade ,and check itself successful or failed
+#![deny(missing_docs)]
 #![deny(warnings)]
+//#![deny(unused_crate_dependencies)]
+//#![warn(perf)]
 
 mod thaw;
 mod trade;
@@ -8,20 +11,13 @@ mod trade;
 use ethers::prelude::*;
 use std::cmp::max;
 use std::collections::HashMap;
-
-//use ethers::providers::Ws;
-
 use chemix_chain::chemix::{ChemixContractClient};
 use common::queue::*;
 use rsmq_async::{Rsmq};
 
 use chemix_chain::bsc::{get_block, get_current_block};
 use std::string::String;
-
-use serde::Serialize;
-
 use ethers::types::Address;
-use std::fmt::Debug;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
 
@@ -57,30 +53,11 @@ extern crate log;
 #[macro_use]
 extern crate common;
 
-const CONFIRM_HEIGHT: u32 = 2;
-
 use crate::thaw::{deal_launched_thaws, send_launch_thaw};
 use crate::trade::{check_invalid_settelment, check_last_launch, deal_launched_trade, send_launch_trade};
-
 use common::types::depth::RawDepth;
 
-#[derive(Clone, Serialize)]
-pub struct LastTrade {
-    id: String,
-    price: f64,
-    amount: f64,
-    taker_side: String,
-    updated_at: u64,
-}
-
-#[derive(Clone, Serialize, Debug)]
-pub struct LastTrade2 {
-    id: String,
-    price: f64,
-    amount: f64,
-    height: i32,
-    taker_side: OrderSide,
-}
+const CONFIRM_HEIGHT: u32 = 2;
 
 fn gen_settle_trades(db_trades: Vec<TradeInfoPO>) -> Vec<SettleValues3> {
     //key: account,token_address,is_positive
