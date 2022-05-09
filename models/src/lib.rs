@@ -1,3 +1,5 @@
+//! encapsulation of some postgresql insterface for easy call
+//#![deny(missing_docs)]
 #![deny(warnings)]
 
 pub mod chain;
@@ -8,42 +10,33 @@ pub mod thaws;
 pub mod tokens;
 pub mod trade;
 
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate lazy_static;
+extern crate common;
+extern crate rustc_serialize;
+extern crate chrono;
+extern crate postgres;
 extern crate jsonrpc_client_core;
 extern crate jsonrpc_client_http;
 
 use postgres::{Client, NoTls, Row};
 use std::any::Any;
 use std::env;
-
 use std::fmt::Debug;
-
 use anyhow::anyhow;
 use std::sync::Mutex;
-
-extern crate chrono;
-extern crate postgres;
-
-#[macro_use]
-extern crate log;
-
-#[macro_use]
-extern crate lazy_static;
-
-extern crate common;
-
 use chrono::Local;
-
 use crate::trade::TradeInfoPO;
-
 use crate::thaws::ThawsPO;
-
-extern crate rustc_serialize;
 use crate::snapshot::SnapshotPO;
 use serde::Deserialize;
 use serde::Serialize;
 
 static TRY_TIMES: u8 = 5;
 
+///time limit scope
 #[derive(Deserialize, Debug, PartialEq, Clone, Serialize)]
 pub enum TimeScope {
     NoLimit,
@@ -52,6 +45,7 @@ pub enum TimeScope {
 }
 
 impl TimeScope {
+    // scope filter
     pub fn filter_str(&self) -> &'static str {
         match self {
             TimeScope::NoLimit => "",
@@ -65,6 +59,7 @@ lazy_static! {
     static ref CLIENTDB: Mutex<postgres::Client> = Mutex::new(connet_db().unwrap());
 }
 
+///restart postgres client
 pub fn restart_db() -> bool {
     let now = Local::now();
 

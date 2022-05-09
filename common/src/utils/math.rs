@@ -1,11 +1,12 @@
 use rust_decimal::Decimal;
-
 use ethers_core::types::U256;
 use rust_decimal::prelude::ToPrimitive;
 use std::ops::Div;
 
+///U256 default value
 pub const U256_ZERO: U256 = U256([0; 4]);
 
+///u256 power calculate
 #[macro_export]
 macro_rules! u256_power {
     ( $a:expr,$b:expr) => {{
@@ -13,13 +14,17 @@ macro_rules! u256_power {
     }};
 }
 
+/// Digital processing
 pub trait MathOperation {
+    ///
     fn to_fix(&self, precision: u32) -> f64;
+    ///
     fn to_nano(&self) -> u64;
 }
 
 //todo: 再次检查丢精度问题
 impl MathOperation for f64 {
+    /// Keep decimal significant digits
     fn to_fix(&self, precision: u32) -> f64 {
         let times = 10_u32.pow(precision);
         let number = self * times as f64;
@@ -28,7 +33,7 @@ impl MathOperation for f64 {
         decimal_number.to_f64().unwrap()
     }
 
-    //fixme： 失效了
+    /// A billion times larger
     fn to_nano(&self) -> u64 {
         let test1 = *self * 100_000_000.00f64;
         //test1.to_fix(8) as u64
@@ -36,13 +41,8 @@ impl MathOperation for f64 {
     }
 }
 
-pub fn narrow(ori: u64) -> f64 {
-    let decimal_number = Decimal::new(ori as i64, 8);
-    decimal_number.to_f64().unwrap()
-}
-
 //fixme:考虑用其他库,硬编码精度为8位，decimal超过37的话仍溢出，目前业务不会触发,
-// f64的有效精度为16位,当前业务做一定的取舍，总账对上就行
+/// f64的有效精度为16位,当前业务做一定的取舍，总账对上就行
 pub fn u256_to_f64(ori: U256, decimal: u32) -> f64 {
     let decimal_value = U256::from(10u32).pow(U256::from(decimal - 8));
     let dist_int = ori.div(decimal_value);

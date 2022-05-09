@@ -1,4 +1,6 @@
 #![feature(map_first_last)]
+#![deny(unsafe_code)]
+#![deny(warnings)]
 
 pub mod book;
 pub mod order;

@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 extern crate futures;
 extern crate rsmq_async;
 extern crate serde_json;
@@ -15,8 +17,6 @@ use std::sync::Arc;
 
 use common::types::thaw::ThawBalancesVO;
 use common::queue::*;
-
-//use serde_json::Value::String;
 use common::types::depth::Depth;
 use common::types::trade::AggTrade;
 use tokio::sync::{mpsc, RwLock};

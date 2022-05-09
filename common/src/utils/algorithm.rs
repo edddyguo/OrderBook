@@ -1,5 +1,6 @@
 use ring::digest;
 
+///caculate hash value string by sha256
 pub fn sha256(data: String) -> String {
     let mut buf = Vec::new();
     let mut txid = "".to_string();
@@ -14,6 +15,8 @@ pub fn sha256(data: String) -> String {
     }
     txid
 }
+
+///convert  u8 array to string
 pub fn u8_arr_to_str(data_arr: [u8; 32]) -> String {
     let mut data = "".to_string();
     for i in data_arr {
@@ -23,6 +26,7 @@ pub fn u8_arr_to_str(data_arr: [u8; 32]) -> String {
     data
 }
 
+/// convert string to u8 array
 pub fn u8_arr_from_str(data_str: String) -> [u8; 32] {
     let mut data: [u8; 32] = Default::default();
     let test1: Vec<char> = data_str.chars().collect();
@@ -34,7 +38,9 @@ pub fn u8_arr_from_str(data_str: String) -> [u8; 32] {
     data
 }
 
+///test ecdsa signature
 pub fn test_singer() {
+    todo!()
     /***
     let rng = rand::SystemRandom::new();
     let pkcs8_bytes =

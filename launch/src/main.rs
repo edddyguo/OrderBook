@@ -1,7 +1,7 @@
 #![feature(slice_group_by)]
 //! Call contract selltlement by engined trade ,and check itself successful or failed
-#![deny(missing_docs)]
 #![deny(warnings)]
+#![deny(unsafe_code)]
 //#![deny(unused_crate_dependencies)]
 //#![warn(perf)]
 

@@ -1,15 +1,10 @@
+#![allow(missing_docs)]
 use rsmq_async::{Rsmq, RsmqConnection, RsmqError, RsmqOptions};
-
 use std::ops::Deref;
-
+use serde::{Deserialize,Serialize};
 use crate::env::CONF as ENV_CONF;
 
 extern crate rustc_serialize;
-
-use serde::Deserialize;
-
-//#[derive(Serialize)]
-use serde::Serialize;
 
 lazy_static! {
     static ref CHEMIX_MODE: String = {

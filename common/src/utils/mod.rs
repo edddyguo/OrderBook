@@ -1,7 +1,9 @@
 extern crate rust_decimal;
-
+///The encryption algorithm
 pub mod algorithm;
+///Mathematical calculations
 pub mod math;
+/// time
 pub mod time;
 
 #[cfg(test)]

@@ -1,3 +1,5 @@
+//! chemix explore
+#![deny(missing_docs)]
 #![deny(warnings)]
 use std::time;
 
@@ -7,7 +9,6 @@ use chemix_models::market::{get_markets, list_markets};
 use chemix_models::order::{get_order_num, get_order_volume, get_user_number};
 use chemix_models::trade::{get_current_price2, get_trade_volume};
 use common::utils::time::get_unix_time;
-
 use chemix_chain::chemix::vault::Vault;
 use chemix_chain::chemix::ChemixContractClient;
 use chemix_models::snapshot::{insert_snapshot, SnapshotPO};
