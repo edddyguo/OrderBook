@@ -20,10 +20,10 @@ async function main() {
     let signer = await ethers.getSigners();
     //let account1 = signer[0].address;
     //let chemix_signer = signer[0];
-    let account1 = signer[1].address;
-    let chemix_signer = signer[1];
-    let receiver = signer[1].address;
-    let receiver_signer = signer[1];
+    let account1 = signer[0].address;
+    let chemix_signer = signer[0];
+    let receiver = signer[0].address;
+    let receiver_signer = signer[0];
 
     const issueAmountDefault = BigInt(100_000_000_000_000_000_000_000_000_000) //100_000_000_000
     const ethParams = await txParams();

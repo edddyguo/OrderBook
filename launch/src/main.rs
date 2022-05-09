@@ -55,8 +55,7 @@ extern crate log;
 #[macro_use]
 extern crate common;
 
-//fixme: 目前acala的只能跑通--instant-sealing模式,暂时没办法做到延时8区块确认
-const CONFIRM_HEIGHT: u32 = 0;
+const CONFIRM_HEIGHT: u32 = 4;
 
 use crate::thaw::{deal_launched_thaws, send_launch_thaw};
 use crate::trade::{deal_launched_trade, send_launch_trade};
@@ -282,22 +281,15 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 .hash
                                 .unwrap();
                             //fixme:和engine一样的原因，getlog接口不稳定,多次获取确认
-                            let mut new_settlements = Vec::new();
-                            for _ in 0..10 {
-                                new_settlements = vault_listen_client
-                                    .clone()
-                                    .write()
-                                    .unwrap()
-                                    .filter_settlement_event(block_hash)
-                                    .await
-                                    .unwrap();
-                                info!("filter_settlement_event {:?} at height {}", new_settlements, height);
-                                if new_settlements.is_empty(){
-                                    tokio::time::sleep(time::Duration::from_millis(1000)).await;
-                                }else {
-                                    break;
-                                }
-                            }
+
+                            let new_settlements = vault_listen_client
+                                .clone()
+                                .write()
+                                .unwrap()
+                                .filter_settlement_event(block_hash)
+                                .await
+                                .unwrap();
+                            info!("filter_settlement_event {:?} at height {}", new_settlements, height);
                             if new_settlements.is_empty() {
                                 info!(
                                     "Not found settlement orders created at height {}",
@@ -356,7 +348,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 loop {
                     //fix: 50是经验值，放到外部参数注入
                     //目前在engine模块保证大订单不再撮合
-                    let db_trades = list_trades(TradeFilter::Status(TradeStatus::Matched,50));
+                    let db_trades = list_trades(TradeFilter::Status(TradeStatus::Matched,500));
                     //在撮合模块保证过大的单不进行撮合，视为非法订单,
                     //todo: 怎么获取500以内个数的，所有交易对的，所有账号的trade
                     assert!(db_trades.len() <= 500);
@@ -368,8 +360,6 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     let last_orders = list_orders(OrderFilter::GetLastOne).unwrap();
                     let last_order = last_orders.first().unwrap();
                     info!("db_trades = {:?}",db_trades);
-
-                    //todo: block_height为0的这部分交易，只会在宕机的情况下出现，放在初始化的时候去处理
                     send_launch_trade(vault_settel_client.clone(),last_order,db_trades).await;
 
                 }

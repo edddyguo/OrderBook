@@ -53,8 +53,7 @@ extern crate log;
 #[macro_use]
 extern crate common;
 
-//fixme: 目前acala的只能跑通--instant-sealing模式,暂时没办法做到延时8区块确认
-const CONFIRM_HEIGHT: u32 = 0;
+const CONFIRM_HEIGHT: u32 = 4;
 
 lazy_static! {
     static ref MARKET: MarketInfoPO = {
@@ -257,27 +256,18 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 legal_cancel_orders_filter(new_cancel_orders.clone());
 
                             //区块中新创建的订单
-                            //fixme:临时规避的方案,多次连续多次为空才是真的为空
-                            let mut new_orders = Vec::new();
-                            for _ in 0..10  {
-                                new_orders = chemix_storage_client
-                                    .clone()
-                                    .write()
-                                    .unwrap()
-                                    .filter_new_order_event(
-                                        block_hash,
-                                        crate::MARKET.base_token_address.clone(),
-                                        crate::MARKET.quote_token_address.clone(),
-                                    )
-                                    .await
-                                    .unwrap();
-                                info!("new_orders_event {:?} at height {}", new_orders, height);
-                                if new_orders.is_empty(){
-                                    tokio::time::sleep(time::Duration::from_millis(1000)).await;
-                                }else {
-                                    break;
-                                }
-                            }
+                            let new_orders = chemix_storage_client
+                                .clone()
+                                .write()
+                                .unwrap()
+                                .filter_new_order_event(
+                                    block_hash,
+                                    crate::MARKET.base_token_address.clone(),
+                                    crate::MARKET.quote_token_address.clone(),
+                                )
+                                .await
+                                .unwrap();
+                            info!("new_orders_event {:?} at height {}", new_orders, height);
                             let db_new_orders = legal_new_orders_filter(new_orders, height);
 
                             //将合法的事件信息推送给撮合模块处理
