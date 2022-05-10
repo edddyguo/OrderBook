@@ -269,13 +269,9 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 .await
                                 .unwrap();
                             if new_settlements.is_empty() {
-                                info!(
-                                    "Not found settlement orders created at height {}",
-                                    height
-                                );
+                                info!("Not found settlement orders created at height {}",height);
                             } else {
-                                deal_launched_trade(new_settlements, &vault_queue, height)
-                                    .await;
+                                deal_launched_trade(new_settlements, &vault_queue, height).await;
                             }
 
                             let new_thaws = vault_listen_client

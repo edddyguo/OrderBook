@@ -219,5 +219,7 @@ pub fn check_invalid_settelment(last_process_height: u32){
             updated_at: &now
         }
     }).collect::<Vec<UpdateTrade>>();
-    update_trades(&reseted_trades);
+    if !reseted_trades.is_empty(){
+        update_trades(&reseted_trades);
+    }
 }
