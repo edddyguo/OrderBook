@@ -84,8 +84,8 @@ pub async fn send_launch_thaw(
         })
         .collect::<Vec<UpdateThaw>>();
     update_thaws(&pending_thaws2);
-    //todo: 此时节点问题或者分叉,或者gas不足
-    let receipt = send_raw_transaction(raw_data).await;
+    //todo: 参考settlement处理分叉
+    let receipt = send_raw_transaction(raw_data).await.unwrap();
     info!("finish thaw balance res:{:?}", receipt);
     let transaction_hash = format!("{:?}", receipt.transaction_hash);
     assert_eq!(txid, transaction_hash);
@@ -99,7 +99,7 @@ pub async fn send_launch_thaw(
 
 pub async fn deal_launched_thaws(
     new_thaw_flags: Vec<String>,
-    arc_queue: Arc<RwLock<Rsmq>>,
+    arc_queue: &Arc<RwLock<Rsmq>>,
     height: u32,
 ) {
     let now = get_current_time();

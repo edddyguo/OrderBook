@@ -1,4 +1,3 @@
-
 use crate::{gen_settle_trades, TradeStatus};
 use chemix_chain::chemix::vault::{Vault};
 use chemix_chain::chemix::ChemixContractClient;
@@ -11,21 +10,29 @@ use common::types::trade::AggTrade;
 use common::utils::algorithm::u8_arr_from_str;
 use common::utils::math::u256_to_f64;
 use common::utils::time::{get_current_time, get_unix_time};
+use common::types::trade;
+use anyhow::Result;
 
 use rsmq_async::{Rsmq, RsmqConnection};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use chemix_chain::bsc::{transaction_at};
 
-use common::types::trade;
+//todo: 补充其他错误的处理，以及解冻的通样的处理
+pub enum SettlementError {
+    /// 存在已经处理过的order index,一般为分叉导致的
+    OrderIndexAlreadyProcessed(String),
+    ///
+    Other(String),
+}
 
 pub async fn send_launch_trade(
     vault_settel_client: Arc<RwLock<ChemixContractClient<Vault>>>,
     last_order: &OrderInfoPO,
     db_trades: Vec<TradeInfoPO>,
-) {
+) -> Result<(),SettlementError>{
     let settle_trades = gen_settle_trades(db_trades.clone());
-    info!("settle_trades {:?} ", settle_trades);
+    info!("settle trades {:?} ", settle_trades);
     let now = get_current_time();
     let hash_data = u8_arr_from_str(last_order.hash_data.clone());
     info!(
@@ -37,7 +44,7 @@ pub async fn send_launch_trade(
     let receipt = vault_settel_client
         .read()
         .unwrap()
-        .settlement_trades2(last_order.index, hash_data, settle_trades.clone())
+        .settlement_trades(last_order.index, hash_data, settle_trades.clone())
         .await;
     let txid = gen_txid(&receipt);
     info!("[test_txid]::local {}", txid);
@@ -54,8 +61,15 @@ pub async fn send_launch_trade(
         .collect::<Vec<UpdateTrade>>();
     update_trades(&trades);
 
-    //todo: 此时节点问题或者分叉,待处理
-    let receipt = send_raw_transaction(receipt).await;
+    let receipt = send_raw_transaction(receipt)
+        .await.map_err(|x| {
+            let err_string = x.to_string();
+           if err_string.contains("index already processed") {
+               SettlementError::OrderIndexAlreadyProcessed(err_string)
+           }else {
+               SettlementError::Other(err_string)
+           }
+    })?;
     let transaction_hash = format!("{:?}", receipt.transaction_hash);
     info!("[test_txid]::remote {}", transaction_hash);
     assert_eq!(txid, transaction_hash);
@@ -69,11 +83,12 @@ pub async fn send_launch_trade(
         trade.block_height = height;
     }
     update_trades(&trades);
+    Ok(())
 }
 
 pub async fn deal_launched_trade(
     new_settlements: Vec<String>,
-    arc_queue: Arc<RwLock<Rsmq>>,
+    arc_queue: &Arc<RwLock<Rsmq>>,
     block_height: u32,
 ) {
     info!("Get settlement event {:?}", new_settlements);

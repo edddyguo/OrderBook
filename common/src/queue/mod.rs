@@ -1,4 +1,5 @@
 #![allow(missing_docs)]
+pub mod chain_status;
 use rsmq_async::{Rsmq, RsmqConnection, RsmqError, RsmqOptions};
 use std::ops::Deref;
 use serde::{Deserialize,Serialize};
@@ -22,6 +23,7 @@ pub enum QueueType {
     Thaws,
     Depth,
     Trade,
+    Chain
 }
 //update_book,new_trade_,thaw_order_
 impl QueueType {
@@ -30,6 +32,7 @@ impl QueueType {
             Self::Thaws => format!("thaw_order_{}", *CHEMIX_MODE),
             Self::Depth => format!("update_book_{}", *CHEMIX_MODE),
             Self::Trade => format!("new_trade_{}", *CHEMIX_MODE),
+            Self::Chain => format!("chemix_{}", *CHEMIX_MODE),
         }
     }
 }

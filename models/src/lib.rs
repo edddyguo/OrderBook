@@ -81,7 +81,7 @@ fn connet_db() -> Option<postgres::Client> {
     };
 
     let url = format!(
-        "host=localhost user=postgres port=6432 password=postgres dbname={}",
+        "host=localhost user=postgres port=5432 password=postgres dbname={}",
         dbname
     );
 

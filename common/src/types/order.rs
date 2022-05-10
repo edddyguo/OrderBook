@@ -1,10 +1,6 @@
 extern crate rustc_serialize;
 
-use serde::Deserialize;
-
-//#[derive(Serialize)]
-use serde::Serialize;
-
+use serde::{Deserialize,Serialize};
 use crate::types::order::Side::{Buy, Sell};
 
 #[derive(Deserialize, Debug, PartialEq, Clone, Serialize)]

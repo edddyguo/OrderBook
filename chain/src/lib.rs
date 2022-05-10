@@ -10,7 +10,7 @@ pub mod chemix;
 
 use std::convert::TryFrom;
 // use the anyhow crate for easy idiomatic error handling
-
+use anyhow::Result;
 use ethers::prelude::*;
 use std::time::Duration;
 //use ethers::providers::Ws;
@@ -174,16 +174,14 @@ pub fn gen_txid(data: &Bytes) -> String {
 
 //todo: 异常处理
 ///send raw data of transaction to node
-pub async fn send_raw_transaction(tx: Bytes) -> TransactionReceipt {
+pub async fn send_raw_transaction(tx: Bytes) -> Result<TransactionReceipt> {
     let receipt = crate::CONTRACT_CLIENT
         .send_raw_transaction(tx)
-        .await
-        .unwrap()
-        .await
+        .await?.await
         .unwrap()
         .unwrap();
     info!("remote txid {:?}", receipt.transaction_hash);
-    receipt
+    Ok(receipt)
 }
 #[cfg(test)]
 mod tests {

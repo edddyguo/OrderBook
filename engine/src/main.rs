@@ -1,16 +1,17 @@
 #![feature(map_first_last)]
 #![deny(unsafe_code)]
-#![deny(warnings)]
+//#![deny(warnings)]
 
 pub mod book;
 pub mod order;
+mod rollback;
 
 use ethers::prelude::*;
 use std::collections::{BTreeMap, HashMap};
 
 use chemix_chain::bsc::{get_block, get_current_block};
 use chemix_chain::chemix::ChemixContractClient;
-use rsmq_async::{Rsmq, RsmqConnection};
+use rsmq_async::{Rsmq, RsmqConnection, RsmqMessage, RsmqResult};
 use std::convert::TryFrom;
 use std::iter::FromIterator;
 use std::string::String;
@@ -41,10 +42,12 @@ use crate::book::{
 use chemix_models::thaws::{insert_thaws, ThawsPO};
 use chemix_models::{transactin_begin, transactin_commit};
 use common::queue::*;
+use common::queue::chain_status::ChainStatus;
 use common::types::depth::{Depth, RawDepth};
 use common::types::order::Status as OrderStatus;
 use common::types::order::{Side as OrderSide, Side};
 use common::types::trade::AggTrade;
+use crate::rollback::check_chain_status;
 
 #[macro_use]
 extern crate lazy_static;
@@ -176,7 +179,7 @@ fn gen_agg_trade_from_raw(trades: Vec<TradeInfoPO>) -> Vec<AggTrade> {
         .collect::<Vec<AggTrade>>()
 }
 
-async fn send_depth_message(depth: Depth, arc_queue: Arc<RwLock<Rsmq>>) {
+async fn send_depth_message(depth: Depth, arc_queue: &Arc<RwLock<Rsmq>>) {
     let mut market_depth = HashMap::new();
     market_depth.insert(crate::MARKET.id.clone(), depth);
     let json_str = serde_json::to_string(&market_depth).unwrap();
@@ -188,7 +191,7 @@ async fn send_depth_message(depth: Depth, arc_queue: Arc<RwLock<Rsmq>>) {
         .expect("failed to send message");
 }
 
-async fn send_agg_trade_message(agg_trade: Vec<AggTrade>, arc_queue: Arc<RwLock<Rsmq>>) {
+async fn send_agg_trade_message(agg_trade: Vec<AggTrade>, arc_queue: &Arc<RwLock<Rsmq>>) {
     let mut market_agg_trade = HashMap::new();
     market_agg_trade.insert(crate::MARKET.id.clone(), agg_trade);
     let json_str = serde_json::to_string(&market_agg_trade).unwrap();
@@ -201,17 +204,18 @@ async fn send_agg_trade_message(agg_trade: Vec<AggTrade>, arc_queue: Arc<RwLock<
         .expect("failed to send message");
 }
 
-async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
+async fn listen_blocks(mut queue: Rsmq) -> anyhow::Result<()> {
     let (event_sender, event_receiver) = mpsc::sync_channel(0);
-    let arc_queue = Arc::new(RwLock::new(queue));
-    let _arc_queue_cancel = arc_queue.clone();
+    let arc_queue= Arc::new(RwLock::new(queue));
     //不考虑安全性,随便写个私钥
     let pri_key = "b89da4744ef5efd626df7c557b32f139cdf42414056447bba627d0de76e84c43";
     let chemix_storage_client = ChemixContractClient::<Storage>::new(pri_key);
     let chemix_storage_client = Arc::new(RwLock::new(chemix_storage_client));
-
+    info!("__0001");
     rayon::scope(|s| {
         //监听合约事件（新建订单和取消订单），将其发送到相应处理模块
+        let arc_queue_engine = arc_queue.clone();
+        let arc_queue_chain_listener = arc_queue.clone();
         s.spawn(move |_| {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
@@ -221,8 +225,8 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 } else {
                     last_order[0].block_height
                 };
-
                 loop {
+                    check_chain_status(&arc_queue_chain_listener).await;
                     let current_height = get_current_block().await;
                     assert!(current_height >= last_process_height);
                     if current_height - last_process_height <= CONFIRM_HEIGHT {
@@ -415,15 +419,15 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 
                 transactin_commit();
                 let rt = Runtime::new().unwrap();
-                let arc_queue = arc_queue.clone();
+                let arc_queue_engine = arc_queue_engine.clone();
                 rt.block_on(async move {
                     if add_depth != Default::default() {
                         let depth = gen_depth_from_raw(add_depth);
-                        send_depth_message(depth, arc_queue.clone()).await;
+                        send_depth_message(depth, &arc_queue_engine).await;
                     }
                     let trades = gen_agg_trade_from_raw(db_trades);
                     if !trades.is_empty() {
-                        send_agg_trade_message(trades, arc_queue.clone()).await;
+                        send_agg_trade_message(trades, &arc_queue_engine).await;
                     }
                 });
             }
@@ -436,8 +440,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
-    let queue = Queue::regist(vec![QueueType::Depth, QueueType::Trade, QueueType::Thaws]).await;
-    info!("market {}", MARKET.base_token_address);
+    let queue = Queue::regist(vec![QueueType::Depth, QueueType::Trade, QueueType::Thaws,QueueType::Chain]).await;
     info!("initial book {:#?}", crate::BOOK.lock().unwrap());
     listen_blocks(queue).await
 }

@@ -69,7 +69,7 @@ impl ChemixContractClient<Vault> {
         sign_tx(&mut call.tx).await
     }
 
-    pub async fn settlement_trades2(
+    pub async fn settlement_trades(
         &self,
         last_index: u32,
         last_hash: [u8; 32],

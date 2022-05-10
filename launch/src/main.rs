@@ -1,19 +1,20 @@
 #![feature(slice_group_by)]
 //! Call contract selltlement by engined trade ,and check itself successful or failed
-#![deny(warnings)]
+//#![deny(warnings)]
 #![deny(unsafe_code)]
 //#![deny(unused_crate_dependencies)]
 //#![warn(perf)]
 
 mod thaw;
 mod trade;
+mod rollback;
 
 use ethers::prelude::*;
 use std::cmp::max;
 use std::collections::HashMap;
 use chemix_chain::chemix::{ChemixContractClient};
 use common::queue::*;
-use rsmq_async::{Rsmq};
+use rsmq_async::{Rsmq, RsmqConnection};
 
 use chemix_chain::bsc::{get_block, get_current_block};
 use std::string::String;
@@ -33,17 +34,18 @@ use chemix_models::trade::{list_trades, TradeFilter, TradeInfoPO};
 
 
 use chemix_chain::chemix::vault::{SettleValues3, Vault};
-
 use chemix_models::market::get_markets;
 use log::info;
-
-//use common::env::CONF as ENV_CONF;
 use chemix_models::thaws::{list_thaws, ThawsFilter};
 use common::env::CONF as ENV_CONF;
-
+use common::queue::chain_status::ChainStatus;
 use common::types::order::{Side as OrderSide, Side};
 use common::types::thaw::Status as ThawStatus;
 use common::types::trade::{Status as TradeStatus};
+use crate::thaw::{deal_launched_thaws, send_launch_thaw};
+use crate::trade::{check_invalid_settelment, check_last_launch, deal_launched_trade, send_launch_trade, SettlementError};
+use common::types::depth::RawDepth;
+use crate::rollback::rollback_history_trade;
 
 extern crate lazy_static;
 
@@ -53,9 +55,7 @@ extern crate log;
 #[macro_use]
 extern crate common;
 
-use crate::thaw::{deal_launched_thaws, send_launch_thaw};
-use crate::trade::{check_invalid_settelment, check_last_launch, deal_launched_trade, send_launch_trade};
-use common::types::depth::RawDepth;
+
 
 const CONFIRM_HEIGHT: u32 = 2;
 
@@ -230,6 +230,8 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
         let vault_listen_client = chemix_vault_client.clone();
         let vault_thaws_client = chemix_vault_client.clone();
         let vault_settel_client = chemix_vault_client.clone();
+        let chain_status_queue = arc_queue.clone();
+        let vault_queue = arc_queue.clone();
 
         //监听所有的settle事件并更新确认状态
         s.spawn(move |_| {
@@ -270,7 +272,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                     height
                                 );
                             } else {
-                                deal_launched_trade(new_settlements, arc_queue.clone(), height)
+                                deal_launched_trade(new_settlements, &vault_queue, height)
                                     .await;
                             }
 
@@ -281,15 +283,13 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                                 .filter_thaws_event(block_hash)
                                 .await
                                 .unwrap();
-                            info!("new_orders_event {:?}", new_thaws);
+                            info!("new orders event {:?}", new_thaws);
 
                             if new_thaws.is_empty() {
                                 info!("Not found new thaws created at height {}", height);
                             } else {
                                 //只要拿到事件的hashdata就可以判断这个解冻是ok的，不需要比对其他
-                                //todo： 另外起一个服务，循环判断是否有超8个区块还没确认的处理，有的话将起launch重新设置为pending
-                                //但是什么场景下会出现没有被确认的情况？
-                                deal_launched_thaws(new_thaws, arc_queue.clone(), height).await;
+                                deal_launched_thaws(new_thaws, &vault_queue, height).await;
                             }
                         }
                         last_process_height = current_height - CONFIRM_HEIGHT;
@@ -324,7 +324,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                 loop {
                     //fix: 50是经验值，放到外部参数注入
                     //目前在engine模块保证大订单不再撮合
-                    let db_trades = list_trades(TradeFilter::Status(TradeStatus::Matched,50));
+                    let db_trades = list_trades(TradeFilter::Status(TradeStatus::Matched,500));
                     //在撮合模块保证过大的单不进行撮合，视为非法订单,
                     //todo: 怎么获取500以内个数的，所有交易对的，所有账号的trade
                     assert!(db_trades.len() <= 500);
@@ -335,11 +335,29 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                     }
                     let last_orders = list_orders(OrderFilter::GetLastOne).unwrap();
                     let last_order = last_orders.first().unwrap();
-                    info!("db_trades = {:?}",db_trades);
 
-                    //block_height为0的这部分交易
-                    send_launch_trade(vault_settel_client.clone(),last_order,db_trades).await;
-
+                    match  send_launch_trade(vault_settel_client.clone(),last_order,db_trades.clone()).await {
+                        Ok(_) => {
+                            info!("sellment successfully with {:?}",db_trades);
+                        },
+                        Err(SettlementError::OrderIndexAlreadyProcessed(error_info)) => {
+                            warn!("Some error happened {},check and start rollback",error_info);
+                            let _queue_id = chain_status_queue.write().unwrap()
+                                .send_message(&QueueType::Chain.to_string(),ChainStatus::Forked.as_str(), None)
+                                .await
+                                .expect("failed to send message");
+                            //todo: 要等到engine应答的信号再开始rollback，当前由于check rollback point需要很长时间，不用等待
+                            tokio::time::sleep(time::Duration::from_millis(10000)).await;
+                            //rollback_history_trade().await;
+                            let _queue_id = chain_status_queue.write().unwrap()
+                                .send_message(&QueueType::Chain.to_string(),ChainStatus::Healthy.as_str(), None)
+                                .await
+                                .expect("failed to send message");
+                        },
+                        Err(SettlementError::Other(x)) => {
+                            panic!("Unkwon chain error");
+                        }
+                    }
                 }
             });
         });
@@ -352,6 +370,10 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
     check_last_launch().await;
-    let queue = Queue::regist(vec![QueueType::Trade, QueueType::Depth, QueueType::Thaws]).await;
+    let mut queue = Queue::regist(vec![QueueType::Trade, QueueType::Depth, QueueType::Thaws, QueueType::Chain]).await;
+    let _queue_id = queue
+        .send_message(&QueueType::Chain.to_string(),ChainStatus::Forked.as_str(), None)
+        .await
+        .expect("failed to send message");
     listen_blocks(queue).await
 }
