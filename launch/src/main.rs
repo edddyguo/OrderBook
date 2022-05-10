@@ -8,6 +8,7 @@
 mod thaw;
 mod trade;
 mod rollback;
+mod queue;
 
 use ethers::prelude::*;
 use std::cmp::max;
@@ -45,6 +46,7 @@ use common::types::trade::{Status as TradeStatus};
 use crate::thaw::{deal_launched_thaws, send_launch_thaw};
 use crate::trade::{check_invalid_settelment, check_last_launch, deal_launched_trade, send_launch_trade, SettlementError};
 use common::types::depth::RawDepth;
+use crate::queue::update_chain_status;
 use crate::rollback::rollback_history_trade;
 
 extern crate lazy_static;
@@ -340,19 +342,14 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         Ok(_) => {
                             info!("sellment successfully with {:?}",db_trades);
                         },
-                        Err(SettlementError::OrderIndexAlreadyProcessed(error_info)) => {
-                            warn!("Some error happened {},check and start rollback",error_info);
-                            let _queue_id = chain_status_queue.write().unwrap()
-                                .send_message(&QueueType::Chain.to_string(),ChainStatus::Forked.as_str(), None)
-                                .await
-                                .expect("failed to send message");
+                        Err(SettlementError::OrderIndexAlreadyProcessed(index,error)) => {
+                            warn!("Some error happened {},check and start rollback",error);
+                            update_chain_status(&mut *chain_status_queue.write().unwrap(),ChainStatus::Forked);
                             //todo: 要等到engine应答的信号再开始rollback，当前由于check rollback point需要很长时间，不用等待
                             tokio::time::sleep(time::Duration::from_millis(10000)).await;
                             //rollback_history_trade().await;
-                            let _queue_id = chain_status_queue.write().unwrap()
-                                .send_message(&QueueType::Chain.to_string(),ChainStatus::Healthy.as_str(), None)
-                                .await
-                                .expect("failed to send message");
+                            update_chain_status(&mut *chain_status_queue.write().unwrap(),ChainStatus::Healthy);
+
                         },
                         Err(SettlementError::Other(x)) => {
                             panic!("Unkwon chain error");
@@ -369,11 +366,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
+    let mut queue_client = queue::init().await;
     check_last_launch().await;
-    let mut queue = Queue::regist(vec![QueueType::Trade, QueueType::Depth, QueueType::Thaws, QueueType::Chain]).await;
-    let _queue_id = queue
-        .send_message(&QueueType::Chain.to_string(),ChainStatus::Forked.as_str(), None)
-        .await
-        .expect("failed to send message");
-    listen_blocks(queue).await
+    listen_blocks(queue_client).await
 }

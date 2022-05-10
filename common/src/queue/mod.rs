@@ -32,7 +32,7 @@ impl QueueType {
             Self::Thaws => format!("thaw_order_{}", *CHEMIX_MODE),
             Self::Depth => format!("update_book_{}", *CHEMIX_MODE),
             Self::Trade => format!("new_trade_{}", *CHEMIX_MODE),
-            Self::Chain => format!("chemix_{}", *CHEMIX_MODE),
+            Self::Chain => format!("chain_{}", *CHEMIX_MODE),
         }
     }
 }

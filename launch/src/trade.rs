@@ -12,6 +12,7 @@ use common::utils::math::u256_to_f64;
 use common::utils::time::{get_current_time, get_unix_time};
 use common::types::trade;
 use anyhow::Result;
+use thiserror::Error;
 
 use rsmq_async::{Rsmq, RsmqConnection};
 use std::collections::HashMap;
@@ -19,10 +20,13 @@ use std::sync::{Arc, RwLock};
 use chemix_chain::bsc::{transaction_at};
 
 //todo: 补充其他错误的处理，以及解冻的通样的处理
+#[derive(Error, Debug)]
 pub enum SettlementError {
     /// 存在已经处理过的order index,一般为分叉导致的
-    OrderIndexAlreadyProcessed(String),
+    #[error("order index `{0}` is already processed,raw error `{1}`")]
+    OrderIndexAlreadyProcessed(u32,String),
     ///
+    #[error("unkown error,contract error `{0}`")]
     Other(String),
 }
 
@@ -65,7 +69,7 @@ pub async fn send_launch_trade(
         .await.map_err(|x| {
             let err_string = x.to_string();
            if err_string.contains("index already processed") {
-               SettlementError::OrderIndexAlreadyProcessed(err_string)
+               SettlementError::OrderIndexAlreadyProcessed(last_order.index,err_string)
            }else {
                SettlementError::Other(err_string)
            }
