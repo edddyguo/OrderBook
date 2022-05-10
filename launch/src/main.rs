@@ -347,7 +347,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                             update_chain_status(&mut *chain_status_queue.write().unwrap(),ChainStatus::Forked);
                             //todo: 要等到engine应答的信号再开始rollback，当前由于check rollback point需要很长时间，不用等待
                             tokio::time::sleep(time::Duration::from_millis(10000)).await;
-                            //rollback_history_trade().await;
+                            rollback_history_trade(vault_settel_client.clone()).await;
                             update_chain_status(&mut *chain_status_queue.write().unwrap(),ChainStatus::Healthy);
 
                         },

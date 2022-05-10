@@ -11,7 +11,9 @@ use common::utils::math::U256_ZERO;
 
 #[derive(Clone, Debug)]
 pub enum TradeFilter<'a> {
-    //id
+    //trade id
+    ById(&'a str),
+    //order_id
     OrderId(&'a str),
     //market,limit
     MarketId(&'a str, u32),
@@ -24,11 +26,14 @@ pub enum TradeFilter<'a> {
     //height
     NotConfirm(u32),
     LastPushed,
-    ZeroHeight,
+    Height(u32),
 }
 impl TradeFilter<'_> {
     pub fn to_string(&self) -> String {
         let filter_str = match self {
+            TradeFilter::ById(id) => {
+                format!("where id='{}'", id)
+            }
             TradeFilter::OrderId(id) => {
                 format!("where taker_order_id='{}' or maker_order_id='{}'", id, id)
             }
@@ -66,8 +71,9 @@ impl TradeFilter<'_> {
             TradeFilter::LastPushed => {
                 "where status='confirmed' order by created_at desc  limit 1".to_string()
             }
-            TradeFilter::ZeroHeight => {
-                "where block_height='0' ".to_string()
+            TradeFilter::Height(height) => {
+                format!(" where block_height='{}' ", height)
+
             }
         };
         filter_str
@@ -253,6 +259,10 @@ pub fn update_trades(trades: &Vec<UpdateTrade>) {
     info!("start update trades {} ", sql);
     let execute_res = crate::execute(sql.as_str()).unwrap();
     info!("success update trades {} rows", execute_res);
+}
+
+pub fn delete_trades(filter: TradeFilter) {
+    todo!()
 }
 
 pub fn update_trade_by_hash(status: TradeStatus, hash_data: &str, block_height: u32) {

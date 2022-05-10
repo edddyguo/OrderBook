@@ -47,7 +47,7 @@ use common::types::depth::{Depth, RawDepth};
 use common::types::order::Status as OrderStatus;
 use common::types::order::{Side as OrderSide, Side};
 use common::types::trade::AggTrade;
-use crate::rollback::check_chain_status;
+use crate::rollback::get_rollback_point;
 
 #[macro_use]
 extern crate lazy_static;
@@ -225,8 +225,12 @@ async fn listen_blocks(mut queue: Rsmq) -> anyhow::Result<()> {
                 } else {
                     last_order[0].block_height
                 };
+
                 loop {
-                    check_chain_status(&arc_queue_chain_listener).await;
+                    //如果有订单分叉，则等待回滚完毕，并且从回滚点重新检查交易
+                    if let Some(rollback_height) = get_rollback_point(&arc_queue_chain_listener).await{
+                        last_process_height = rollback_height;
+                    }
                     let current_height = get_current_block().await;
                     assert!(current_height >= last_process_height);
                     if current_height - last_process_height <= CONFIRM_HEIGHT {

@@ -193,7 +193,7 @@ pub fn list_orders(filter: OrderFilter) -> Result<Vec<OrderInfoPO>> {
     );
     info!("list_users_orders2 raw sql {}", sql);
     let mut orders = Vec::<OrderInfoPO>::new();
-    let rows = crate::query(sql.as_str()).unwrap();
+    let rows = crate::query(sql.as_str())?;
     for row in rows {
         let info = OrderInfoPO {
             id: row.get(0),
@@ -217,6 +217,10 @@ pub fn list_orders(filter: OrderFilter) -> Result<Vec<OrderInfoPO>> {
         orders.push(info);
     }
     Ok(orders)
+}
+
+pub fn delete_orders(filter: OrderFilter) {
+    todo!()
 }
 
 //

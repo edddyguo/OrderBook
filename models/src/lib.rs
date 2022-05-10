@@ -1,6 +1,6 @@
 //! encapsulation of some postgresql insterface for easy call
 //#![deny(missing_docs)]
-#![deny(warnings)]
+//#![deny(warnings)]
 
 pub mod chain;
 pub mod market;
@@ -9,6 +9,7 @@ pub mod snapshot;
 pub mod thaws;
 pub mod tokens;
 pub mod trade;
+pub mod invalied_trade;
 
 #[macro_use]
 extern crate log;

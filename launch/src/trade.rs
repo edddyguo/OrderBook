@@ -163,7 +163,7 @@ pub async fn deal_launched_trade(
 
 //检查宕机时还没广播出去的交易重新广播
 pub async fn check_last_launch() {
-    let last_batch_trade = list_trades(TradeFilter::ZeroHeight);
+    let last_batch_trade = list_trades(TradeFilter::Height(0u32));
     if last_batch_trade.is_empty() {
         info!("Histrory launch is ok");
         

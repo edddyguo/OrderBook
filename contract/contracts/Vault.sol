@@ -220,7 +220,6 @@ contract Vault is
     }
 
 
-
     /**
      * Transfers a certain amount of funds to an address.
      *

@@ -55,6 +55,25 @@ create index idx_chemix_trades_recent on chemix_trades (taker,maker,status);
 create index idx_chemix_trades_confirm  on chemix_trades (hash_data,block_height);
 create index idx_chemix_trades_status on chemix_trades (status);
 
+
+create table chemix_invalid_trades(
+      id text PRIMARY KEY,
+      block_height integer , --admin处理的trade的序列号
+      transaction_hash text,
+      hash_data  text ,
+      status text , --"matched","confirm"
+      market_id text ,
+      maker  text ,
+      taker  text ,
+      price text ,
+      amount text ,
+      taker_side text ,
+      maker_order_id  text ,
+      taker_order_id text ,
+      updated_at timestamp ,
+      created_at timestamp
+);
+
 -- orders table
 create table chemix_orders(
   id text  primary key,
