@@ -53,7 +53,7 @@ extern crate log;
 #[macro_use]
 extern crate common;
 
-const CONFIRM_HEIGHT: u32 = 4;
+const CONFIRM_HEIGHT: u32 = 2;
 
 lazy_static! {
     static ref MARKET: MarketInfoPO = {

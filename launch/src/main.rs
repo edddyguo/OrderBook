@@ -55,7 +55,7 @@ extern crate log;
 #[macro_use]
 extern crate common;
 
-const CONFIRM_HEIGHT: u32 = 4;
+const CONFIRM_HEIGHT: u32 = 2;
 
 use crate::thaw::{deal_launched_thaws, send_launch_thaw};
 use crate::trade::{deal_launched_trade, send_launch_trade};
@@ -270,8 +270,6 @@ fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         //绝大多数情况last_process_height + 1 等于current_height - CONFIRM_HEIGHT
                         for height in last_process_height + 1..=current_height - CONFIRM_HEIGHT
                         {
-                            //fixme:强制等待rpc返回结果，为了规避rpc还没返回这边就已经扫到事件
-                            tokio::time::sleep(time::Duration::from_millis(5000)).await;
                             info!("check height {}", height);
                             let block_hash = get_block(BlockId::from(height as u64))
                                 .await
