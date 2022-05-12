@@ -9,7 +9,8 @@ pub mod snapshot;
 pub mod thaws;
 pub mod tokens;
 pub mod trade;
-pub mod invalied_trade;
+pub mod forked_trade;
+pub mod forked_order;
 
 #[macro_use]
 extern crate log;

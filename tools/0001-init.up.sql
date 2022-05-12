@@ -56,7 +56,7 @@ create index idx_chemix_trades_confirm  on chemix_trades (hash_data,block_height
 create index idx_chemix_trades_status on chemix_trades (status);
 
 
-create table chemix_invalid_trades(
+create table chemix_forked_trades(
       id text PRIMARY KEY,
       block_height integer , --admin处理的trade的序列号
       transaction_hash text,
@@ -97,6 +97,27 @@ create table chemix_orders(
 create index idx_chemix_orders_index on chemix_orders (index);
 create index idx_chemix_orders_available on chemix_orders (market_id,status);
 create index idx_chemix_orders_users on chemix_orders (account,market_id,status,status);
+
+
+create table chemix_forked_orders(
+      id text  primary key,
+      index integer,
+      transaction_hash text,
+      block_height integer,
+      hash_data text,
+      market_id text ,
+      account text ,
+      side text ,
+      price  text ,
+      amount  text ,
+      status text , --"full_filled","partial_filled","pending"
+      available_amount  text ,
+      matched_amount  text ,
+      canceled_amount  text ,
+      updated_at  timestamp,
+      created_at  timestamp
+);
+
 
 create table chemix_thaws(
   order_id text  primary key,

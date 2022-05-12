@@ -10,17 +10,17 @@ use common::types::trade::Status as TradeStatus;
 use common::utils::math::U256_ZERO;
 
 #[derive(Clone, Debug)]
-pub enum InvalidTradeFilter<'a> {
+pub enum ForkedTradeFilter<'a> {
     ById(&'a str),
-    Height(u32),
+    ByHeight(u32),
 }
-impl InvalidTradeFilter<'_> {
+impl ForkedTradeFilter<'_> {
     pub fn to_string(&self) -> String {
         let filter_str = match self {
-            InvalidTradeFilter::ById(id) => {
+            ForkedTradeFilter::ById(id) => {
                 format!("where id='{}'", id)
             }
-            InvalidTradeFilter::Height(height) => {
+            ForkedTradeFilter::ByHeight(height) => {
                 format!(" where block_height='{}' ", height)
             }
         };
@@ -29,12 +29,12 @@ impl InvalidTradeFilter<'_> {
 }
 
 
-pub fn insert_invalid_trades(trades: &mut Vec<TradeInfoPO>) {
+pub fn insert_forked_trades(trades: &mut Vec<TradeInfoPO>) {
     info!("start insert info {:#?}", trades);
     if trades.is_empty() {
         return;
     }
-    let mut sql = "insert into chemix_trades values(".to_string();
+    let mut sql = "insert into chemix_forked_trades values(".to_string();
     let trades_arr: Vec<Vec<String>> = trades
         .iter()
         .map(|x| struct2array(x))
@@ -47,7 +47,7 @@ pub fn insert_invalid_trades(trades: &mut Vec<TradeInfoPO>) {
     info!("success insert traders {} rows", execute_res);
 }
 
-pub fn list_invalid_trades(filter: InvalidTradeFilter) -> Vec<TradeInfoPO> {
+pub fn list_forked_trades(filter: ForkedTradeFilter) -> Vec<TradeInfoPO> {
     let sql = format!(
         "select \
     id,\
@@ -65,7 +65,7 @@ pub fn list_invalid_trades(filter: InvalidTradeFilter) -> Vec<TradeInfoPO> {
     taker_order_id,\
     cast(created_at as text), \
     cast(updated_at as text) \
-    from chemix_trades {}",
+    from chemix_forked_trades {}",
         filter.to_string()
     );
     let mut trades: Vec<TradeInfoPO> = Vec::new();
@@ -95,6 +95,6 @@ pub fn list_invalid_trades(filter: InvalidTradeFilter) -> Vec<TradeInfoPO> {
     trades
 }
 
-pub fn delete_invalid_trades(filter: InvalidTradeFilter) {
+pub fn delete_forked_trades(filter: ForkedTradeFilter) {
     todo!()
 }

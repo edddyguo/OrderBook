@@ -5,6 +5,7 @@ use chemix_models::order::{list_orders, OrderFilter};
 use common::queue::chain_status::ChainStatus;
 use common::queue::QueueType;
 
+///等待launch回滚完毕，并获取当前回滚点
 pub async fn get_rollback_point(queue: &Arc<RwLock<Rsmq>>) -> Option<u32>{
     let mut index= 0;
     loop {

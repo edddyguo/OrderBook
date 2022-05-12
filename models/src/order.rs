@@ -43,7 +43,7 @@ pub struct OpenOrder<'a> {
     pub created_at: u64,
 }
 
-#[derive(Deserialize, Debug, Clone, Serialize)]
+#[derive(Deserialize, Debug, Clone, Serialize,PartialEq)]
 pub struct OrderInfoPO {
     pub id: String,
     pub index: u32,
