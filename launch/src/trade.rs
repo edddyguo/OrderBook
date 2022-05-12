@@ -65,6 +65,7 @@ pub async fn send_launch_trade(
         .unwrap();
     for trade in trades.iter_mut() {
         trade.block_height = height;
+        trade.transaction_hash = transaction_hash.clone();
     }
     update_trades(&trades);
 }

@@ -7,7 +7,7 @@ async function txParams() {
 
     const ethParams = calcEthereumTransactionParams({
       gasLimit: '31000000',
-      validUntil: (blockNumber + 100).toString(),
+      validUntil: (blockNumber + 1000000).toString(),
       storageLimit: '64001',
       txFeePerGas,
       storageByteDeposit

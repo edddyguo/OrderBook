@@ -241,12 +241,11 @@ async fn get_last_process_height() -> u32 {
     }
 }
 
-async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
+fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
     let arc_queue = Arc::new(RwLock::new(queue));
     let pri_key = ENV_CONF.chemix_relayer_prikey.to_owned().unwrap();
     let chemix_vault_client = ChemixContractClient::<Vault>::new(pri_key.to_str().unwrap());
     let chemix_vault_client = Arc::new(RwLock::new(chemix_vault_client));
-
     rayon::scope(|s| {
         let vault_listen_client = chemix_vault_client.clone();
         let vault_thaws_client = chemix_vault_client.clone();
@@ -373,5 +372,11 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
     let queue = Queue::regist(vec![QueueType::Trade, QueueType::Depth, QueueType::Thaws]).await;
-    listen_blocks(queue).await
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(4)
+        .build()
+        .unwrap();
+    let _res = pool.install(||  listen_blocks(queue));
+    //listen_blocks(queue).await
+    Ok(())
 }

@@ -82,15 +82,16 @@ pub async fn send_launch_thaw(
             updated_at: &now,
         })
         .collect::<Vec<UpdateThaw>>();
-    update_thaws(&pending_thaws2);
+    //update_thaws(&pending_thaws2);
     //todo: 此时节点问题或者分叉,或者gas不足
     let receipt = send_raw_transaction(raw_data).await;
     info!("finish thaw balance res:{:?}", receipt);
     let transaction_hash = format!("{:?}", receipt.transaction_hash);
-    assert_eq!(txid, transaction_hash);
+    //assert_eq!(txid, transaction_hash);
     let height = receipt.block_number.unwrap().as_u32();
     for pending_thaw in pending_thaws2.iter_mut() {
         pending_thaw.block_height = height;
+        pending_thaw.transaction_hash = transaction_hash.clone();
     }
     update_thaws(&pending_thaws2);
     //todo: 取消的订单也超过100这种
