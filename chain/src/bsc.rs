@@ -19,10 +19,18 @@ pub async fn gen_watcher() -> Node<Ws> {
 }
 
 pub async fn get_current_block() -> u32 {
-    crate::PROVIDER
-        .provide
-        .get_block_number()
-        .await
-        .unwrap()
-        .as_u32()
+    let mut height;
+    loop {
+        match  crate::PROVIDER.provide.get_block_number().await {
+            Ok(num) => {
+                height = num.as_u32();
+                break;
+            }
+            Err(error) => {
+                warn!("get_current_block failed {:?}",error);
+                continue;
+            }
+        }
+    }
+    height
 }

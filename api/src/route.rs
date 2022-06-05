@@ -414,8 +414,12 @@ async fn dex_profile() -> impl Responder {
     //current_and_yesterday_sanpshot
     let cays = get_snapshot().unwrap();
     let price = cays.0.cec_price;
-    //如果有清库的行为则会造成溢出
-    let current_tvl = cays.0.order_volume - cays.0.withdraw;
+    //fixme:如果有清库的行为则会造成溢出,这里临时规避
+    let current_tvl = if  cays.0.order_volume >  cays.0.withdraw {
+        cays.0.order_volume - cays.0.withdraw
+    }else {
+        cays.0.order_volume
+    };
     let cumulative_transactions = cays.0.transactions as u32;
     let cumulative_traders = cays.0.traders as u32;
     let trading_pairs = cays.0.trading_pairs as u8;
@@ -433,11 +437,11 @@ async fn dex_profile() -> impl Responder {
         cumulative_traders,
         traders_num: get_user_number(TimeScope::OneDay),
         trading_volume: u256_to_f64(
-            current_trade_volume - yesterday_trader_volume,
+            current_trade_volume,
             cec_token_decimal,
         ),
         transactions_num: current_transcations - yesterday_transcations,
-        tvl: u256_to_f64(current_tvl - yesterday_tvl, cec_token_decimal),
+        tvl: u256_to_f64(current_tvl, cec_token_decimal),
         trading_pairs,
         price: u256_to_f64(price, cec_token_decimal),
         snapshot_time,
