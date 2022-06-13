@@ -14,9 +14,6 @@ apidoc -f ./api/src/main.rs -i api/ -o doc/
 
 
 ##TODO
-```
-- [*] 1、order book engine feature
+- [X] 1、order book engine feature
 - [ ] 2、kline
 - [ ] 3、chain fork deal with
-- [ ] 4、Cargo test
-```

@@ -11,7 +11,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use chemix_chain::bsc::{get_block, get_current_block};
 use chemix_chain::chemix::ChemixContractClient;
-use rsmq_async::{Rsmq, RsmqConnection, RsmqMessage, RsmqResult};
+use rsmq_async::{Rsmq, RsmqConnection};
 use std::convert::TryFrom;
 use std::iter::FromIterator;
 use std::string::String;
@@ -42,7 +42,7 @@ use crate::book::{
 use chemix_models::thaws::{insert_thaws, ThawsPO};
 use chemix_models::{transactin_begin, transactin_commit};
 use common::queue::*;
-use common::queue::chain_status::ChainStatus;
+
 use common::types::depth::{Depth, RawDepth};
 use common::types::order::Status as OrderStatus;
 use common::types::order::{Side as OrderSide, Side};
@@ -204,7 +204,7 @@ async fn send_agg_trade_message(agg_trade: Vec<AggTrade>, arc_queue: &Arc<RwLock
         .expect("failed to send message");
 }
 
-async fn listen_blocks(mut queue: Rsmq) -> anyhow::Result<()> {
+async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
     let (event_sender, event_receiver) = mpsc::sync_channel(0);
     let arc_queue= Arc::new(RwLock::new(queue));
     //不考虑安全性,随便写个私钥

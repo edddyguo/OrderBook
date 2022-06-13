@@ -261,7 +261,7 @@ pub fn update_trades(trades: &Vec<UpdateTrade>) {
     info!("success update trades {} rows", execute_res);
 }
 
-pub fn delete_trades(filter: TradeFilter) {
+pub fn delete_trades(_filter: TradeFilter) {
     todo!()
 }
 

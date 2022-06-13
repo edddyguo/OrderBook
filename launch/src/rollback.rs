@@ -1,4 +1,4 @@
-use std::ops::Deref;
+#![allow(unused)]
 use std::sync::{Arc, RwLock};
 use ethers_core::types::BlockId;
 use chemix_chain::bsc::get_block;
@@ -7,7 +7,7 @@ use chemix_chain::chemix::vault::Vault;
 use chemix_models::order::{delete_orders, insert_orders, list_orders, OrderFilter, OrderInfoPO, update_orders, UpdateOrder};
 use chemix_models::trade::{delete_trades, insert_trades, list_trades, TradeFilter, TradeInfoPO};
 use chemix_models::forked_trade::*;
-use chemix_models::{transactin_begin, transactin_commit};
+
 use chemix_models::forked_order::{delete_forked_orders, ForkedOrderFilter, insert_forked_orders, list_forked_orders};
 use common::types::order::Status;
 use common::utils::math::U256_ZERO;
@@ -15,7 +15,7 @@ use common::utils::time::get_current_time;
 use crate::get_last_process_height;
 
 ///回滚market_order，删除taker_order,删除trade
-fn rollback_settlement(mut trades: Vec<TradeInfoPO>) -> Vec<OrderInfoPO>{
+fn rollback_settlement(trades: Vec<TradeInfoPO>) -> Vec<OrderInfoPO>{
     //fixme: 同一区块清算的顺序是否有影响？
     let now = get_current_time();
     let mut rollback_taker_orders = Vec::new();
@@ -31,7 +31,7 @@ fn rollback_settlement(mut trades: Vec<TradeInfoPO>) -> Vec<OrderInfoPO>{
         delete_orders(OrderFilter::ById(&trade.taker_order_id));
         delete_trades(TradeFilter::ById(&trade.id));
         let marker_orders = list_orders(OrderFilter::ById(&trade.maker_order_id)).unwrap();
-        let mut marker_order= marker_orders.first().unwrap();
+        let marker_order= marker_orders.first().unwrap();
         let new_available =  marker_order.available_amount + trade.amount;
         assert!(marker_order.amount >= new_available);
         //回滚对应的amount和订单状态
@@ -74,7 +74,7 @@ fn revert_settlement(height: u32){
 
     for trade in old_forked_trades {
         let marker_orders = list_orders(OrderFilter::ById(&trade.maker_order_id)).unwrap();
-        let mut marker_order= marker_orders.first().unwrap();
+        let marker_order= marker_orders.first().unwrap();
         let new_available =  marker_order.available_amount - trade.amount;
         assert!(marker_order.amount >= new_available);
         //正向回滚对应的amount和订单状态
@@ -101,7 +101,7 @@ fn revert_settlement(height: u32){
     insert_orders(&mut old_forked_orders);
 }
 
-fn revert_thaws(height: u32){
+fn revert_thaws(_height: u32){
     todo!()
 }
 

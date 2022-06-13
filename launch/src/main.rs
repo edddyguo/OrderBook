@@ -14,8 +14,8 @@ use ethers::prelude::*;
 use std::cmp::max;
 use std::collections::HashMap;
 use chemix_chain::chemix::{ChemixContractClient};
-use common::queue::*;
-use rsmq_async::{Rsmq, RsmqConnection};
+
+use rsmq_async::{Rsmq};
 
 use chemix_chain::bsc::{get_block, get_current_block};
 use std::string::String;
@@ -338,15 +338,15 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
                         Ok(_) => {
                             info!("sellment successfully with {:?}",db_trades);
                         },
-                        Err(SettlementError::OrderIndexAlreadyProcessed(index,error)) => {
+                        Err(SettlementError::OrderIndexAlreadyProcessed(_index,error)) => {
                             warn!("Some error happened {},check and start rollback",error);
-                            update_chain_status(&mut *chain_status_queue.write().unwrap(),ChainStatus::Forked);
+                            update_chain_status(&mut *chain_status_queue.write().unwrap(),ChainStatus::Forked).await;
                             //todo: 更严谨的方案,要等到engine应答的信号再开始rollback，当前由于check rollback point需要很长时间，不用等待
                             tokio::time::sleep(time::Duration::from_millis(10000)).await;
                             rollback_history_trade(vault_settel_client.clone()).await;
-                            update_chain_status(&mut *chain_status_queue.write().unwrap(),ChainStatus::Healthy);
+                            update_chain_status(&mut *chain_status_queue.write().unwrap(),ChainStatus::Healthy).await;
                         },
-                        Err(SettlementError::Other(x)) => {
+                        Err(SettlementError::Other(_x)) => {
                             panic!("Unkwon chain error");
                         }
                     }
@@ -361,7 +361,7 @@ async fn listen_blocks(queue: Rsmq) -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
-    let mut queue_client = queue::init().await;
+    let queue_client = queue::init().await;
     check_last_launch().await;
     listen_blocks(queue_client).await
 }

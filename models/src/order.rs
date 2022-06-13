@@ -219,7 +219,7 @@ pub fn list_orders(filter: OrderFilter) -> Result<Vec<OrderInfoPO>> {
     Ok(orders)
 }
 
-pub fn delete_orders(filter: OrderFilter) {
+pub fn delete_orders(_filter: OrderFilter) {
     todo!()
 }
 
